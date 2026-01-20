@@ -7,10 +7,10 @@ import RefundForm from './RefundForm';
 import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, Receipt, ArrowRightLeft, TrendingDown, History, Info as InfoIcon, AlertCircle, Clock } from 'lucide-react';
 
 interface CreditListProps {
-  credits: Credit[];
-  commitments: Commitment[];
-  refunds: Refund[];
-  cancellations: Cancellation[];
+  creditos: Credit[];
+  empenhos: Commitment[];
+  recolhimentos: Refund[];
+  anulacoes_empenho: Cancellation[];
   filters: Filters;
   setFilters: (f: Filters) => void;
   onAddCredit: (c: Credit) => void;
@@ -21,7 +21,7 @@ interface CreditListProps {
 }
 
 const CreditList: React.FC<CreditListProps> = ({ 
-  credits, commitments, refunds, cancellations, filters, setFilters, 
+  creditos, empenhos, recolhimentos, anulacoes_empenho, filters, setFilters, 
   onAddCredit, onUpdateCredit, onDeleteCredit, onAddRefund, userRole 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,15 +36,15 @@ const CreditList: React.FC<CreditListProps> = ({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const getIndividualNCBalance = (credit: Credit) => {
-    const totalSpent = commitments.reduce((acc, com) => {
+    const totalSpent = empenhos.reduce((acc, com) => {
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
       return acc + (alloc ? alloc.value : 0);
     }, 0);
 
-    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
+    const totalRefunded = recolhimentos.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
     
-    const totalCancelled = cancellations.reduce((acc, can) => {
-      const com = commitments.find(c => c.id === can.commitmentId);
+    const totalCancelled = anulacoes_empenho.reduce((acc, can) => {
+      const com = empenhos.find(c => c.id === can.commitmentId);
       if (!com) return acc;
       
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
@@ -66,8 +66,8 @@ const CreditList: React.FC<CreditListProps> = ({
     return { percentage, daysLeft, balance };
   };
 
-  const filteredCredits = useMemo(() => {
-    return credits.filter(c => {
+  const filteredcreditos = useMemo(() => {
+    return creditos.filter(c => {
       const matchSearch = c.nc.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           c.pi.toLowerCase().includes(searchTerm.toLowerCase());
@@ -77,7 +77,7 @@ const CreditList: React.FC<CreditListProps> = ({
       const matchSection = !filters.section || c.section === filters.section;
       return matchSearch && matchUg && matchPi && matchNd && matchSection;
     });
-  }, [credits, searchTerm, filters]);
+  }, [creditos, searchTerm, filters]);
 
   const handleEdit = (credit: Credit) => {
     if (!canEdit) return;
@@ -87,20 +87,20 @@ const CreditList: React.FC<CreditListProps> = ({
 
   if (showCreditForm) {
     return (
-      <CreditForm onSave={(c) => { if (editingCredit) onUpdateCredit(c); else onAddCredit(c); setShowCreditForm(false); setEditingCredit(null); }} existingCredits={credits} onCancel={() => { setShowCreditForm(false); setEditingCredit(null); }} initialData={editingCredit || undefined} />
+      <CreditForm onSave={(c) => { if (editingCredit) onUpdateCredit(c); else onAddCredit(c); setShowCreditForm(false); setEditingCredit(null); }} existingcreditos={creditos} onCancel={() => { setShowCreditForm(false); setEditingCredit(null); }} initialData={editingCredit || undefined} />
     );
   }
 
   if (showRefundForm) {
     return (
-      <RefundForm credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onSave={(r) => { onAddRefund(r); setShowRefundForm(false); }} onCancel={() => setShowRefundForm(false)} />
+      <RefundForm creditos={creditos} empenhos={empenhos} recolhimentos={recolhimentos} anulacoes_empenho={anulacoes_empenho} onSave={(r) => { onAddRefund(r); setShowRefundForm(false); }} onCancel={() => setShowRefundForm(false)} />
     );
   }
 
-  const selectedDetailCredit = credits.find(c => c.id === detailCreditId);
-  const creditRefunds = selectedDetailCredit ? refunds.filter(r => r.creditId === selectedDetailCredit.id) : [];
+  const selectedDetailCredit = creditos.find(c => c.id === detailCreditId);
+  const creditrecolhimentos = selectedDetailCredit ? recolhimentos.filter(r => r.creditId === selectedDetailCredit.id) : [];
   
-  const creditAllocations = selectedDetailCredit ? commitments.flatMap(com => {
+  const creditAllocations = selectedDetailCredit ? empenhos.flatMap(com => {
     const alloc = com.allocations?.find(a => a.creditId === selectedDetailCredit.id);
     return alloc ? [{ ne: com.ne, value: alloc.value, date: com.date, id: com.id }] : [];
   }) : [];
@@ -124,7 +124,7 @@ const CreditList: React.FC<CreditListProps> = ({
         </div>
       </div>
 
-      <FilterBar filters={filters} setFilters={setFilters} credits={credits} />
+      <FilterBar filters={filters} setFilters={setFilters} creditos={creditos} />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-left">
@@ -138,7 +138,7 @@ const CreditList: React.FC<CreditListProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-sans">
-            {filteredCredits.map((credit) => {
+            {filteredcreditos.map((credit) => {
               const info = getExecutionInfo(credit);
               return (
                 <tr key={credit.id} className="hover:bg-slate-50 transition-colors group">
@@ -240,7 +240,7 @@ const CreditList: React.FC<CreditListProps> = ({
                      </div>
                    ))}
 
-                   {creditRefunds.map(ref => (
+                   {creditrecolhimentos.map(ref => (
                      <div key={ref.id} className="relative flex items-center gap-4">
                         <div className="absolute -left-8 w-6 h-6 rounded-full bg-amber-400 border-4 border-white shadow-sm"></div>
                         <div className="flex-1 bg-amber-50 p-3 rounded-xl border border-amber-100 flex justify-between items-center">
