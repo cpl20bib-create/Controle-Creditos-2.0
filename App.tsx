@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, usuarios, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType } from './types';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Usuarios, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Credito, Empenho, Recolhimento, Cancelamento, Filters, Usuarios, AuditLog, ActionType, EntityType } from './types';
 import { INITIAL_creditos, INITIAL_empenhos } from './constants';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
@@ -16,19 +16,19 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'creditos' | 'empenhos' | 'reports' | 'usuarios' | 'history'>('dashboard');
   
-  const [creditos, setcreditos] = useState<Credit[]>(() => {
+  const [creditos, setcreditos] = useState<Credito[]>(() => {
     const saved = localStorage.getItem('budget_creditos');
     return saved ? JSON.parse(saved) : INITIAL_creditos;
   });
-  const [empenhos, setempenhos] = useState<Commitment[]>(() => {
+  const [empenhos, setempenhos] = useState<Empenho[]>(() => {
     const saved = localStorage.getItem('budget_empenhos');
     return saved ? JSON.parse(saved) : INITIAL_empenhos;
   });
-  const [recolhimentos, setrecolhimentos] = useState<Refund[]>(() => {
+  const [recolhimentos, setrecolhimentos] = useState<Recolhimento[]>(() => {
     const saved = localStorage.getItem('budget_recolhimentos');
     return saved ? JSON.parse(saved) : [];
   });
-  const [anulacoes_empenho, setanulacoes_empenho] = useState<Cancellation[]>(() => {
+  const [anulacoes_empenho, setanulacoes_empenho] = useState<Cancelamento[]>(() => {
     const saved = localStorage.getItem('budget_anulacoes_empenho');
     return saved ? JSON.parse(saved) : [];
   });
