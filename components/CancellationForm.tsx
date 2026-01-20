@@ -5,14 +5,14 @@ import { Save, AlertCircle, RefreshCw, ArrowLeft, Landmark, PieChart, FileText, 
 import { UGS } from '../constants';
 
 interface CancellationFormProps {
-  credits: Credit[];
-  commitments: Commitment[];
-  cancellations: Cancellation[];
+  creditos: Credit[];
+  empenhos: Commitment[];
+  anulacoes_empenho: Cancellation[];
   onSave: (cancellation: Cancellation) => void;
   onCancel: () => void;
 }
 
-const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitments, cancellations, onSave, onCancel }) => {
+const CancellationForm: React.FC<CancellationFormProps> = ({ creditos, empenhos, anulacoes_empenho, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     ug: '' as UG | '',
     pi: '',
@@ -27,29 +27,29 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
 
   const piOptions = useMemo(() => {
     if (!formData.ug) return [];
-    const groupCredits = credits.filter(c => c.ug === formData.ug);
-    return Array.from(new Set(groupCredits.map(c => c.pi))).sort();
-  }, [formData.ug, credits]);
+    const groupcreditos = creditos.filter(c => c.ug === formData.ug);
+    return Array.from(new Set(groupcreditos.map(c => c.pi))).sort();
+  }, [formData.ug, creditos]);
 
-  const filteredCommitments = useMemo(() => {
+  const filteredempenhos = useMemo(() => {
     if (!formData.ug || !formData.pi) return [];
-    return commitments.filter(com => {
-      const credit = credits.find(c => c.id === com.creditId);
+    return empenhos.filter(com => {
+      const credit = creditos.find(c => c.id === com.creditId);
       return credit?.ug === formData.ug && credit?.pi === formData.pi;
     });
-  }, [formData.ug, formData.pi, commitments, credits]);
+  }, [formData.ug, formData.pi, empenhos, creditos]);
 
   useEffect(() => { setFormData(prev => ({ ...prev, pi: '', commitmentId: '', value: 0 })); }, [formData.ug]);
   useEffect(() => { setFormData(prev => ({ ...prev, commitmentId: '', value: 0 })); }, [formData.pi]);
 
   const maxCancellableValue = useMemo(() => {
-    const com = commitments.find(c => c.id === formData.commitmentId);
+    const com = empenhos.find(c => c.id === formData.commitmentId);
     if (!com) return 0;
-    const alreadyCancelled = cancellations
+    const alreadyCancelled = anulacoes_empenho
       .filter(can => can.commitmentId === com.id)
       .reduce((acc, curr) => acc + curr.value, 0);
     return com.value - alreadyCancelled;
-  }, [formData.commitmentId, commitments, cancellations]);
+  }, [formData.commitmentId, empenhos, anulacoes_empenho]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,7 +105,7 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><FileText size={10} /> Empenho para Anular (NE)</label>
             <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black disabled:opacity-50" value={formData.commitmentId} onChange={e => setFormData({...formData, commitmentId: e.target.value})} disabled={!formData.pi}>
               <option value="">{!formData.pi ? 'Aguardando PI...' : 'Selecione a NE...'}</option>
-              {filteredCommitments.map(com => (
+              {filteredempenhos.map(com => (
                 <option key={com.id} value={com.id}>{com.ne} - R$ {com.value.toLocaleString('pt-BR')}</option>
               ))}
             </select>
