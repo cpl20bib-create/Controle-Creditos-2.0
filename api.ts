@@ -19,11 +19,11 @@ export const api = {
 
     try {
       const [
-        { data: credits, error: errCredits },
-        { data: commitments, error: errCommitments },
-        { data: refunds, error: errRefunds },
-        { data: cancellations, error: errCancellations },
-        { data: users, error: errUsers },
+        { data: creditos, error: errcreditos },
+        { data: empenhos, error: errempenhos },
+        { data: recolhimentos, error: errrecolhimentos },
+        { data: anulacoes_empenho, error: erranulacoes_empenho },
+        { data: usuarios, error: errusuarios },
         { data: auditLogs, error: errLogs }
       ] = await Promise.all([
         supabase.from('creditos').select('*'),
@@ -36,17 +36,17 @@ export const api = {
       ]);
 
       // Se houver qualquer erro crítico de dotação, tratamos como falha de sincronização
-      if (errCredits || errCommitments || errUsers) {
-        console.error('Erro na resposta do Supabase:', { errCredits, errCommitments });
+      if (errcreditos || errempenhos || errusuarios) {
+        console.error('Erro na resposta do Supabase:', { errcreditos, errempenhos });
         return null;
       }
 
       return {
-        credits: credits || [],
-        commitments: commitments || [],
-        refunds: refunds || [],
-        cancellations: cancellations || [],
-        users: users || [],
+        creditos: creditos || [],
+        empenhos: empenhos || [],
+        recolhimentos: recolhimentos || [],
+        anulacoes_empenho: anulacoes_empenho || [],
+        usuarios: usuarios || [],
         auditLogs: auditLogs || []
       };
     } catch (error) {
