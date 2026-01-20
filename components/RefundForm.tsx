@@ -5,15 +5,15 @@ import { Save, AlertCircle, RefreshCw, ArrowLeft, Landmark, PieChart } from 'luc
 import { UGS } from '../constants';
 
 interface RefundFormProps {
-  credits: Credit[];
-  commitments: Commitment[];
-  refunds: Refund[];
-  cancellations: Cancellation[];
+  creditos: Credit[];
+  empenhos: Commitment[];
+  recolhimentos: Refund[];
+  anulacoes_empenho: Cancellation[];
   onSave: (refund: Refund) => void;
   onCancel: () => void;
 }
 
-const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, cancellations, onSave, onCancel }) => {
+const RefundForm: React.FC<RefundFormProps> = ({ creditos, empenhos, recolhimentos, anulacoes_empenho, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     ug: '' as UG | '',
     pi: '',
@@ -27,15 +27,15 @@ const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, 
 
   // Helper para calcular saldo preciso de uma NC individual
   const calculateNCBalance = (credit: Credit) => {
-    const totalSpent = commitments.reduce((acc, com) => {
+    const totalSpent = empenhos.reduce((acc, com) => {
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
       return acc + (alloc ? alloc.value : 0);
     }, 0);
 
-    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
+    const totalRefunded = recolhimentos.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
     
-    const totalCancelled = cancellations.reduce((acc, can) => {
-      const com = commitments.find(c => c.id === can.commitmentId);
+    const totalCancelled = anulacoes_empenho.reduce((acc, can) => {
+      const com = empenhos.find(c => c.id === can.commitmentId);
       if (!com) return acc;
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
       if (!alloc) return acc;
@@ -50,25 +50,25 @@ const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, 
     if (!formData.ug) return [];
     
     // Filtra PIs que possuem pelo menos uma NC com saldo >= 0.01
-    const pisWithBalance = credits
+    const pisWithBalance = creditos
       .filter(c => c.ug === formData.ug)
       .filter(c => calculateNCBalance(c) >= 0.01)
       .map(c => c.pi);
 
     return Array.from(new Set(pisWithBalance)).sort();
-  }, [formData.ug, credits, commitments, refunds, cancellations]);
+  }, [formData.ug, creditos, empenhos, recolhimentos, anulacoes_empenho]);
 
   // NCs filtradas por dotação E COM SALDO DISPONÍVEL (Ajustado para >= 0.01)
-  const filteredCredits = useMemo(() => {
+  const filteredcreditos = useMemo(() => {
     if (!formData.ug || !formData.pi) return [];
-    return credits
+    return creditos
       .filter(c => c.ug === formData.ug && c.pi === formData.pi)
       .map(c => ({
         ...c,
         available: calculateNCBalance(c)
       }))
       .filter(c => c.available >= 0.01); 
-  }, [formData.ug, formData.pi, credits, commitments, refunds, cancellations]);
+  }, [formData.ug, formData.pi, creditos, empenhos, recolhimentos, anulacoes_empenho]);
 
   useEffect(() => {
     setFormData(prev => ({ ...prev, pi: '', creditId: '', value: 0 }));
@@ -79,9 +79,9 @@ const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, 
   }, [formData.pi]);
 
   const availableBalance = useMemo(() => {
-    const selected = filteredCredits.find(c => c.id === formData.creditId);
+    const selected = filteredcreditos.find(c => c.id === formData.creditId);
     return selected ? selected.available : 0;
-  }, [formData.creditId, filteredCredits]);
+  }, [formData.creditId, filteredcreditos]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,8 +165,8 @@ const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, 
               onChange={e => setFormData({...formData, creditId: e.target.value})}
               disabled={!formData.pi}
             >
-              <option value="">{!formData.pi ? 'Aguardando PI...' : filteredCredits.length === 0 ? 'Nenhuma NC com saldo disponível' : 'Selecione a Nota de Crédito...'}</option>
-              {filteredCredits.map(c => (
+              <option value="">{!formData.pi ? 'Aguardando PI...' : filteredcreditos.length === 0 ? 'Nenhuma NC com saldo disponível' : 'Selecione a Nota de Crédito...'}</option>
+              {filteredcreditos.map(c => (
                 <option key={c.id} value={c.id}>
                   {c.nc} - SALDO: R$ {c.available.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </option>
@@ -186,7 +186,7 @@ const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, 
                 <div className="text-right">
                   <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">Seção Destino</p>
                   <p className="text-xs font-black text-amber-800 uppercase italic">
-                    {credits.find(c => c.id === formData.creditId)?.section}
+                    {creditos.find(c => c.id === formData.creditId)?.section}
                   </p>
                 </div>
               </div>
