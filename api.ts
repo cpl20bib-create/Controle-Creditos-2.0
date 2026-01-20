@@ -31,6 +31,7 @@ export const api = {
         supabase.from('recolhimentos').select('*'),
         supabase.from('cancelamentos').select('*'),
         supabase.from('usuarios').select('*'),
+        supabase.from('anulacoes_empenho').select('*'),
         supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(100)
       ]);
 
