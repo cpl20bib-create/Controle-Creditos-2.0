@@ -1,266 +1,167 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  LayoutDashboard,
-  ReceiptText,
-  Landmark,
-  FilePieChart,
-  Menu,
-  X,
-  TrendingDown,
-  Users,
-  LogOut,
-  History,
-  Wifi,
-  WifiOff
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import Dashboard from "./components/Dashboard";
+import Reports from "./components/Reports";
+import { api } from "./api";
 
-import {
+import type {
   Credit,
   Commitment,
   Refund,
   Cancellation,
-  Filters,
-  User,
-  AuditLog,
-  ActionType,
-  EntityType
-} from './types';
+} from "./types";
 
-import { INITIAL_CREDITS, INITIAL_COMMITMENTS } from './constants';
+export default function App() {
+  // -------------------------
+  // ESTADOS PRINCIPAIS
+  // -------------------------
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [refunds, setRefunds] = useState<Refund[]>([]);
+  const [cancellations, setCancellations] = useState<Cancellation[]>([]);
 
-import Dashboard from './components/Dashboard';
-import CreditList from './components/CreditList';
-import CommitmentList from './components/CommitmentList';
-import Reports from './components/Reports';
-import Login from './components/Login';
-import UserManagement from './components/UserManagement';
-import AuditHistory from './components/AuditHistory';
+  const [activeTab, setActiveTab] = useState<"dashboard" | "reports">(
+    "dashboard"
+  );
 
-import { api } from './api';
+  const [isLoading, setIsLoading] = useState(true);
 
-const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] =
-    useState<'dashboard' | 'credits' | 'commitments' | 'reports' | 'users' | 'history'>('dashboard');
-
-  const [credits, setCredits] = useState<Credit[]>(() => {
-    const saved = localStorage.getItem('budget_credits');
-    return saved ? JSON.parse(saved) : INITIAL_CREDITS;
-  });
-
-  const [commitments, setCommitments] = useState<Commitment[]>(() => {
-    const saved = localStorage.getItem('budget_commitments');
-    return saved ? JSON.parse(saved) : INITIAL_COMMITMENTS;
-  });
-
-  const [refunds, setRefunds] = useState<Refund[]>(() => {
-    const saved = localStorage.getItem('budget_refunds');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [cancellations, setCancellations] = useState<Cancellation[]>(() => {
-    const saved = localStorage.getItem('budget_cancellations');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('budget_users');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem('budget_logs');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [filters, setFilters] = useState<Filters>({});
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isOnline, setIsOnline] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  /* =========================
-     Persistência Offline
-     ========================= */
+  // -------------------------
+  // SINCRONIZAÇÃO INICIAL
+  // -------------------------
   useEffect(() => {
-    localStorage.setItem('budget_credits', JSON.stringify(credits));
-    localStorage.setItem('budget_commitments', JSON.stringify(commitments));
-    localStorage.setItem('budget_refunds', JSON.stringify(refunds));
-    localStorage.setItem('budget_cancellations', JSON.stringify(cancellations));
-    localStorage.setItem('budget_users', JSON.stringify(users));
-    localStorage.setItem('budget_logs', JSON.stringify(auditLogs));
-  }, [credits, commitments, refunds, cancellations, users, auditLogs]);
+    let mounted = true;
 
-  useEffect(() => {
-    const savedSession = localStorage.getItem('budget_session');
-    if (savedSession) setCurrentUser(JSON.parse(savedSession));
+    async function loadData() {
+      try {
+        const state = await api.getFullState();
+
+        if (!mounted || !state) return;
+
+        setCredits(Array.isArray(state.credits) ? state.credits : []);
+        setCommitments(
+          Array.isArray(state.commitments) ? state.commitments : []
+        );
+        setRefunds(Array.isArray(state.refunds) ? state.refunds : []);
+        setCancellations(
+          Array.isArray(state.cancellations) ? state.cancellations : []
+        );
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  /* =========================
-     🔧 SINCRONIZAÇÃO CORRIGIDA
-     ========================= */
-  const syncWithServer = useCallback(async () => {
-    if (isSyncing) return;
-
-    setIsSyncing(true);
-    try {
-      const state = await api.getFullState();
-
-      if (state) {
-        setCredits(state.credits ?? []);
-        setCommitments(state.commitments ?? []);
-        setRefunds(state.refunds ?? []);
-        setCancellations(state.cancellations ?? []);
-        setUsers(state.users ?? []);
-        setAuditLogs(state.auditLogs ?? []);
-        setIsOnline(true);
-      } else {
-        setIsOnline(false);
-      }
-    } catch {
-      setIsOnline(false);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isSyncing]);
-
-  useEffect(() => {
-    syncWithServer();
-    const interval = setInterval(syncWithServer, 60000);
-    return () => clearInterval(interval);
-  }, [syncWithServer]);
-
-  /* =========================
-     Auditoria
-     ========================= */
-  const addLog = useCallback(
-    async (action: ActionType, entityType: EntityType, entityId: string, description: string) => {
-      if (!currentUser) return;
-
-      const newLog: AuditLog = {
-        id: Math.random().toString(36).substr(2, 9),
-        userId: currentUser.id,
-        userName: currentUser.name,
-        action,
-        entityType,
-        entityId,
-        description,
-        timestamp: new Date().toISOString()
-      };
-
-      setAuditLogs(prev => [newLog, ...prev]);
-      api.addLog(newLog);
-    },
-    [currentUser]
+  // -------------------------
+  // BLINDAGEM ABSOLUTA
+  // -------------------------
+  const safeCredits = useMemo(
+    () => (Array.isArray(credits) ? credits : []),
+    [credits]
   );
 
-  /* =========================
-     Auth
-     ========================= */
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-    localStorage.setItem('budget_session', JSON.stringify(user));
-  };
+  const safeCommitments = useMemo(
+    () => (Array.isArray(commitments) ? commitments : []),
+    [commitments]
+  );
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('budget_session');
-  };
+  const safeRefunds = useMemo(
+    () => (Array.isArray(refunds) ? refunds : []),
+    [refunds]
+  );
 
-  /* =========================
-     Créditos
-     ========================= */
-  const handleAddCredit = async (newCredit: Credit) => {
-    setCredits(prev => [...prev, newCredit]);
-    const success = await api.upsert('credits', newCredit);
-    setIsOnline(success);
-    addLog('CREATE', 'CRÉDITO', newCredit.id, `Lançamento de crédito NC ${newCredit.nc}`);
-  };
+  const safeCancellations = useMemo(
+    () => (Array.isArray(cancellations) ? cancellations : []),
+    [cancellations]
+  );
 
-  const handleUpdateCredit = async (updated: Credit) => {
-    setCredits(prev => prev.map(c => (c.id === updated.id ? updated : c)));
-    const success = await api.upsert('credits', updated);
-    setIsOnline(success);
-    addLog('UPDATE', 'CRÉDITO', updated.id, `Alteração no crédito NC ${updated.nc}`);
-  };
-
-  const handleDeleteCredit = async (id: string) => {
-    const credit = credits.find(c => c.id === id);
-    if (credit && window.confirm('Excluir este crédito?')) {
-      setCredits(prev => prev.filter(c => c.id !== id));
-      const success = await api.delete('credits', id);
-      setIsOnline(success);
-      addLog('DELETE', 'CRÉDITO', id, `Exclusão do crédito NC ${credit.nc}`);
-    }
-  };
-
-  /* =========================
-     Empenhos
-     ========================= */
-  const handleAddCommitment = async (newCom: Commitment) => {
-    setCommitments(prev => [...prev, newCom]);
-    const success = await api.upsert('commitments', newCom);
-    setIsOnline(success);
-    addLog('CREATE', 'EMPENHO', newCom.id, `Lançamento de empenho NE ${newCom.ne}`);
-  };
-
-  const handleUpdateCommitment = async (updated: Commitment) => {
-    setCommitments(prev => prev.map(c => (c.id === updated.id ? updated : c)));
-    const success = await api.upsert('commitments', updated);
-    setIsOnline(success);
-    addLog('UPDATE', 'EMPENHO', updated.id, `Alteração no empenho NE ${updated.ne}`);
-  };
-
-  const handleDeleteCommitment = async (id: string) => {
-    const com = commitments.find(c => c.id === id);
-    if (com && window.confirm('Excluir este empenho?')) {
-      setCommitments(prev => prev.filter(c => c.id !== id));
-      const success = await api.delete('commitments', id);
-      setIsOnline(success);
-      addLog('DELETE', 'EMPENHO', id, `Exclusão do empenho NE ${com.ne}`);
-    }
-  };
-
-  /* =========================
-     Recolhimentos / Anulações
-     ========================= */
-  const handleAddRefund = async (newRefund: Refund) => {
-    setRefunds(prev => [...prev, newRefund]);
-    const success = await api.upsert('refunds', newRefund);
-    setIsOnline(success);
-    const credit = credits.find(c => c.id === newRefund.creditId);
-    addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento para NC ${credit?.nc || '?'}`);
-  };
-
-  const handleAddCancellation = async (newCan: Cancellation) => {
-    setCancellations(prev => [...prev, newCan]);
-    const success = await api.upsert('cancellations', newCan);
-    setIsOnline(success);
-    const com = commitments.find(c => c.id === newCan.commitmentId);
-    addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação RO para NE ${com?.ne || '?'}`);
-  };
-
-  /* =========================
-     Usuários
-     ========================= */
-  const handleUpdateUsers = async (nextUsers: User[]) => {
-    setUsers(nextUsers);
-    for (const user of nextUsers) {
-      await api.upsert('users', user);
-    }
-  };
-
-  if (!currentUser) {
-    return <Login users={users} setUsers={handleUpdateUsers} onLogin={handleLogin} />;
+  // -------------------------
+  // LOADING SCREEN
+  // -------------------------
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="text-center space-y-4">
+          <div className="text-emerald-600 text-sm font-black uppercase tracking-widest">
+            Carregando dados…
+          </div>
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+            Sincronizando com Supabase
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  /* =========================
-     UI
-     ========================= */
+  // -------------------------
+  // RENDER PRINCIPAL
+  // -------------------------
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-black">
-      {/* O restante do JSX permanece EXATAMENTE igual ao seu código original */}
+    <div className="min-h-screen bg-slate-100">
+      {/* HEADER */}
+      <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center">
+        <h1 className="text-lg font-bold text-slate-800">
+          Sistema de Créditos
+        </h1>
+
+        <nav className="flex gap-2">
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            className={`px-4 py-2 rounded text-sm font-semibold ${
+              activeTab === "dashboard"
+                ? "bg-emerald-600 text-white"
+                : "bg-slate-200 text-slate-700"
+            }`}
+          >
+            Dashboard
+          </button>
+
+          <button
+            onClick={() => setActiveTab("reports")}
+            className={`px-4 py-2 rounded text-sm font-semibold ${
+              activeTab === "reports"
+                ? "bg-emerald-600 text-white"
+                : "bg-slate-200 text-slate-700"
+            }`}
+          >
+            Relatórios
+          </button>
+        </nav>
+      </header>
+
+      {/* CONTEÚDO */}
+      <main className="p-6">
+        {activeTab === "dashboard" && (
+          <Dashboard
+            credits={safeCredits}
+            commitments={safeCommitments}
+            refunds={safeRefunds}
+            cancellations={safeCancellations}
+            onAddCredit={async (credit) => {
+              const saved = await api.addCredit(credit);
+              if (saved) {
+                setCredits((prev) => [...prev, saved]);
+              }
+            }}
+          />
+        )}
+
+        {activeTab === "reports" && (
+          <Reports
+            credits={safeCredits}
+            commitments={safeCommitments}
+            refunds={safeRefunds}
+            cancellations={safeCancellations}
+          />
+        )}
+      </main>
     </div>
   );
-};
-
-export default App;
+}
