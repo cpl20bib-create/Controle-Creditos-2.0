@@ -1,30 +1,30 @@
 
 import React, { useState, useMemo } from 'react';
-import { Credit, Commitment, Refund, Cancellation, Filters, UserRole } from '../types';
+import { Credit, empenhos, Refund, anulacoes_empenho, Filters, UserRole } from '../types';
 import FilterBar from './FilterBar';
-import CommitmentForm from './CommitmentForm';
-import CancellationForm from './CancellationForm';
+import empenhosForm from './empenhosForm';
+import anulacoes_empenhoForm from './anulacoes_empenhoForm';
 import { Search, Calendar, PlusCircle, Edit3, Trash2, FileText, TrendingDown, RefreshCcw, Info } from 'lucide-react';
 
-interface CommitmentListProps {
-  credits: Credit[];
-  commitments: Commitment[];
-  refunds: Refund[];
-  cancellations: Cancellation[];
-  onAdd: (c: Commitment) => void;
-  onUpdate: (c: Commitment) => void;
+interface empenhosListProps {
+  creditos: Credit[];
+  empenhoss: empenhos[];
+  recolhimentos: Refund[];
+  anulacoes_empenhos: anulacoes_empenho[];
+  onAdd: (c: empenhos) => void;
+  onUpdate: (c: empenhos) => void;
   onDelete: (id: string) => void;
-  onAddCancellation: (can: Cancellation) => void;
+  onAddanulacoes_empenho: (can: anulacoes_empenho) => void;
   userRole: UserRole;
 }
 
-const CommitmentList: React.FC<CommitmentListProps> = ({ 
-  credits, commitments, refunds, cancellations, 
-  onAdd, onUpdate, onDelete, onAddCancellation, userRole 
+const empenhosList: React.FC<empenhosListProps> = ({ 
+  creditos, empenhoss, recolhimentos, anulacoes_empenhos, 
+  onAdd, onUpdate, onDelete, onAddanulacoes_empenho, userRole 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'list' | 'add' | 'cancel'>('list');
-  const [editingItem, setEditingItem] = useState<Commitment | null>(null);
+  const [editingItem, setEditingItem] = useState<empenhos | null>(null);
   const [filters, setFilters] = useState<Filters>({});
 
   const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR';
@@ -33,16 +33,16 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const filteredItems = useMemo(() => {
-    return commitments.filter(item => {
+    return empenhoss.filter(item => {
       // Para busca, verificamos se a busca bate em qualquer NC vinculada
-      const linkedNCs = item.allocations?.map(a => credits.find(c => c.id === a.creditId)?.nc || '') || [];
+      const linkedNCs = item.allocations?.map(a => creditos.find(c => c.id === a.creditId)?.nc || '') || [];
       
       const matchSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.ne.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           linkedNCs.some(nc => nc.toLowerCase().includes(searchTerm.toLowerCase()));
       
       // Para filtros de UG/PI/ND, verificamos a primeira alocação (que define o grupo)
-      const firstCredit = item.allocations?.length > 0 ? credits.find(c => c.id === item.allocations[0].creditId) : null;
+      const firstCredit = item.allocations?.length > 0 ? creditos.find(c => c.id === item.allocations[0].creditId) : null;
       if (!firstCredit && filters.ug) return false;
 
       const matchUg = !filters.ug || firstCredit?.ug === filters.ug;
@@ -52,15 +52,15 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
 
       return matchSearch && matchUg && matchPi && matchNd && matchSection;
     });
-  }, [commitments, credits, searchTerm, filters]);
+  }, [empenhoss, creditos, searchTerm, filters]);
 
   if (activeView === 'add') {
     return (
-      <CommitmentForm 
-        credits={credits}
-        commitments={commitments}
-        refunds={refunds}
-        cancellations={cancellations}
+      <empenhosForm 
+        creditos={creditos}
+        empenhoss={empenhoss}
+        recolhimentos={recolhimentos}
+        anulacoes_empenhos={anulacoes_empenhos}
         onSave={(c) => {
           if (editingItem) onUpdate(c);
           else onAdd(c);
@@ -78,12 +78,12 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
 
   if (activeView === 'cancel') {
     return (
-      <CancellationForm 
-        credits={credits}
-        commitments={commitments}
-        cancellations={cancellations}
+      <anulacoes_empenhoForm 
+        creditos={creditos}
+        empenhoss={empenhoss}
+        anulacoes_empenhos={anulacoes_empenhos}
         onSave={(can) => {
-          onAddCancellation(can);
+          onAddanulacoes_empenho(can);
           setActiveView('list');
         }}
         onCancel={() => setActiveView('list')}
@@ -110,7 +110,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
         </div>
       </div>
 
-      <FilterBar filters={filters} setFilters={setFilters} credits={credits} />
+      <FilterBar filters={filters} setFilters={setFilters} creditos={creditos} />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-left">
@@ -125,7 +125,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
           </thead>
           <tbody className="divide-y divide-slate-100 font-sans">
             {filteredItems.length > 0 ? filteredItems.map((item) => {
-              const cancelledValue = cancellations.filter(can => can.commitmentId === item.id).reduce((acc, curr) => acc + curr.value, 0);
+              const cancelledValue = anulacoes_empenhos.filter(can => can.empenhosId === item.id).reduce((acc, curr) => acc + curr.value, 0);
               const currentBalance = item.value - cancelledValue;
               
               return (
@@ -137,7 +137,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {item.allocations?.map(a => {
-                        const nc = credits.find(c => c.id === a.creditId);
+                        const nc = creditos.find(c => c.id === a.creditId);
                         return (
                           <div key={a.creditId} className="bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
                             <span className="text-[9px] font-black text-emerald-800 italic block leading-none">{nc?.nc || 'Desconhecida'}</span>
@@ -171,4 +171,4 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
   );
 };
 
-export default CommitmentList;
+export default empenhosList;
