@@ -32,7 +32,7 @@ export const api = {
         supabase.from('cancelamentos').select('*'),
         supabase.from('usuarios').select('*'),
         supabase.from('anulacoes_empenho').select('*'),
-        supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(100)
+        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100)
       ]);
 
       // Se houver qualquer erro crítico de dotação, tratamos como falha de sincronização
