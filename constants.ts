@@ -17,7 +17,7 @@ export const SECTION_OPTIONS = [
   'SFPC'
 ];
 
-export const INITIAL_CREDITS: Credit[] = [
+export const INITIAL_creditos: Credit[] = [
   {
     id: '1',
     ug: '160211',
@@ -33,4 +33,4 @@ export const INITIAL_CREDITS: Credit[] = [
   }
 ];
 
-export const INITIAL_COMMITMENTS: Commitment[] = [];
+export const INITIAL_empenhos: Commitment[] = [];
