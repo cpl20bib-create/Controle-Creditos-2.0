@@ -55,7 +55,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const totalAvailable = netReceived - totalCommittedNet;
     const executionPercentage = netReceived > 0 ? (totalCommittedNet / netReceived) * 100 : 0;
 
-    // Identificar Alertas Críticos - AGORA CONSIDERA SALDO >= 0.01
+    // Identificar Alertas Críticos - CONSIDERA SALDO >= 0.01
     const criticalAlerts = filteredCredits.map(c => {
       const spent = commitments.reduce((acc, com) => {
         const alloc = com.allocations?.find(a => a.creditId === c.id);
@@ -77,7 +77,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       
       return { ...c, balance, daysToDeadline };
     }).filter(c => {
-      // Condição: Prazo curto ou Saldo baixo, mas SEMPRE com saldo >= 0.01
       const hasBalance = c.balance >= 0.01;
       const isUrgent = c.daysToDeadline <= 15;
       const isLowBalance = c.balance < (c.valueReceived * 0.05);
@@ -85,13 +84,14 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       return hasBalance && (isUrgent || isLowBalance);
     });
 
-    // Gráfico por Seção
+    // Gráfico por Seção (Respeita filtros de UG/PI/ND mas NÃO o de seção para mostrar o comparativo)
     const sectionAvailableMap: Record<string, number> = {};
     credits.forEach(c => {
       if (filters.ug && c.ug !== filters.ug) return;
+      if (filters.pi && c.pi !== filters.pi) return;
+      if (filters.nd && c.nd !== filters.nd) return;
       
       const spent = commitments.reduce((acc, com) => {
-        // Removed unused 'alloc' line that contained the "Cannot find name 'credit'" error.
         const allocItem = com.allocations?.find(a => a.creditId === c.id);
         return acc + (allocItem ? allocItem.value : 0);
       }, 0);
@@ -129,6 +129,18 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+  const handleBarClick = (data: any) => {
+    if (!data || !data.name) return;
+    
+    if (filters.section === data.name) {
+      // Se clicar na mesma seção, limpa o filtro
+      setFilters({ ...filters, section: undefined });
+    } else {
+      // Caso contrário, aplica o filtro da seção clicada
+      setFilters({ ...filters, section: data.name });
+    }
+  };
+
   const selectedDetailCredit = credits.find(c => c.id === detailCreditId);
   
   const getIndividualNCBalance = (credit: Credit) => {
@@ -146,12 +158,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     }, 0);
     return parseFloat((credit.valueReceived - totalSpent - refunded + cancelled).toFixed(2));
   };
-
-  const creditRefunds = selectedDetailCredit ? refunds.filter(r => r.creditId === selectedDetailCredit.id) : [];
-  const creditAllocations = selectedDetailCredit ? commitments.flatMap(com => {
-    const alloc = com.allocations?.find(a => a.creditId === selectedDetailCredit.id);
-    return alloc ? [{ ne: com.ne, value: alloc.value, date: com.date, id: com.id }] : [];
-  }) : [];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-black">
@@ -190,10 +196,15 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm h-[450px] flex flex-col">
-          <div className="mb-6">
+          <div className="mb-6 flex items-center justify-between">
             <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
               <TrendingDown size={14} className="text-emerald-600" /> Distribuição de Saldo por Seção
             </h4>
+            {filters.section && (
+              <span className="text-[8px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg uppercase animate-pulse">
+                Filtrando: {filters.section}
+              </span>
+            )}
           </div>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -201,11 +212,31 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 9, fontWeight: 900, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 'bold' }} formatter={(value: number) => formatCurrency(value)} />
-                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={20} fill="#10b981" />
+                <Tooltip 
+                  cursor={{ fill: '#f8fafc' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 'bold' }} 
+                  formatter={(value: number) => formatCurrency(value)} 
+                />
+                <Bar 
+                  dataKey="value" 
+                  radius={[0, 8, 8, 0]} 
+                  barSize={20}
+                  onClick={handleBarClick}
+                >
+                  {filteredData.barChartData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      className="cursor-pointer transition-all duration-300"
+                      fill={filters.section === entry.name ? '#064e3b' : '#10b981'}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <p className="mt-4 text-[8px] font-bold text-slate-400 uppercase italic text-center">
+            Dica: Clique em uma barra para isolar os dados da seção no Dashboard.
+          </p>
         </div>
 
         <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
@@ -288,7 +319,10 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                       </div>
                    </div>
                    
-                   {creditAllocations.map(alloc => (
+                   {credits.find(c => c.id === selectedDetailCredit.id) && commitments.flatMap(com => {
+                      const alloc = com.allocations?.find(a => a.creditId === selectedDetailCredit.id);
+                      return alloc ? [{ ne: com.ne, value: alloc.value, date: com.date, id: com.id }] : [];
+                   }).map(alloc => (
                      <div key={alloc.id} className="relative flex items-center gap-4">
                         <div className="absolute -left-8 w-6 h-6 rounded-full bg-red-400 border-4 border-white shadow-sm"></div>
                         <div className="flex-1 bg-white p-3 rounded-xl border border-red-50 flex justify-between items-center">
@@ -301,7 +335,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                      </div>
                    ))}
 
-                   {creditRefunds.map(ref => (
+                   {refunds.filter(r => r.creditId === selectedDetailCredit.id).map(ref => (
                      <div key={ref.id} className="relative flex items-center gap-4">
                         <div className="absolute -left-8 w-6 h-6 rounded-full bg-amber-400 border-4 border-white shadow-sm"></div>
                         <div className="flex-1 bg-amber-50 p-3 rounded-xl border border-amber-100 flex justify-between items-center">
