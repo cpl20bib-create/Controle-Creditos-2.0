@@ -1,5 +1,5 @@
 
-import { Credit, Commitment, UG } from './types';
+import { credito, empenho, UG } from './types';
 
 export const UGS: UG[] = ['160211', '167211'];
 
@@ -17,7 +17,7 @@ export const SECTION_OPTIONS = [
   'SFPC'
 ];
 
-export const INITIAL_creditos: Credit[] = [
+export const INITIAL_creditoos: credito[] = [
   {
     id: '1',
     ug: '160211',
@@ -33,4 +33,4 @@ export const INITIAL_creditos: Credit[] = [
   }
 ];
 
-export const INITIAL_empenhos: Commitment[] = [];
+export const INITIAL_empenhos: empenho[] = [];
