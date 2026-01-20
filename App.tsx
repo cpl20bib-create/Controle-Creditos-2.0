@@ -67,11 +67,11 @@ const App: React.FC = () => {
     try {
       const state = await api.getFullState();
       if (state) {
-        setCredits(state.credits);
-        setCommitments(state.commitments);
-        setRefunds(state.refunds);
-        setCancellations(state.cancellations);
-        setUsers(state.users);
+        setCredits(state.creditos);
+        setCommitments(state.empenhos);
+        setRefunds(state.recolhimentos);
+        setCancellations(state.anulacoes_empenhos);
+        setUsers(state.usuarios);
         setAuditLogs(state.auditLogs);
         setIsOnline(true);
       } else {
@@ -118,14 +118,14 @@ const App: React.FC = () => {
 
   const handleAddCredit = async (newCredit: Credit) => {
     setCredits(prev => [...prev, newCredit]);
-    const success = await api.upsert('credits', newCredit);
+    const success = await api.upsert('creditos', newCredit);
     setIsOnline(success);
     addLog('CREATE', 'CRÉDITO', newCredit.id, `Lançamento de crédito NC ${newCredit.nc}`);
   };
 
   const handleUpdateCredit = async (updated: Credit) => {
     setCredits(prev => prev.map(c => c.id === updated.id ? updated : c));
-    const success = await api.upsert('credits', updated);
+    const success = await api.upsert('creditos', updated);
     setIsOnline(success);
     addLog('UPDATE', 'CRÉDITO', updated.id, `Alteração no crédito NC ${updated.nc}`);
   };
@@ -142,14 +142,14 @@ const App: React.FC = () => {
 
   const handleAddCommitment = async (newCom: Commitment) => {
     setCommitments(prev => [...prev, newCom]);
-    const success = await api.upsert('commitments', newCom);
+    const success = await api.upsert('empenhos', newCom);
     setIsOnline(success);
     addLog('CREATE', 'EMPENHO', newCom.id, `Lançamento de empenho NE ${newCom.ne}`);
   };
 
   const handleUpdateCommitment = async (updated: Commitment) => {
     setCommitments(prev => prev.map(c => c.id === updated.id ? updated : c));
-    const success = await api.upsert('commitments', updated);
+    const success = await api.upsert('empenhos', updated);
     setIsOnline(success);
     addLog('UPDATE', 'EMPENHO', updated.id, `Alteração no empenho NE ${updated.ne}`);
   };
@@ -166,7 +166,7 @@ const App: React.FC = () => {
 
   const handleAddRefund = async (newRefund: Refund) => {
     setRefunds(prev => [...prev, newRefund]);
-    const success = await api.upsert('refunds', newRefund);
+    const success = await api.upsert('recolhimentos', newRefund);
     setIsOnline(success);
     const credit = credits.find(c => c.id === newRefund.creditId);
     addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento para NC ${credit?.nc || '?'}`);
@@ -174,7 +174,7 @@ const App: React.FC = () => {
 
   const handleAddCancellation = async (newCan: Cancellation) => {
     setCancellations(prev => [...prev, newCan]);
-    const success = await api.upsert('cancellations', newCan);
+    const success = await api.upsert('anulacoes_empenhos', newCan);
     setIsOnline(success);
     const com = commitments.find(c => c.id === newCan.commitmentId);
     addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação RO para NE ${com?.ne || '?'}`);
@@ -183,7 +183,7 @@ const App: React.FC = () => {
   const handleUpdateUsers = async (nextUsers: User[]) => {
     setUsers(nextUsers);
     for (const user of nextUsers) {
-      await api.upsert('users', user);
+      await api.upsert('usuarios', user);
     }
   };
 
