@@ -4,11 +4,11 @@ import { User, UserRole } from '../types';
 import { UserPlus, Trash2, Shield, Edit3, X, Save, ShieldAlert, ShieldCheck, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 
 interface UserManagementProps {
-  users: User[];
-  setUsers: (users: User[]) => void;
+  usuarios: User[];
+  setusuarios: (usuarios: User[]) => void;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ usuarios, setusuarios }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPasswordInForm, setShowPasswordInForm] = useState(false);
@@ -51,7 +51,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
     if (!formData.username || !formData.password || !formData.name) return;
 
     if (editingId) {
-      setUsers(users.map(u => u.id === editingId ? {
+      setusuarios(usuarios.map(u => u.id === editingId ? {
         ...u,
         username: (formData.username || '').toLowerCase(),
         name: formData.name || '',
@@ -66,7 +66,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
         role: (formData.role as UserRole) || 'VIEWER',
         password: formData.password || ''
       };
-      setUsers([...users, newUser]);
+      setusuarios([...usuarios, newUser]);
     }
     
     setShowForm(false);
@@ -79,7 +79,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
         alert('O administrador mestre não pode ser removido.');
         return;
       }
-      setUsers(users.filter(u => u.id !== id));
+      setusuarios(usuarios.filter(u => u.id !== id));
     }
   };
 
@@ -115,7 +115,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {users.map(user => (
+        {usuarios.map(user => (
           <div key={user.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-full -mr-8 -mt-8 -z-10 group-hover:bg-emerald-50 transition-colors"></div>
             
