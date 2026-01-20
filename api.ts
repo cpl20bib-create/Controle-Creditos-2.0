@@ -1,15 +1,16 @@
-
 import { createClient } from '@supabase/supabase-js';
 
-// As variáveis de ambiente devem ser configuradas no painel do Vercel
-// Usamos uma verificação segura para evitar o erro "supabaseUrl is required"
-const supabaseUrl = typeof process !== 'undefined' ? process.env.SUPABASE_URL : undefined;
-const supabaseAnonKey = typeof process !== 'undefined' ? process.env.SUPABASE_ANON_KEY : undefined;
+// No Vite (usado pela Vercel), o acesso às variáveis de ambiente 
+// deve ser feito obrigatoriamente usando 'import.meta.env'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Inicializa o cliente apenas se ambos os parâmetros existirem
+// Esta linha cria a conexão apenas se as chaves existirem
 export const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
+
+// O restante do código (export const api = { ...) continua igual abaixo
 
 export const api = {
   async getFullState() {
