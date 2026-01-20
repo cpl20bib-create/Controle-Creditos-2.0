@@ -24,11 +24,11 @@ function getLocalIPs() {
 
 if (!fs.existsSync(DB_FILE)) {
   const initialState = {
-    credits: [],
-    commitments: [],
-    refunds: [],
-    cancellations: [],
-    users: [{
+    creditos: [],
+    empenhos: [],
+    recolhimentos: [],
+    anulacoes_empenho: [],
+    usuarios: [{
       id: 'admin-1',
       username: 'admin',
       password: '123',
