@@ -6,13 +6,13 @@ import { RotateCcw } from 'lucide-react';
 interface FilterBarProps {
   filters: Filters;
   setFilters: (f: Filters) => void;
-  credits: Credit[];
+  creditos: Credit[];
 }
 
-const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits }) => {
+const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, creditos }) => {
   const availableOptions = useMemo(() => {
     const getOptions = (field: keyof Filters) => {
-      const filtered = credits.filter(c => {
+      const filtered = creditos.filter(c => {
         if (field !== 'ug' && filters.ug && c.ug !== filters.ug) return false;
         if (field !== 'pi' && filters.pi && c.pi !== filters.pi) return false;
         if (field !== 'nd' && filters.nd && c.nd !== filters.nd) return false;
@@ -28,7 +28,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits }) =
       nds: getOptions('nd'),
       sections: getOptions('section'),
     };
-  }, [credits, filters]);
+  }, [creditos, filters]);
 
   const handleChange = (field: keyof Filters, value: any) => {
     setFilters({ ...filters, [field]: value || undefined });
