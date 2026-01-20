@@ -1,27 +1,27 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Credit, Commitment, Refund, Cancellation, UG, CommitmentAllocation } from '../types';
+import { Credit, empenhos, Refund, anulacoes_empenho, UG, empenhosAllocation } from '../types';
 import { Save, AlertCircle, TrendingDown, ArrowLeft, Landmark, ListChecks, ArrowRight, Zap, Info } from 'lucide-react';
 import { UGS } from '../constants';
 
-interface CommitmentFormProps {
-  credits: Credit[];
-  commitments: Commitment[];
-  refunds: Refund[];
-  cancellations: Cancellation[];
-  onSave: (commitment: Commitment) => void;
+interface empenhosFormProps {
+  creditos: Credit[];
+  empenhos: empenhos[];
+  recolhimentos: Refund[];
+  anulacoes_empenho: anulacoes_empenho[];
+  onSave: (empenhos: empenhos) => void;
   onCancel: () => void;
-  initialData?: Commitment;
+  initialData?: empenhos;
 }
 
-const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, refunds, cancellations, onSave, onCancel, initialData }) => {
+const empenhosForm: React.FC<empenhosFormProps> = ({ creditos, empenhos, recolhimentos, anulacoes_empenho, onSave, onCancel, initialData }) => {
   const [formData, setFormData] = useState({
     ug: '' as UG | '',
     pi: '',
     nd: '',
     ne: initialData?.ne || '2026NE',
     totalValue: initialData?.value || 0,
-    allocations: initialData?.allocations || [] as CommitmentAllocation[],
+    allocations: initialData?.allocations || [] as empenhosAllocation[],
     description: initialData?.description || '',
     date: initialData?.date || new Date().toISOString().split('T')[0]
   });
@@ -30,16 +30,16 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
 
   // Cálculo de saldo real de cada NC
   const getNCAvailableBalance = (credit: Credit) => {
-    const totalSpent = commitments.reduce((acc, com) => {
+    const totalSpent = empenhos.reduce((acc, com) => {
       if (com.id === initialData?.id) return acc;
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
       return acc + (alloc ? alloc.value : 0);
     }, 0);
     
-    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
+    const totalRefunded = recolhimentos.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
     
-    const totalCancelled = cancellations.reduce((acc, can) => {
-      const com = commitments.find(c => c.id === can.commitmentId);
+    const totalCancelled = anulacoes_empenho.reduce((acc, can) => {
+      const com = empenhos.find(c => c.id === can.empenhosId);
       if (!com) return acc;
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
       if (!alloc) return acc;
@@ -53,30 +53,30 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
     if (!formData.ug) return [];
     
     // Filtra PIs que possuem pelo menos uma NC com saldo disponível
-    const pisWithBalance = credits
+    const pisWithBalance = creditos
       .filter(c => c.ug === formData.ug)
       .filter(c => getNCAvailableBalance(c) >= 0.01)
       .map(c => c.pi);
 
     return Array.from(new Set(pisWithBalance)).sort();
-  }, [formData.ug, credits, commitments, refunds, cancellations]);
+  }, [formData.ug, creditos, empenhos, recolhimentos, anulacoes_empenho]);
 
   const ndOptions = useMemo(() => {
     if (!formData.ug || !formData.pi) return [];
 
     // Filtra NDs que possuem pelo menos uma NC com saldo disponível para o PI selecionado
-    const ndsWithBalance = credits
+    const ndsWithBalance = creditos
       .filter(c => c.ug === formData.ug && c.pi === formData.pi)
       .filter(c => getNCAvailableBalance(c) >= 0.01)
       .map(c => c.nd);
 
     return Array.from(new Set(ndsWithBalance)).sort();
-  }, [formData.ug, formData.pi, credits, commitments, refunds, cancellations]);
+  }, [formData.ug, formData.pi, creditos, empenhos, recolhimentos, anulacoes_empenho]);
 
   // NCs filtradas e ORDENADAS POR DATA (FIFO)
   const availableNCs = useMemo(() => {
     if (!formData.ug || !formData.pi || !formData.nd) return [];
-    return credits
+    return creditos
       .filter(c => c.ug === formData.ug && c.pi === formData.pi && c.nd === formData.nd)
       .map(c => ({
         ...c,
@@ -84,7 +84,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
       }))
       .filter(c => c.available >= 0.01 || formData.allocations.some(a => a.creditId === c.id))
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [formData.ug, formData.pi, formData.nd, credits, commitments, refunds, cancellations, formData.allocations]);
+  }, [formData.ug, formData.pi, formData.nd, creditos, empenhos, recolhimentos, anulacoes_empenho, formData.allocations]);
 
   const aggregateAvailableBalance = useMemo(() => {
     return parseFloat(availableNCs.reduce((acc, nc) => acc + nc.available, 0).toFixed(2));
@@ -104,7 +104,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
     }
     
     let remaining = formData.totalValue;
-    const newAllocations: CommitmentAllocation[] = [];
+    const newAllocations: empenhosAllocation[] = [];
 
     for (const nc of availableNCs) {
       if (remaining <= 0) break;
@@ -406,4 +406,4 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
   );
 };
 
-export default CommitmentForm;
+export default empenhosForm;
