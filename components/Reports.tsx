@@ -6,10 +6,10 @@ import {
 } from 'lucide-react';
 
 interface ReportsProps {
-  credits: Credit[];
-  commitments: Commitment[];
-  refunds: Refund[];
-  cancellations: Cancellation[];
+  creditos: Credit[];
+  empenhos: Commitment[];
+  recolhimentos: Refund[];
+  anulacoes_empenho: Cancellation[];
 }
 
 interface UGSummary {
@@ -20,22 +20,22 @@ interface UGSummary {
 }
 
 const Reports: React.FC<ReportsProps> = ({
-  credits,
-  commitments,
-  refunds,
-  cancellations
+  creditos,
+  empenhos,
+  recolhimentos,
+  anulacoes_empenho
 }) => {
 
   /* 🔒 ARRAYS SEGUROS */
-  const safeCredits = credits ?? [];
-  const safeCommitments = commitments ?? [];
-  const safeRefunds = refunds ?? [];
-  const safeCancellations = cancellations ?? [];
+  const safecreditos = creditos ?? [];
+  const safeempenhos = empenhos ?? [];
+  const saferecolhimentos = recolhimentos ?? [];
+  const safeanulacoes_empenho = anulacoes_empenho ?? [];
 
   const summary = useMemo<Record<string, UGSummary>>(() => {
     const ugSummary: Record<string, UGSummary> = {};
 
-    safeCredits.forEach(c => {
+    safecreditos.forEach(c => {
       if (!ugSummary[c.ug]) {
         ugSummary[c.ug] = {
           received: 0,
@@ -47,26 +47,26 @@ const Reports: React.FC<ReportsProps> = ({
       ugSummary[c.ug].received += c.valueReceived;
     });
 
-    safeCommitments.forEach(com => {
+    safeempenhos.forEach(com => {
       com.allocations?.forEach(alloc => {
-        const credit = safeCredits.find(cr => cr.id === alloc.creditId);
+        const credit = safecreditos.find(cr => cr.id === alloc.creditId);
         if (credit && ugSummary[credit.ug]) {
           ugSummary[credit.ug].committed += alloc.value;
         }
       });
     });
 
-    safeRefunds.forEach(ref => {
-      const credit = safeCredits.find(cr => cr.id === ref.creditId);
+    saferecolhimentos.forEach(ref => {
+      const credit = safecreditos.find(cr => cr.id === ref.creditId);
       if (credit && ugSummary[credit.ug]) {
         ugSummary[credit.ug].refunded += ref.value;
       }
     });
 
-    safeCancellations.forEach(can => {
-      const com = safeCommitments.find(c => c.id === can.commitmentId);
+    safeanulacoes_empenho.forEach(can => {
+      const com = safeempenhos.find(c => c.id === can.commitmentId);
       if (com && com.allocations?.length > 0) {
-        const firstCredit = safeCredits.find(
+        const firstCredit = safecreditos.find(
           cr => cr.id === com.allocations![0].creditId
         );
         if (firstCredit && ugSummary[firstCredit.ug]) {
@@ -77,10 +77,10 @@ const Reports: React.FC<ReportsProps> = ({
 
     return ugSummary;
   }, [
-    safeCredits,
-    safeCommitments,
-    safeRefunds,
-    safeCancellations
+    safecreditos,
+    safeempenhos,
+    saferecolhimentos,
+    safeanulacoes_empenho
   ]);
 
   const formatCurrency = (val: number) =>
