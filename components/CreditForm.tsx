@@ -6,12 +6,12 @@ import { Save, AlertCircle, CheckCircle2, ArrowLeft, Edit3 } from 'lucide-react'
 
 interface CreditFormProps {
   onSave: (credit: Credit) => void;
-  existingCredits: Credit[];
+  existingcreditos: Credit[];
   onCancel: () => void;
   initialData?: Credit;
 }
 
-const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCancel, initialData }) => {
+const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingcreditos, onCancel, initialData }) => {
   const [formData, setFormData] = useState<Partial<Credit>>({
     ug: '160211',
     pi: '',
@@ -46,7 +46,7 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
       return;
     }
 
-    const isDuplicateExact = !initialData && existingCredits.some(c => 
+    const isDuplicateExact = !initialData && existingcreditos.some(c => 
       c.nc === formData.nc && 
       c.pi === formData.pi && 
       c.nd === formData.nd && 
