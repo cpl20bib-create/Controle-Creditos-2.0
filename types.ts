@@ -24,7 +24,7 @@ export interface AuditLog {
   timestamp: string;
 }
 
-export interface Credit {
+export interface credito {
   id: string;
   ug: UG;
   pi: string;
@@ -38,33 +38,33 @@ export interface Credit {
   createdAt: string;
 }
 
-export interface CommitmentAllocation {
-  creditId: string;
+export interface empenhoAllocation {
+  creditoId: string;
   value: number;
 }
 
-export interface Commitment {
+export interface empenho {
   id: string;
   ne: string;
-  allocations: CommitmentAllocation[];
+  allocations: empenhoAllocation[];
   value: number; // Valor total da NE
   date: string;
   description: string;
-  creditId?: string; // Mantido por compatibilidade temporária
+  creditoId?: string; // Mantido por compatibilidade temporária
 }
 
-export interface Cancellation {
+export interface anulacao_empenho {
   id: string;
-  commitmentId: string;
+  empenhoId: string;
   value: number;
   ro: string;
   date: string;
   bi: string;
 }
 
-export interface Refund {
+export interface recolhimento {
   id: string;
-  creditId: string;
+  creditoId: string;
   value: number;
   date: string;
   description: string;
