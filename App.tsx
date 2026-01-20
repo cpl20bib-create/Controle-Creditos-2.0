@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, usuarios, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType } from './types';
-import { INITIAL_CREDITS, INITIAL_COMMITMENTS } from './constants';
+import { INITIAL_creditos, INITIAL_empenhos } from './constants';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
 import CommitmentList from './components/CommitmentList';
@@ -14,26 +14,26 @@ import { api } from './api';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'reports' | 'users' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'creditos' | 'empenhos' | 'reports' | 'usuarios' | 'history'>('dashboard');
   
-  const [credits, setCredits] = useState<Credit[]>(() => {
-    const saved = localStorage.getItem('budget_credits');
-    return saved ? JSON.parse(saved) : INITIAL_CREDITS;
+  const [creditos, setcreditos] = useState<Credit[]>(() => {
+    const saved = localStorage.getItem('budget_creditos');
+    return saved ? JSON.parse(saved) : INITIAL_creditos;
   });
-  const [commitments, setCommitments] = useState<Commitment[]>(() => {
-    const saved = localStorage.getItem('budget_commitments');
-    return saved ? JSON.parse(saved) : INITIAL_COMMITMENTS;
+  const [empenhos, setempenhos] = useState<Commitment[]>(() => {
+    const saved = localStorage.getItem('budget_empenhos');
+    return saved ? JSON.parse(saved) : INITIAL_empenhos;
   });
-  const [refunds, setRefunds] = useState<Refund[]>(() => {
-    const saved = localStorage.getItem('budget_refunds');
+  const [recolhimentos, setrecolhimentos] = useState<Refund[]>(() => {
+    const saved = localStorage.getItem('budget_recolhimentos');
     return saved ? JSON.parse(saved) : [];
   });
-  const [cancellations, setCancellations] = useState<Cancellation[]>(() => {
-    const saved = localStorage.getItem('budget_cancellations');
+  const [anulacoes_empenho, setanulacoes_empenho] = useState<Cancellation[]>(() => {
+    const saved = localStorage.getItem('budget_anulacoes_empenho');
     return saved ? JSON.parse(saved) : [];
   });
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('budget_users');
+  const [usuarios, setusuarios] = useState<User[]>(() => {
+    const saved = localStorage.getItem('budget_usuarios');
     return saved ? JSON.parse(saved) : [];
   });
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
@@ -48,13 +48,13 @@ const App: React.FC = () => {
 
   // Persistência em cache local para funcionamento offline
   useEffect(() => {
-    localStorage.setItem('budget_credits', JSON.stringify(credits));
-    localStorage.setItem('budget_commitments', JSON.stringify(commitments));
-    localStorage.setItem('budget_refunds', JSON.stringify(refunds));
-    localStorage.setItem('budget_cancellations', JSON.stringify(cancellations));
-    localStorage.setItem('budget_users', JSON.stringify(users));
+    localStorage.setItem('budget_creditos', JSON.stringify(creditos));
+    localStorage.setItem('budget_empenhos', JSON.stringify(empenhos));
+    localStorage.setItem('budget_recolhimentos', JSON.stringify(recolhimentos));
+    localStorage.setItem('budget_anulacoes_empenho', JSON.stringify(anulacoes_empenho));
+    localStorage.setItem('budget_usuarios', JSON.stringify(usuarios));
     localStorage.setItem('budget_logs', JSON.stringify(auditLogs));
-  }, [credits, commitments, refunds, cancellations, users, auditLogs]);
+  }, [creditos, empenhos, recolhimentos, anulacoes_empenho, usuarios, auditLogs]);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('budget_session');
@@ -67,11 +67,11 @@ const App: React.FC = () => {
     try {
       const state = await api.getFullState();
       if (state) {
-        setCredits(state.credits);
-        setCommitments(state.commitments);
-        setRefunds(state.refunds);
-        setCancellations(state.cancellations);
-        setUsers(state.users);
+        setcreditos(state.creditos);
+        setempenhos(state.empenhos);
+        setrecolhimentos(state.recolhimentos);
+        setanulacoes_empenho(state.anulacoes_empenho);
+        setusuarios(state.usuarios);
         setAuditLogs(state.auditLogs);
         setIsOnline(true);
       } else {
@@ -117,87 +117,87 @@ const App: React.FC = () => {
   };
 
   const handleAddCredit = async (newCredit: Credit) => {
-    setCredits(prev => [...prev, newCredit]);
+    setcreditos(prev => [...prev, newCredit]);
     const success = await api.upsert('creditos', newCredit);
     setIsOnline(success);
     addLog('CREATE', 'CRÉDITO', newCredit.id, `Lançamento de crédito NC ${newCredit.nc}`);
   };
 
   const handleUpdateCredit = async (updated: Credit) => {
-    setCredits(prev => prev.map(c => c.id === updated.id ? updated : c));
+    setcreditos(prev => prev.map(c => c.id === updated.id ? updated : c));
     const success = await api.upsert('creditos', updated);
     setIsOnline(success);
     addLog('UPDATE', 'CRÉDITO', updated.id, `Alteração no crédito NC ${updated.nc}`);
   };
 
   const handleDeleteCredit = async (id: string) => {
-    const credit = credits.find(c => c.id === id);
+    const credit = creditos.find(c => c.id === id);
     if (credit && window.confirm('Excluir este crédito?')) {
-      setCredits(prev => prev.filter(c => c.id !== id));
-      const success = await api.delete('credits', id);
+      setcreditos(prev => prev.filter(c => c.id !== id));
+      const success = await api.delete('creditos', id);
       setIsOnline(success);
       addLog('DELETE', 'CRÉDITO', id, `Exclusão do crédito NC ${credit.nc}`);
     }
   };
 
   const handleAddCommitment = async (newCom: Commitment) => {
-    setCommitments(prev => [...prev, newCom]);
+    setempenhos(prev => [...prev, newCom]);
     const success = await api.upsert('empenhos', newCom);
     setIsOnline(success);
     addLog('CREATE', 'EMPENHO', newCom.id, `Lançamento de empenho NE ${newCom.ne}`);
   };
 
   const handleUpdateCommitment = async (updated: Commitment) => {
-    setCommitments(prev => prev.map(c => c.id === updated.id ? updated : c));
+    setempenhos(prev => prev.map(c => c.id === updated.id ? updated : c));
     const success = await api.upsert('empenhos', updated);
     setIsOnline(success);
     addLog('UPDATE', 'EMPENHO', updated.id, `Alteração no empenho NE ${updated.ne}`);
   };
 
   const handleDeleteCommitment = async (id: string) => {
-    const com = commitments.find(c => c.id === id);
+    const com = empenhos.find(c => c.id === id);
     if (com && window.confirm('Excluir este empenho?')) {
-      setCommitments(prev => prev.filter(c => c.id !== id));
-      const success = await api.delete('commitments', id);
+      setempenhos(prev => prev.filter(c => c.id !== id));
+      const success = await api.delete('empenhos', id);
       setIsOnline(success);
       addLog('DELETE', 'EMPENHO', id, `Exclusão do empenho NE ${com.ne}`);
     }
   };
 
   const handleAddRefund = async (newRefund: Refund) => {
-    setRefunds(prev => [...prev, newRefund]);
+    setrecolhimentos(prev => [...prev, newRefund]);
     const success = await api.upsert('recolhimentos', newRefund);
     setIsOnline(success);
-    const credit = credits.find(c => c.id === newRefund.creditId);
+    const credit = creditos.find(c => c.id === newRefund.creditId);
     addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento para NC ${credit?.nc || '?'}`);
   };
 
   const handleAddCancellation = async (newCan: Cancellation) => {
-    setCancellations(prev => [...prev, newCan]);
+    setanulacoes_empenho(prev => [...prev, newCan]);
     const success = await api.upsert('anulacoes_empenho', newCan);
     setIsOnline(success);
-    const com = commitments.find(c => c.id === newCan.commitmentId);
+    const com = empenhos.find(c => c.id === newCan.commitmentId);
     addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação RO para NE ${com?.ne || '?'}`);
   };
 
-  const handleUpdateUsers = async (nextUsers: User[]) => {
-    setUsers(nextUsers);
-    for (const user of nextUsers) {
+  const handleUpdateusuarios = async (nextusuarios: User[]) => {
+    setusuarios(nextusuarios);
+    for (const user of nextusuarios) {
       await api.upsert('usuarios', user);
     }
   };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
-    { id: 'credits', label: 'Créditos', icon: ReceiptText, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
-    { id: 'commitments', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
+    { id: 'creditos', label: 'Créditos', icon: ReceiptText, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
+    { id: 'empenhos', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'reports', label: 'Relatórios', icon: FilePieChart, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
-    { id: 'users', label: 'Usuários', icon: Users, roles: ['ADMIN'] },
+    { id: 'usuarios', label: 'Usuários', icon: usuarios, roles: ['ADMIN'] },
     { id: 'history', label: 'Histórico', icon: History, roles: ['ADMIN'] },
   ] as const;
 
   if (!currentUser) {
-    return <Login users={users} setUsers={handleUpdateUsers} onLogin={handleLogin} />;
+    return <Login usuarios={usuarios} setusuarios={handleUpdateusuarios} onLogin={handleLogin} />;
   }
 
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(currentUser.role));
@@ -286,11 +286,11 @@ const App: React.FC = () => {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto w-full">
-          {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
-          {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} />}
-          {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} />}
-          {activeTab === 'reports' && <Reports credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} />}
-          {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} />}
+          {activeTab === 'dashboard' && <Dashboard creditos={creditos} empenhos={empenhos} recolhimentos={recolhimentos} anulacoes_empenho={anulacoes_empenho} filters={filters} setFilters={setFilters} />}
+          {activeTab === 'creditos' && <CreditList creditos={creditos} empenhos={empenhos} recolhimentos={recolhimentos} anulacoes_empenho={anulacoes_empenho} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} />}
+          {activeTab === 'empenhos' && <CommitmentList creditos={creditos} empenhos={empenhos} recolhimentos={recolhimentos} anulacoes_empenho={anulacoes_empenho} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} />}
+          {activeTab === 'reports' && <Reports creditos={creditos} empenhos={empenhos} recolhimentos={recolhimentos} anulacoes_empenho={anulacoes_empenho} />}
+          {activeTab === 'usuarios' && currentUser.role === 'ADMIN' && <UserManagement usuarios={usuarios} setusuarios={handleUpdateusuarios} />}
           {activeTab === 'history' && currentUser.role === 'ADMIN' && <AuditHistory logs={auditLogs} />}
         </div>
       </main>
