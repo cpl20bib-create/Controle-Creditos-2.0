@@ -35,7 +35,7 @@ export interface Credit {
   valueReceived: number;
   description: string;
   deadline: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface CommitmentAllocation {
@@ -50,7 +50,6 @@ export interface Commitment {
   value: number; // Valor total da NE
   date: string;
   description: string;
-  creditId?: string; // Mantido por compatibilidade temporária
 }
 
 export interface Cancellation {
@@ -70,6 +69,10 @@ export interface Refund {
   description: string;
 }
 
+// Fixed: Added 'value' to SortField to support commitment sorting by total value
+export type SortField = 'valueReceived' | 'value' | 'date' | 'deadline' | 'created_at';
+export type SortOrder = 'asc' | 'desc';
+
 export interface Filters {
   ug?: UG;
   pi?: string;
@@ -78,4 +81,7 @@ export interface Filters {
   organ?: string;
   startDate?: string;
   endDate?: string;
+  hideZeroBalance?: boolean;
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
 }
