@@ -22,6 +22,12 @@ export interface AuditLog {
   entityId: string;
   description: string;
   timestamp: string;
+  // Campos vindos do Supabase (mapeamento)
+  created_at?: string;
+  table_name?: string;
+  // Adicionado para suportar mapeamento direto do banco de dados Supabase
+  entity_id?: string;
+  users?: { name: string };
 }
 
 export interface Credit {
