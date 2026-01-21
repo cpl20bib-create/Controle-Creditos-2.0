@@ -30,30 +30,33 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
 
   // Cálculo de saldo real de cada NC
   const getNCAvailableBalance = (credit: Credit) => {
-    const totalSpent = commitments.reduce((acc, com) => {
+    const totalSpent = (commitments || []).reduce((acc, com) => {
       if (com.id === initialData?.id) return acc;
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
-      return acc + (alloc ? alloc.value : 0);
+      return acc + (alloc ? (Number(alloc.value) || 0) : 0);
     }, 0);
     
-    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
+    const totalRefunded = (refunds || []).filter(ref => ref.creditId === credit.id).reduce((a, b) => a + (Number(b.value) || 0), 0);
     
-    const totalCancelled = cancellations.reduce((acc, can) => {
+    const totalCancelled = (cancellations || []).reduce((acc, can) => {
       const com = commitments.find(c => c.id === can.commitmentId);
-      if (!com) return acc;
+      if (!com || !Number(com.value)) return acc;
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
       if (!alloc) return acc;
-      return acc + (can.value * (alloc.value / com.value));
+      const totalComValue = Number(com.value) || 1;
+      const allocValue = Number(alloc.value) || 0;
+      const proportion = allocValue / totalComValue;
+      return acc + ((Number(can.value) || 0) * proportion);
     }, 0);
 
-    return parseFloat((credit.valueReceived - totalSpent - totalRefunded + totalCancelled).toFixed(2));
+    return parseFloat(((Number(credit.valueReceived) || 0) - totalSpent - totalRefunded + totalCancelled).toFixed(2));
   };
 
   const piOptions = useMemo(() => {
     if (!formData.ug) return [];
     
-    // Filtra PIs que possuem pelo menos uma NC com saldo disponível
-    const pisWithBalance = credits
+    const safeCredits = Array.isArray(credits) ? credits : [];
+    const pisWithBalance = safeCredits
       .filter(c => c.ug === formData.ug)
       .filter(c => getNCAvailableBalance(c) >= 0.01)
       .map(c => c.pi);
@@ -64,8 +67,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
   const ndOptions = useMemo(() => {
     if (!formData.ug || !formData.pi) return [];
 
-    // Filtra NDs que possuem pelo menos uma NC com saldo disponível para o PI selecionado
-    const ndsWithBalance = credits
+    const safeCredits = Array.isArray(credits) ? credits : [];
+    const ndsWithBalance = safeCredits
       .filter(c => c.ug === formData.ug && c.pi === formData.pi)
       .filter(c => getNCAvailableBalance(c) >= 0.01)
       .map(c => c.nd);
@@ -73,24 +76,23 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
     return Array.from(new Set(ndsWithBalance)).sort();
   }, [formData.ug, formData.pi, credits, commitments, refunds, cancellations]);
 
-  // NCs filtradas e ORDENADAS POR DATA (FIFO)
   const availableNCs = useMemo(() => {
     if (!formData.ug || !formData.pi || !formData.nd) return [];
-    return credits
+    const safeCredits = Array.isArray(credits) ? credits : [];
+    return safeCredits
       .filter(c => c.ug === formData.ug && c.pi === formData.pi && c.nd === formData.nd)
       .map(c => ({
         ...c,
         available: getNCAvailableBalance(c)
       }))
       .filter(c => c.available >= 0.01 || formData.allocations.some(a => a.creditId === c.id))
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [formData.ug, formData.pi, formData.nd, credits, commitments, refunds, cancellations, formData.allocations]);
 
   const aggregateAvailableBalance = useMemo(() => {
     return parseFloat(availableNCs.reduce((acc, nc) => acc + nc.available, 0).toFixed(2));
   }, [availableNCs]);
 
-  // Distribuição Automática baseada em FIFO
   const handleAutoDistribute = () => {
     setError(null);
     if (formData.totalValue <= 0) {
@@ -129,7 +131,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
       newAllocations.push({ creditId, value: parseFloat(val.toFixed(2)) });
     }
 
-    const currentTotal = parseFloat(newAllocations.reduce((a, b) => a + b.value, 0).toFixed(2));
+    const currentTotal = parseFloat(newAllocations.reduce((a, b) => a + (Number(b.value) || 0), 0).toFixed(2));
     setFormData({ ...formData, allocations: newAllocations, totalValue: currentTotal });
   };
 
@@ -140,7 +142,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
     e.preventDefault();
     setError(null);
 
-    const actualTotal = parseFloat(formData.allocations.reduce((a, b) => a + b.value, 0).toFixed(2));
+    const actualTotal = parseFloat(formData.allocations.reduce((a, b) => a + (Number(b.value) || 0), 0).toFixed(2));
 
     if (formData.allocations.length === 0 || actualTotal <= 0) {
       setError('⚠️ Distribua o valor entre as NCs (use o botão de raio).');
@@ -175,7 +177,6 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
       </button>
 
       <div className="bg-white rounded-[2.5rem] shadow-2xl border border-red-100 overflow-hidden text-black font-sans">
-        {/* Header do Formulário */}
         <div className="bg-red-800 px-8 py-7 text-white flex items-center justify-between">
           <div className="flex items-center gap-5">
             <div className="p-3 bg-red-900/50 rounded-2xl border border-red-700">
@@ -200,7 +201,6 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
             </div>
           )}
 
-          {/* Seleção de Dotação */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidade Gestora</label>
@@ -241,7 +241,6 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            {/* Lista de NCs Disponíveis */}
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
@@ -267,7 +266,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
                         Saldo: <span className="text-red-600">R$ {nc.available.toLocaleString('pt-BR')}</span>
                       </p>
                       <p className="text-[7px] font-black text-slate-300 uppercase tracking-tighter mt-0.5">
-                        Carga em: {new Date(nc.createdAt).toLocaleDateString('pt-BR')}
+                        Carga em: {new Date(nc.created_at).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
                     <div className="w-36">
@@ -295,10 +294,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
               </div>
             </div>
 
-            {/* Painel de Valor Total e Botão Raio */}
             <div className="space-y-6">
               <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 relative overflow-hidden shadow-2xl">
-                {/* Efeito Visual de Fundo */}
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl"></div>
                 
                 <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 mb-3">
@@ -318,7 +315,6 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
                     />
                   </div>
                   
-                  {/* O BOTÃO DE RAIO REESTILIZADO */}
                   <button 
                     type="button"
                     onClick={handleAutoDistribute}
@@ -381,13 +377,12 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, commitments, r
             </div>
           </div>
 
-          {/* Footer de Ação */}
           <div className="pt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-6">
              <div className="flex-1 bg-slate-50 p-6 rounded-[2rem] flex items-center justify-between border border-slate-100 shadow-inner">
                 <div>
                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Total Consolidado nas Alocações</p>
                    <p className="text-3xl font-black text-slate-900">
-                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.allocations.reduce((a, b) => a + b.value, 0))}
+                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.allocations.reduce((a, b) => a + (Number(b.value) || 0), 0))}
                    </p>
                 </div>
                 <ArrowRight className="text-slate-200 hidden sm:block" size={40} />
