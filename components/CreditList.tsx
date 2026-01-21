@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Credit, Commitment, Refund, Cancellation, Filters, UserRole } from '../types';
+import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, SortField } from '../types';
 import FilterBar from './FilterBar';
 import CreditForm from './CreditForm';
 import RefundForm from './RefundForm';
@@ -33,51 +33,87 @@ const CreditList: React.FC<CreditListProps> = ({
   const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR';
 
   const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
   const getIndividualNCBalance = (credit: Credit) => {
     const totalSpent = commitments.reduce((acc, com) => {
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
-      return acc + (alloc ? alloc.value : 0);
+      return acc + (alloc ? Number(alloc.value) || 0 : 0);
     }, 0);
 
-    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
+    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + (Number(b.value) || 0), 0);
     
     const totalCancelled = cancellations.reduce((acc, can) => {
       const com = commitments.find(c => c.id === can.commitmentId);
-      if (!com) return acc;
+      if (!com || !Number(com.value)) return acc;
       
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
       if (!alloc) return acc;
 
-      const proportion = alloc.value / com.value;
-      return acc + (can.value * proportion);
+      const totalComValue = Number(com.value) || 1;
+      const allocValue = Number(alloc.value) || 0;
+      const proportion = allocValue / totalComValue;
+      return acc + ((Number(can.value) || 0) * proportion);
     }, 0);
 
-    return credit.valueReceived - totalSpent - totalRefunded + totalCancelled;
+    return (Number(credit.valueReceived) || 0) - totalSpent - totalRefunded + totalCancelled;
   };
 
   const getExecutionInfo = (credit: Credit) => {
     const balance = getIndividualNCBalance(credit);
-    const spent = credit.valueReceived - balance;
-    const percentage = (spent / credit.valueReceived) * 100;
+    const spent = (Number(credit.valueReceived) || 0) - balance;
+    const total = Number(credit.valueReceived) || 1;
+    const percentage = (spent / total) * 100;
     const daysLeft = Math.ceil((new Date(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     
     return { percentage, daysLeft, balance };
   };
 
-  const filteredCredits = useMemo(() => {
-    return credits.filter(c => {
+  const filteredAndSortedCredits = useMemo(() => {
+    const safeCredits = Array.isArray(credits) ? credits : [];
+    
+    let result = safeCredits.map(c => ({
+      ...c,
+      info: getExecutionInfo(c)
+    })).filter(c => {
       const matchSearch = c.nc.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (c.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           c.pi.toLowerCase().includes(searchTerm.toLowerCase());
       const matchUg = !filters.ug || c.ug === filters.ug;
       const matchPi = !filters.pi || c.pi === filters.pi;
       const matchNd = !filters.nd || c.nd === filters.nd;
       const matchSection = !filters.section || c.section === filters.section;
-      return matchSearch && matchUg && matchPi && matchNd && matchSection;
+      
+      const isNotZero = c.info.balance >= 0.01;
+      const matchHideZero = !filters.hideZeroBalance || isNotZero;
+
+      return matchSearch && matchUg && matchPi && matchNd && matchSection && matchHideZero;
     });
-  }, [credits, searchTerm, filters]);
+
+    result.sort((a, b) => {
+      const aHasBalance = a.info.balance >= 0.01;
+      const bHasBalance = b.info.balance >= 0.01;
+      
+      if (aHasBalance && !bHasBalance) return -1;
+      if (!aHasBalance && bHasBalance) return 1;
+
+      const sortBy = filters.sortBy || 'created_at';
+      const order = filters.sortOrder === 'asc' ? 1 : -1;
+
+      if (sortBy === 'valueReceived') {
+        return (Number(a.valueReceived) - Number(b.valueReceived)) * order;
+      }
+      if (sortBy === 'deadline') {
+        return (new Date(a.deadline).getTime() - new Date(b.deadline).getTime()) * order;
+      }
+      if (sortBy === 'created_at') {
+        return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * order;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [credits, searchTerm, filters, commitments, refunds, cancellations]);
 
   const handleEdit = (credit: Credit) => {
     if (!canEdit) return;
@@ -97,10 +133,10 @@ const CreditList: React.FC<CreditListProps> = ({
     );
   }
 
-  const selectedDetailCredit = credits.find(c => c.id === detailCreditId);
+  const selectedDetailCredit = Array.isArray(credits) ? credits.find(c => c.id === detailCreditId) : null;
   const creditRefunds = selectedDetailCredit ? refunds.filter(r => r.creditId === selectedDetailCredit.id) : [];
   
-  const creditAllocations = selectedDetailCredit ? commitments.flatMap(com => {
+  const creditAllocations = selectedDetailCredit ? (commitments || []).flatMap(com => {
     const alloc = com.allocations?.find(a => a.creditId === selectedDetailCredit.id);
     return alloc ? [{ ne: com.ne, value: alloc.value, date: com.date, id: com.id }] : [];
   }) : [];
@@ -138,18 +174,20 @@ const CreditList: React.FC<CreditListProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-sans">
-            {filteredCredits.map((credit) => {
-              const info = getExecutionInfo(credit);
+            {filteredAndSortedCredits.map((credit) => {
+              const info = credit.info;
+              const isZero = info.balance < 0.01;
               return (
-                <tr key={credit.id} className="hover:bg-slate-50 transition-colors group">
+                <tr key={credit.id} className={`transition-colors group ${isZero ? 'bg-slate-50/50 opacity-60' : 'hover:bg-slate-50'}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className={`w-1.5 h-10 rounded-full ${info.daysLeft < 0 ? 'bg-red-500' : info.daysLeft < 10 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                      <div className={`w-1.5 h-10 rounded-full ${isZero ? 'bg-slate-300' : info.daysLeft < 0 ? 'bg-red-500' : info.daysLeft < 10 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
                       <div>
-                        <div className="font-black text-emerald-800 text-xs italic flex items-center gap-2">
+                        <div className={`font-black text-xs italic flex items-center gap-2 ${isZero ? 'text-slate-400' : 'text-emerald-800'}`}>
                           {credit.nc}
-                          {info.daysLeft <= 15 && info.daysLeft >= 0 && <Clock size={12} className="text-amber-500 animate-pulse" />}
-                          {info.daysLeft < 0 && <AlertCircle size={12} className="text-red-500" />}
+                          {!isZero && info.daysLeft <= 15 && info.daysLeft >= 0 && <Clock size={12} className="text-amber-500 animate-pulse" />}
+                          {!isZero && info.daysLeft < 0 && <AlertCircle size={12} className="text-red-500" />}
+                          {isZero && <span className="text-[7px] bg-slate-200 text-slate-500 px-1 rounded not-italic tracking-widest font-black uppercase">Liquidado</span>}
                         </div>
                         <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Vence em: {new Date(credit.deadline).toLocaleDateString('pt-BR')} ({info.daysLeft} d)</div>
                       </div>
@@ -159,15 +197,15 @@ const CreditList: React.FC<CreditListProps> = ({
                   <td className="px-6 py-4 min-w-[140px]">
                     <div className="space-y-1">
                       <div className="flex justify-between text-[8px] font-black uppercase text-slate-400">
-                        <span>{info.percentage.toFixed(0)}%</span>
-                        <span>{formatCurrency(credit.valueReceived - info.balance)}</span>
+                        <span>{(info.percentage || 0).toFixed(0)}%</span>
+                        <span>{formatCurrency((Number(credit.valueReceived) || 0) - info.balance)}</span>
                       </div>
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                        <div className={`h-full transition-all duration-1000 ${info.percentage > 95 ? 'bg-red-500' : info.percentage > 70 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, info.percentage)}%` }}></div>
+                        <div className={`h-full transition-all duration-1000 ${isZero ? 'bg-slate-400' : info.percentage > 95 ? 'bg-red-500' : info.percentage > 70 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, info.percentage)}%` }}></div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right text-xs font-black text-emerald-600">{formatCurrency(info.balance)}</td>
+                  <td className={`px-6 py-4 text-right text-xs font-black ${isZero ? 'text-slate-400' : 'text-emerald-600'}`}>{formatCurrency(info.balance)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-1.5 transition-all">
                       <button onClick={() => setDetailCreditId(credit.id)} className="p-1.5 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-700 rounded-lg transition-all" title="Detalhes"><InfoIcon size={14} /></button>
@@ -204,11 +242,11 @@ const CreditList: React.FC<CreditListProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-6 bg-slate-900 text-white rounded-3xl shadow-xl">
                   <p className="text-[9px] font-black text-emerald-400 uppercase mb-1">Valor Original</p>
-                  <p className="text-2xl font-black">{formatCurrency(selectedDetailCredit.valueReceived)}</p>
+                  <p className="text-2xl font-black">{formatCurrency(Number(selectedDetailCredit.valueReceived) || 0)}</p>
                 </div>
                 <div className="p-6 bg-red-50 rounded-3xl border border-red-100">
                   <p className="text-[9px] font-black text-red-600 uppercase mb-1">Consumido por Empenhos</p>
-                  <p className="text-2xl font-black text-red-800">{formatCurrency(selectedDetailCredit.valueReceived - getIndividualNCBalance(selectedDetailCredit))}</p>
+                  <p className="text-2xl font-black text-red-800">{formatCurrency((Number(selectedDetailCredit.valueReceived) || 0) - getIndividualNCBalance(selectedDetailCredit))}</p>
                 </div>
                 <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
                   <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Saldo Livre Atual</p>
@@ -223,7 +261,7 @@ const CreditList: React.FC<CreditListProps> = ({
                       <div className="absolute -left-8 w-6 h-6 rounded-full bg-emerald-500 border-4 border-white shadow-sm"></div>
                       <div className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
                          <span className="text-[10px] font-black uppercase text-slate-500">Aporte de Crédito</span>
-                         <span className="text-xs font-black text-emerald-700">+{formatCurrency(selectedDetailCredit.valueReceived)}</span>
+                         <span className="text-xs font-black text-emerald-700">+{formatCurrency(Number(selectedDetailCredit.valueReceived) || 0)}</span>
                       </div>
                    </div>
                    
