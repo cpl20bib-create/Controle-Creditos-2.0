@@ -66,8 +66,11 @@ const App: React.FC = () => {
     const unsubscribe = api.subscribeToChanges(() => {
       syncWithServer();
     });
-    return () => unsubscribe();
-  }, []);
+    // Fixed: return a void function to cleanup, avoiding returning the Promise from unsubscribe()
+    return () => {
+      unsubscribe();
+    };
+  }, [syncWithServer]);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('budget_session');
