@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType } from './types';
+import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType, UserRole } from './types';
 import { INITIAL_CREDITS, INITIAL_COMMITMENTS } from './constants';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
@@ -16,79 +16,55 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'reports' | 'users' | 'history'>('dashboard');
   
-  const [credits, setCredits] = useState<Credit[]>(() => {
-    const saved = localStorage.getItem('budget_credits');
-    return saved ? JSON.parse(saved) : INITIAL_CREDITS;
-  });
-  const [commitments, setCommitments] = useState<Commitment[]>(() => {
-    const saved = localStorage.getItem('budget_commitments');
-    return saved ? JSON.parse(saved) : INITIAL_COMMITMENTS;
-  });
-  const [refunds, setRefunds] = useState<Refund[]>(() => {
-    const saved = localStorage.getItem('budget_refunds');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [cancellations, setCancellations] = useState<Cancellation[]>(() => {
-    const saved = localStorage.getItem('budget_cancellations');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('budget_users');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem('budget_logs');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [refunds, setRefunds] = useState<Refund[]>([]);
+  const [cancellations, setCancellations] = useState<Cancellation[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [filters, setFilters] = useState<Filters>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Persistência em cache local para funcionamento offline
+  // Sincronização de Estado - Redesenhada para ser a única fonte de verdade
+  const syncWithServer = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    
+    const state = await api.getFullState();
+    
+    if (state) {
+      setCredits(state.credits);
+      setCommitments(state.commitments);
+      setRefunds(state.refunds);
+      setCancellations(state.cancellations);
+      setUsers(state.users);
+      setAuditLogs(state.auditLogs);
+      setIsOnline(true);
+      
+      // Cache apenas para leitura rápida em boot, nunca impede gravação
+      localStorage.setItem('budget_credits', JSON.stringify(state.credits));
+    } else {
+      setIsOnline(false);
+      console.warn('Sistema operando em modo degradado: Não foi possível conectar ao Supabase.');
+    }
+    setIsSyncing(false);
+  }, [isSyncing]);
+
   useEffect(() => {
-    localStorage.setItem('budget_credits', JSON.stringify(credits));
-    localStorage.setItem('budget_commitments', JSON.stringify(commitments));
-    localStorage.setItem('budget_refunds', JSON.stringify(refunds));
-    localStorage.setItem('budget_cancellations', JSON.stringify(cancellations));
-    localStorage.setItem('budget_users', JSON.stringify(users));
-    localStorage.setItem('budget_logs', JSON.stringify(auditLogs));
-  }, [credits, commitments, refunds, cancellations, users, auditLogs]);
+    syncWithServer();
+    const unsubscribe = api.subscribeToChanges(() => {
+      syncWithServer();
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('budget_session');
     if (savedSession) setCurrentUser(JSON.parse(savedSession));
   }, []);
-
-  const syncWithServer = useCallback(async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    try {
-      const state = await api.getFullState();
-      if (state) {
-        setCredits(state.credits);
-        setCommitments(state.commitments);
-        setRefunds(state.refunds);
-        setCancellations(state.cancellations);
-        setUsers(state.users);
-        setAuditLogs(state.auditLogs);
-        setIsOnline(true);
-      } else {
-        setIsOnline(false);
-      }
-    } catch {
-      setIsOnline(false);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isSyncing]);
-
-  useEffect(() => {
-    syncWithServer();
-    const interval = setInterval(syncWithServer, 60000); // Sincronização automática a cada 1 minuto
-    return () => clearInterval(interval);
-  }, [syncWithServer]);
 
   const addLog = useCallback(async (action: ActionType, entityType: EntityType, entityId: string, description: string) => {
     if (!currentUser) return;
@@ -102,8 +78,7 @@ const App: React.FC = () => {
       description,
       timestamp: new Date().toISOString()
     };
-    setAuditLogs(prev => [newLog, ...prev]);
-    api.addLog(newLog);
+    await api.addLog(newLog);
   }, [currentUser]);
 
   const handleLogin = (user: User) => {
@@ -116,74 +91,103 @@ const App: React.FC = () => {
     localStorage.removeItem('budget_session');
   };
 
+  // Funções de manipulação agora aguardam a confirmação do servidor
   const handleAddCredit = async (newCredit: Credit) => {
-    setCredits(prev => [...prev, newCredit]);
     const success = await api.upsert('credits', newCredit);
-    setIsOnline(success);
-    addLog('CREATE', 'CRÉDITO', newCredit.id, `Lançamento de crédito NC ${newCredit.nc}`);
+    if (success) {
+      await addLog('CREATE', 'CRÉDITO', newCredit.id, `NC ${newCredit.nc}`);
+      syncWithServer(); // Força atualização local após sucesso
+    } else {
+      alert('ERRO DE CONEXÃO: Não foi possível gravar o crédito no servidor.');
+    }
   };
 
   const handleUpdateCredit = async (updated: Credit) => {
-    setCredits(prev => prev.map(c => c.id === updated.id ? updated : c));
     const success = await api.upsert('credits', updated);
-    setIsOnline(success);
-    addLog('UPDATE', 'CRÉDITO', updated.id, `Alteração no crédito NC ${updated.nc}`);
+    if (success) {
+      await addLog('UPDATE', 'CRÉDITO', updated.id, `NC ${updated.nc}`);
+      syncWithServer();
+    } else {
+      alert('ERRO DE CONEXÃO: Falha ao atualizar dados no servidor.');
+    }
   };
 
   const handleDeleteCredit = async (id: string) => {
     const credit = credits.find(c => c.id === id);
-    if (credit && window.confirm('Excluir este crédito?')) {
-      setCredits(prev => prev.filter(c => c.id !== id));
+    if (credit && window.confirm('Excluir este crédito definitivamente?')) {
       const success = await api.delete('credits', id);
-      setIsOnline(success);
-      addLog('DELETE', 'CRÉDITO', id, `Exclusão do crédito NC ${credit.nc}`);
+      if (success) {
+        await addLog('DELETE', 'CRÉDITO', id, `NC ${credit.nc}`);
+        syncWithServer();
+      } else {
+        alert('ERRO DE CONEXÃO: Não foi possível excluir o registro no servidor.');
+      }
     }
   };
 
   const handleAddCommitment = async (newCom: Commitment) => {
-    setCommitments(prev => [...prev, newCom]);
     const success = await api.upsert('commitments', newCom);
-    setIsOnline(success);
-    addLog('CREATE', 'EMPENHO', newCom.id, `Lançamento de empenho NE ${newCom.ne}`);
+    if (success) {
+      await addLog('CREATE', 'EMPENHO', newCom.id, `NE ${newCom.ne}`);
+      syncWithServer();
+    } else {
+      alert('ERRO DE CONEXÃO: Falha ao registrar empenho no servidor.');
+    }
   };
 
   const handleUpdateCommitment = async (updated: Commitment) => {
-    setCommitments(prev => prev.map(c => c.id === updated.id ? updated : c));
     const success = await api.upsert('commitments', updated);
-    setIsOnline(success);
-    addLog('UPDATE', 'EMPENHO', updated.id, `Alteração no empenho NE ${updated.ne}`);
+    if (success) {
+      await addLog('UPDATE', 'EMPENHO', updated.id, `NE ${updated.ne}`);
+      syncWithServer();
+    } else {
+      alert('ERRO DE CONEXÃO: Falha ao atualizar empenho.');
+    }
   };
 
   const handleDeleteCommitment = async (id: string) => {
     const com = commitments.find(c => c.id === id);
-    if (com && window.confirm('Excluir este empenho?')) {
-      setCommitments(prev => prev.filter(c => c.id !== id));
+    if (com && window.confirm('Excluir este empenho definitivamente?')) {
       const success = await api.delete('commitments', id);
-      setIsOnline(success);
-      addLog('DELETE', 'EMPENHO', id, `Exclusão do empenho NE ${com.ne}`);
+      if (success) {
+        await addLog('DELETE', 'EMPENHO', id, `NE ${com.ne}`);
+        syncWithServer();
+      } else {
+        alert('ERRO DE CONEXÃO: Falha ao remover empenho do servidor.');
+      }
     }
   };
 
   const handleAddRefund = async (newRefund: Refund) => {
-    setRefunds(prev => [...prev, newRefund]);
     const success = await api.upsert('refunds', newRefund);
-    setIsOnline(success);
-    const credit = credits.find(c => c.id === newRefund.creditId);
-    addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento para NC ${credit?.nc || '?'}`);
+    if (success) {
+      await addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento NC individual`);
+      syncWithServer();
+    } else {
+      alert('ERRO DE CONEXÃO: Não foi possível registrar o recolhimento.');
+    }
   };
 
   const handleAddCancellation = async (newCan: Cancellation) => {
-    setCancellations(prev => [...prev, newCan]);
     const success = await api.upsert('cancellations', newCan);
-    setIsOnline(success);
-    const com = commitments.find(c => c.id === newCan.commitmentId);
-    addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação RO para NE ${com?.ne || '?'}`);
+    if (success) {
+      await addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação parcial/total`);
+      syncWithServer();
+    } else {
+      alert('ERRO DE CONEXÃO: Não foi possível registrar a anulação.');
+    }
   };
 
   const handleUpdateUsers = async (nextUsers: User[]) => {
-    setUsers(nextUsers);
+    let allSuccess = true;
     for (const user of nextUsers) {
-      await api.upsert('users', user);
+      const success = await api.upsert('users', user);
+      if (!success) allSuccess = false;
+    }
+    if (allSuccess) {
+      syncWithServer();
+    } else {
+      alert('AVISO: Alguns usuários não puderam ser sincronizados com o servidor.');
     }
   };
 
@@ -200,7 +204,7 @@ const App: React.FC = () => {
     return <Login users={users} setUsers={handleUpdateUsers} onLogin={handleLogin} />;
   }
 
-  const filteredMenuItems = menuItems.filter(item => item.roles.includes(currentUser.role));
+  const filteredMenuItems = menuItems.filter(item => (item.roles as readonly string[]).includes(currentUser.role));
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-black">
@@ -268,10 +272,10 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => syncWithServer()}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100 animate-pulse'}`}
               >
                 {isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
-                {isSyncing ? 'Sincronizando...' : isOnline ? 'Supabase Online' : 'Offline'}
+                {isSyncing ? 'Conectando...' : isOnline ? 'Supabase Online' : 'Conexão Perdida'}
               </button>
             </div>
           </div>
@@ -279,7 +283,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3 border-l pl-6 border-slate-200">
               <div className="text-right hidden sm:block">
                 <p className="text-[10px] font-black text-slate-900 leading-none uppercase tracking-tighter">{currentUser.name}</p>
-                <p className="text-[9px] text-emerald-600 font-bold mt-1 uppercase tracking-widest italic">BIB 20 - Vercel Deploy</p>
+                <p className="text-[9px] text-emerald-600 font-bold mt-1 uppercase tracking-widest italic">BIB 20 - Gestão de Créditos</p>
               </div>
             </div>
           </div>
