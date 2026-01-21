@@ -26,13 +26,12 @@ const Reports: React.FC<ReportsProps> = ({ credits, commitments, refunds, cancel
       ugSummary[c.ug].received += (Number(c.valueReceived) || 0);
     });
 
+    // Fixed: Commitment uses creditId directly, not allocations
     commitments.forEach(com => {
-      com.allocations?.forEach(alloc => {
-        const credit = credits.find(cr => cr.id === alloc.creditId);
-        if (credit && ugSummary[credit.ug]) {
-          ugSummary[credit.ug].committed += (Number(alloc.value) || 0);
-        }
-      });
+      const credit = credits.find(cr => cr.id === com.creditId);
+      if (credit && ugSummary[credit.ug]) {
+        ugSummary[credit.ug].committed += (Number(com.value) || 0);
+      }
     });
 
     refunds.forEach(ref => {
@@ -42,13 +41,13 @@ const Reports: React.FC<ReportsProps> = ({ credits, commitments, refunds, cancel
       }
     });
 
+    // Fixed: Commitment uses creditId directly, not allocations
     cancellations.forEach(can => {
       const com = commitments.find(c => c.id === can.commitmentId);
-      if (com && com.allocations?.length > 0) {
-        // Encontra a UG baseada no primeiro crédito do empenho
-        const firstCredit = credits.find(cr => cr.id === com.allocations[0].creditId);
-        if (firstCredit && ugSummary[firstCredit.ug]) {
-          ugSummary[firstCredit.ug].cancelled += (Number(can.value) || 0);
+      if (com) {
+        const credit = credits.find(cr => cr.id === com.creditId);
+        if (credit && ugSummary[credit.ug]) {
+          ugSummary[credit.ug].cancelled += (Number(can.value) || 0);
         }
       }
     });
