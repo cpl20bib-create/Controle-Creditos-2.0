@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType } from './types';
-import { INITIAL_CREDITS, INITIAL_COMMITMENTS } from './constants';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType, UserRole } from './types';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
 import CommitmentList from './components/CommitmentList';
@@ -16,55 +15,27 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'reports' | 'users' | 'history'>('dashboard');
   
-  const [credits, setCredits] = useState<Credit[]>(() => {
-    const saved = localStorage.getItem('budget_credits');
-    return saved ? JSON.parse(saved) : INITIAL_CREDITS;
-  });
-  const [commitments, setCommitments] = useState<Commitment[]>(() => {
-    const saved = localStorage.getItem('budget_commitments');
-    return saved ? JSON.parse(saved) : INITIAL_COMMITMENTS;
-  });
-  const [refunds, setRefunds] = useState<Refund[]>(() => {
-    const saved = localStorage.getItem('budget_refunds');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [cancellations, setCancellations] = useState<Cancellation[]>(() => {
-    const saved = localStorage.getItem('budget_cancellations');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('budget_users');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem('budget_logs');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [refunds, setRefunds] = useState<Refund[]>([]);
+  const [cancellations, setCancellations] = useState<Cancellation[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [filters, setFilters] = useState<Filters>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Persistência em cache local para funcionamento offline
-  useEffect(() => {
-    localStorage.setItem('budget_credits', JSON.stringify(credits));
-    localStorage.setItem('budget_commitments', JSON.stringify(commitments));
-    localStorage.setItem('budget_refunds', JSON.stringify(refunds));
-    localStorage.setItem('budget_cancellations', JSON.stringify(cancellations));
-    localStorage.setItem('budget_users', JSON.stringify(users));
-    localStorage.setItem('budget_logs', JSON.stringify(auditLogs));
-  }, [credits, commitments, refunds, cancellations, users, auditLogs]);
-
-  useEffect(() => {
-    const savedSession = localStorage.getItem('budget_session');
-    if (savedSession) setCurrentUser(JSON.parse(savedSession));
-  }, []);
-
+  // Sincronização de Estado com o Banco Real
   const syncWithServer = useCallback(async () => {
     if (isSyncing) return;
     setIsSyncing(true);
-    try {
+    
+    const connected = await api.checkConnection();
+    setIsOnline(connected);
+
+    if (connected) {
       const state = await api.getFullState();
       if (state) {
         setCredits(state.credits);
@@ -73,22 +44,35 @@ const App: React.FC = () => {
         setCancellations(state.cancellations);
         setUsers(state.users);
         setAuditLogs(state.auditLogs);
-        setIsOnline(true);
-      } else {
-        setIsOnline(false);
+        
+        localStorage.setItem('budget_credits', JSON.stringify(state.credits));
+        localStorage.setItem('budget_commitments', JSON.stringify(state.commitments));
+        localStorage.setItem('budget_users', JSON.stringify(state.users));
       }
-    } catch {
-      setIsOnline(false);
-    } finally {
-      setIsSyncing(false);
+    } else {
+      const cachedCredits = localStorage.getItem('budget_credits');
+      const cachedComs = localStorage.getItem('budget_commitments');
+      const cachedUsers = localStorage.getItem('budget_users');
+      if (cachedCredits) setCredits(JSON.parse(cachedCredits));
+      if (cachedComs) setCommitments(JSON.parse(cachedComs));
+      if (cachedUsers) setUsers(JSON.parse(cachedUsers));
     }
+    
+    setIsSyncing(false);
   }, [isSyncing]);
 
   useEffect(() => {
     syncWithServer();
-    const interval = setInterval(syncWithServer, 60000); // Sincronização automática a cada 1 minuto
-    return () => clearInterval(interval);
-  }, [syncWithServer]);
+    const unsubscribe = api.subscribeToChanges(() => {
+      syncWithServer();
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const savedSession = localStorage.getItem('budget_session');
+    if (savedSession) setCurrentUser(JSON.parse(savedSession));
+  }, []);
 
   const addLog = useCallback(async (action: ActionType, entityType: EntityType, entityId: string, description: string) => {
     if (!currentUser) return;
@@ -102,8 +86,7 @@ const App: React.FC = () => {
       description,
       timestamp: new Date().toISOString()
     };
-    setAuditLogs(prev => [newLog, ...prev]);
-    api.addLog(newLog);
+    await api.addLog(newLog);
   }, [currentUser]);
 
   const handleLogin = (user: User) => {
@@ -117,74 +100,101 @@ const App: React.FC = () => {
   };
 
   const handleAddCredit = async (newCredit: Credit) => {
-    setCredits(prev => [...prev, newCredit]);
-    const success = await api.upsert('credits', newCredit);
-    setIsOnline(success);
-    addLog('CREATE', 'CRÉDITO', newCredit.id, `Lançamento de crédito NC ${newCredit.nc}`);
+    try {
+      await api.upsert('credits', newCredit);
+      await addLog('CREATE', 'CRÉDITO', newCredit.id, `NC ${newCredit.nc}`);
+      syncWithServer();
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleUpdateCredit = async (updated: Credit) => {
-    setCredits(prev => prev.map(c => c.id === updated.id ? updated : c));
-    const success = await api.upsert('credits', updated);
-    setIsOnline(success);
-    addLog('UPDATE', 'CRÉDITO', updated.id, `Alteração no crédito NC ${updated.nc}`);
+    try {
+      await api.upsert('credits', updated);
+      await addLog('UPDATE', 'CRÉDITO', updated.id, `NC ${updated.nc}`);
+      syncWithServer();
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleDeleteCredit = async (id: string) => {
     const credit = credits.find(c => c.id === id);
-    if (credit && window.confirm('Excluir este crédito?')) {
-      setCredits(prev => prev.filter(c => c.id !== id));
-      const success = await api.delete('credits', id);
-      setIsOnline(success);
-      addLog('DELETE', 'CRÉDITO', id, `Exclusão do crédito NC ${credit.nc}`);
+    if (credit && window.confirm('Excluir este crédito definitivamente?')) {
+      try {
+        await api.delete('credits', id);
+        await addLog('DELETE', 'CRÉDITO', id, `NC ${credit.nc}`);
+        syncWithServer();
+      } catch (e: any) {
+        alert(e.message);
+      }
     }
   };
 
   const handleAddCommitment = async (newCom: Commitment) => {
-    setCommitments(prev => [...prev, newCom]);
-    const success = await api.upsert('commitments', newCom);
-    setIsOnline(success);
-    addLog('CREATE', 'EMPENHO', newCom.id, `Lançamento de empenho NE ${newCom.ne}`);
+    try {
+      await api.upsert('commitments', newCom);
+      await addLog('CREATE', 'EMPENHO', newCom.id, `NE ${newCom.ne}`);
+      syncWithServer();
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleUpdateCommitment = async (updated: Commitment) => {
-    setCommitments(prev => prev.map(c => c.id === updated.id ? updated : c));
-    const success = await api.upsert('commitments', updated);
-    setIsOnline(success);
-    addLog('UPDATE', 'EMPENHO', updated.id, `Alteração no empenho NE ${updated.ne}`);
+    try {
+      await api.upsert('commitments', updated);
+      await addLog('UPDATE', 'EMPENHO', updated.id, `NE ${updated.ne}`);
+      syncWithServer();
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleDeleteCommitment = async (id: string) => {
     const com = commitments.find(c => c.id === id);
-    if (com && window.confirm('Excluir este empenho?')) {
-      setCommitments(prev => prev.filter(c => c.id !== id));
-      const success = await api.delete('commitments', id);
-      setIsOnline(success);
-      addLog('DELETE', 'EMPENHO', id, `Exclusão do empenho NE ${com.ne}`);
+    if (com && window.confirm('Excluir este empenho definitivamente?')) {
+      try {
+        await api.delete('commitments', id);
+        await addLog('DELETE', 'EMPENHO', id, `NE ${com.ne}`);
+        syncWithServer();
+      } catch (e: any) {
+        alert(e.message);
+      }
     }
   };
 
   const handleAddRefund = async (newRefund: Refund) => {
-    setRefunds(prev => [...prev, newRefund]);
-    const success = await api.upsert('refunds', newRefund);
-    setIsOnline(success);
-    const credit = credits.find(c => c.id === newRefund.creditId);
-    addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento para NC ${credit?.nc || '?'}`);
+    try {
+      await api.upsert('refunds', newRefund);
+      await addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento NC individual`);
+      syncWithServer();
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleAddCancellation = async (newCan: Cancellation) => {
-    setCancellations(prev => [...prev, newCan]);
-    const success = await api.upsert('cancellations', newCan);
-    setIsOnline(success);
-    const com = commitments.find(c => c.id === newCan.commitmentId);
-    addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação RO para NE ${com?.ne || '?'}`);
+    try {
+      await api.upsert('cancellations', newCan);
+      await addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação parcial/total`);
+      syncWithServer();
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleUpdateUsers = async (nextUsers: User[]) => {
     setUsers(nextUsers);
     for (const user of nextUsers) {
-      await api.upsert('users', user);
+      try {
+        await api.upsert('users', user);
+      } catch (e: any) {
+        console.error('Falha ao sincronizar usuário:', user.username, e.message);
+      }
     }
+    syncWithServer();
   };
 
   const menuItems = [
@@ -200,7 +210,7 @@ const App: React.FC = () => {
     return <Login users={users} setUsers={handleUpdateUsers} onLogin={handleLogin} />;
   }
 
-  const filteredMenuItems = menuItems.filter(item => item.roles.includes(currentUser.role));
+  const filteredMenuItems = menuItems.filter(item => (item.roles as readonly string[]).includes(currentUser.role));
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-black">
@@ -254,7 +264,7 @@ const App: React.FC = () => {
           </button>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="flex items-center gap-4 text-emerald-100/30 hover:text-white w-full px-4 py-3 transition-colors">
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            {isSidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Recolher Menu</span>}
+            {isSidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>}
           </button>
         </div>
       </aside>
@@ -262,30 +272,43 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto flex flex-col">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
           <div className="flex items-center gap-4">
-            <h1 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+            <h1 className="text-sm font-black text-slate-900 uppercase tracking-widest">
               {menuItems.find(i => i.id === activeTab)?.label}
             </h1>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => syncWithServer()}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}
-              >
-                {isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
-                {isSyncing ? 'Sincronizando...' : isOnline ? 'Supabase Online' : 'Offline'}
-              </button>
-            </div>
+            <button 
+              onClick={() => syncWithServer()}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100 animate-pulse'}`}
+            >
+              {isSyncing ? <RefreshCw size={10} className="animate-spin" /> : isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
+              {isSyncing ? 'Conectando...' : isOnline ? 'Online' : 'Desconectado'}
+            </button>
           </div>
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 border-l pl-6 border-slate-200">
-              <div className="text-right hidden sm:block">
-                <p className="text-[10px] font-black text-slate-900 leading-none uppercase tracking-tighter">{currentUser.name}</p>
-                <p className="text-[9px] text-emerald-600 font-bold mt-1 uppercase tracking-widest italic">BIB 20 - Vercel Deploy</p>
-              </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black text-slate-900 uppercase">{currentUser.name}</p>
+              <p className="text-[9px] text-emerald-600 font-bold uppercase italic tracking-widest">BIB 20 - Conexão Direta</p>
             </div>
           </div>
         </header>
 
         <div className="p-8 max-w-7xl mx-auto w-full">
+          {isOnline && (
+            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between text-emerald-700 shadow-sm animate-in fade-in zoom-in-95 duration-700">
+               <div className="flex items-center gap-3">
+                 <CheckCircle size={20} className="text-emerald-500" />
+                 <span className="text-[10px] font-black uppercase tracking-widest">Sincronização com Supabase Real estabelecida com sucesso. Permissões ativas.</span>
+               </div>
+            </div>
+          )}
+          {!isOnline && !isSyncing && (
+             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-between text-red-700 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <AlertCircle size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Atenção: Falha na conexão com o banco de dados Supabase. Verifique a URL e a Chave Anon.</span>
+                </div>
+                <button onClick={() => syncWithServer()} className="text-[9px] font-black bg-red-600 text-white px-4 py-2 rounded-xl uppercase hover:bg-red-700 transition-all shadow-lg">Reconectar</button>
+             </div>
+          )}
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} />}
