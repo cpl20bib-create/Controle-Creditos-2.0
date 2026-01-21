@@ -1,8 +1,8 @@
 
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, PieChart, Pie } from 'recharts';
-import { Credit, Commitment, Refund, Cancellation, Filters, UG } from '../types';
-import { ArrowUpRight, Wallet, Landmark, PieChart as PieChartIcon, TrendingDown, AlertTriangle, Clock, ChevronRight, X, History } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Text } from 'recharts';
+import { Credit, Commitment, Refund, Cancellation, Filters } from '../types';
+import { Landmark, TrendingDown, AlertTriangle, Clock, ChevronRight, X, History, Zap } from 'lucide-react';
 import FilterBar from './FilterBar';
 
 interface DashboardProps {
@@ -17,6 +17,9 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, cancellations, filters, setFilters }) => {
   const [detailCreditId, setDetailCreditId] = useState<string | null>(null);
 
+  const formatCurrency = (val: number) => 
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
   const filteredData = useMemo(() => {
     const filteredCredits = credits.filter(c => {
       if (filters.ug && c.ug !== filters.ug) return false;
@@ -28,11 +31,9 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
     const creditIds = new Set(filteredCredits.map(c => c.id));
     
-    // Cálculo de Saldos considerando Alocações Individuais
     const totalReceived = filteredCredits.reduce((acc, curr) => acc + curr.valueReceived, 0);
     const totalRefunded = refunds.filter(ref => creditIds.has(ref.creditId)).reduce((acc, curr) => acc + curr.value, 0);
 
-    // Empenhado líquido por crédito
     let totalCommittedNet = 0;
     filteredCredits.forEach(credit => {
       const creditAllocationsSum = commitments.reduce((acc, com) => {
@@ -55,7 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const totalAvailable = netReceived - totalCommittedNet;
     const executionPercentage = netReceived > 0 ? (totalCommittedNet / netReceived) * 100 : 0;
 
-    // Identificar Alertas Críticos - CONSIDERA SALDO >= 0.01
     const criticalAlerts = filteredCredits.map(c => {
       const spent = commitments.reduce((acc, com) => {
         const alloc = com.allocations?.find(a => a.creditId === c.id);
@@ -84,11 +84,10 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       return hasBalance && (isUrgent || isLowBalance);
     });
 
-    // Gráfico por Seção (Respeita filtros de UG/PI/ND mas NÃO o de seção para mostrar o comparativo)
-    const sectionAvailableMap: Record<string, number> = {};
+    // Mapeamento detalhado por seção com PIs internos
+    const sectionMap: Record<string, { total: number, pis: Record<string, number> }> = {};
     credits.forEach(c => {
       if (filters.ug && c.ug !== filters.ug) return;
-      if (filters.pi && c.pi !== filters.pi) return;
       if (filters.nd && c.nd !== filters.nd) return;
       
       const spent = commitments.reduce((acc, com) => {
@@ -108,12 +107,24 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         refunds.filter(r => r.creditId === c.id).reduce((a, b) => a + b.value, 0) - 
         (spent - cancelled);
         
-      sectionAvailableMap[c.section] = (sectionAvailableMap[c.section] || 0) + available;
+      if (available > 0.01) {
+        if (!sectionMap[c.section]) {
+          sectionMap[c.section] = { total: 0, pis: {} };
+        }
+        sectionMap[c.section].total += available;
+        sectionMap[c.section].pis[c.pi] = (sectionMap[c.section].pis[c.pi] || 0) + available;
+      }
     });
 
-    const barChartData = Object.entries(sectionAvailableMap)
-      .map(([name, value]) => ({ name, value }))
-      .filter(item => item.value > 0)
+    const barChartData = Object.entries(sectionMap)
+      .map(([name, data]) => ({ 
+        name, 
+        value: data.total,
+        piDetails: Object.entries(data.pis)
+          .map(([pi, val]) => ({ pi, val }))
+          .sort((a, b) => b.val - a.val)
+          .slice(0, 5) // Mostra top 5 PIs no tooltip
+      }))
       .sort((a, b) => b.value - a.value);
 
     return {
@@ -126,23 +137,61 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     };
   }, [credits, commitments, refunds, cancellations, filters]);
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-
   const handleBarClick = (data: any) => {
     if (!data || !data.name) return;
-    
-    if (filters.section === data.name) {
-      // Se clicar na mesma seção, limpa o filtro
-      setFilters({ ...filters, section: undefined });
-    } else {
-      // Caso contrário, aplica o filtro da seção clicada
-      setFilters({ ...filters, section: data.name });
+    const sectionName = data.name;
+    setFilters({ ...filters, section: filters.section === sectionName ? undefined : sectionName });
+  };
+
+  // Tooltip Customizado
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-emerald-500/30 animate-in fade-in zoom-in-95 duration-200 min-w-[220px]">
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-3 flex items-center gap-2">
+            <Landmark size={12} /> {data.name}
+          </p>
+          <div className="space-y-2">
+            {data.piDetails.map((item: any, idx: number) => (
+              <div key={idx} className="flex justify-between items-center gap-4">
+                <span className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">PI {item.pi}</span>
+                <span className="text-[10px] font-black text-white">{formatCurrency(item.val)}</span>
+              </div>
+            ))}
+            {data.piDetails.length === 5 && (
+              <p className="text-[8px] font-bold text-slate-500 uppercase text-center pt-1 italic">... e outros PIs</p>
+            )}
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
+             <span className="text-[9px] font-black text-emerald-500 uppercase">Total Seção</span>
+             <span className="text-xs font-black">{formatCurrency(data.value)}</span>
+          </div>
+        </div>
+      );
     }
+    return null;
+  };
+
+  // Label Customizado dentro da barra
+  const renderCustomBarLabel = ({ x, y, width, value }: any) => {
+    if (width < 60) return null; // Não renderiza em barras muito pequenas
+    return (
+      <text 
+        x={x + width - 10} 
+        y={y + 15} 
+        fill="white" 
+        textAnchor="end" 
+        fontSize={9} 
+        fontWeight={900}
+        className="pointer-events-none uppercase tracking-tighter"
+      >
+        {formatCurrency(value)}
+      </text>
+    );
   };
 
   const selectedDetailCredit = credits.find(c => c.id === detailCreditId);
-  
   const getIndividualNCBalance = (credit: Credit) => {
     const totalSpent = commitments.reduce((acc, com) => {
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
@@ -195,48 +244,70 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm h-[450px] flex flex-col">
+        <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm h-[480px] flex flex-col">
           <div className="mb-6 flex items-center justify-between">
             <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
               <TrendingDown size={14} className="text-emerald-600" /> Distribuição de Saldo por Seção
             </h4>
-            {filters.section && (
-              <span className="text-[8px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg uppercase animate-pulse">
-                Filtrando: {filters.section}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+               {filters.section && (
+                <button 
+                  onClick={() => setFilters({...filters, section: undefined})}
+                  className="text-[8px] font-black bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl uppercase hover:bg-emerald-200 transition-all flex items-center gap-1 shadow-sm"
+                >
+                  Filtrando: {filters.section} <X size={10} />
+                </button>
+               )}
+            </div>
           </div>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filteredData.barChartData} layout="vertical">
+              <BarChart data={filteredData.barChartData} layout="vertical" margin={{ left: 10, right: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 9, fontWeight: 900, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  width={140} 
+                  tick={{ fontSize: 9, fontStyle: 'italic', fontWeight: 900, fill: '#64748b' }} 
+                  axisLine={false} 
+                  tickLine={false} 
+                />
                 <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 'bold' }} 
-                  formatter={(value: number) => formatCurrency(value)} 
+                  cursor={{ fill: '#f8fafc', radius: 12 }}
+                  content={<CustomTooltip />}
                 />
                 <Bar 
                   dataKey="value" 
-                  radius={[0, 8, 8, 0]} 
-                  barSize={20}
+                  radius={[0, 10, 10, 0]} 
+                  barSize={24}
+                  label={renderCustomBarLabel}
                   onClick={handleBarClick}
                 >
-                  {filteredData.barChartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      className="cursor-pointer transition-all duration-300"
-                      fill={filters.section === entry.name ? '#064e3b' : '#10b981'}
-                    />
-                  ))}
+                  {filteredData.barChartData.map((entry, index) => {
+                    const isSelected = filters.section === entry.name;
+                    return (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        className="cursor-pointer transition-all duration-300 hover:opacity-80"
+                        fill={isSelected ? '#022c22' : '#10b981'}
+                        stroke={isSelected ? '#064e3b' : 'none'}
+                        strokeWidth={2}
+                      />
+                    );
+                  })}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <p className="mt-4 text-[8px] font-bold text-slate-400 uppercase italic text-center">
-            Dica: Clique em uma barra para isolar os dados da seção no Dashboard.
-          </p>
+          <div className="mt-4 flex items-center justify-center gap-6">
+            <p className="text-[8px] font-bold text-slate-400 uppercase italic flex items-center gap-1.5">
+              <Zap size={10} className="text-amber-500" /> Passe o mouse para detalhes por PI
+            </p>
+            <p className="text-[8px] font-bold text-slate-400 uppercase italic flex items-center gap-1.5">
+              <History size={10} className="text-emerald-500" /> Clique na barra para filtrar o painel
+            </p>
+          </div>
         </div>
 
         <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
@@ -319,7 +390,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                       </div>
                    </div>
                    
-                   {credits.find(c => c.id === selectedDetailCredit.id) && commitments.flatMap(com => {
+                   {commitments.flatMap(com => {
                       const alloc = com.allocations?.find(a => a.creditId === selectedDetailCredit.id);
                       return alloc ? [{ ne: com.ne, value: alloc.value, date: com.date, id: com.id }] : [];
                    }).map(alloc => (
