@@ -1,29 +1,41 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Tenta obter as chaves de múltiplas fontes possíveis no ambiente
-const getEnv = (key: string) => {
-  if (typeof process !== 'undefined' && process.env?.[key]) return process.env[key];
-  // @ts-ignore - Fallback para outros ambientes de build
-  if (typeof import.meta !== 'undefined' && import.meta.env?.[key]) return import.meta.env[key];
-  return undefined;
-};
-
-const supabaseUrl = getEnv('SUPABASE_URL');
-const supabaseAnonKey = getEnv('SUPABASE_ANON_KEY');
+// No ambiente de execução, as variáveis devem estar disponíveis em process.env
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('CRÍTICO: SUPABASE_URL ou SUPABASE_ANON_KEY não configurados nas variáveis de ambiente.');
+  console.error('CRÍTICO: SUPABASE_URL ou SUPABASE_ANON_KEY não estão definidos no ambiente (process.env).');
+  console.log('Status das variáveis:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey
+  });
 }
 
+// Inicializa o cliente apenas se tiver as chaves
 export const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
 export const api = {
+  /**
+   * Verifica se o banco está acessível com um ping simples
+   */
+  async checkConnection(): Promise<boolean> {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from('users').select('id', { count: 'exact', head: true }).limit(1);
+      return !error;
+    } catch (e) {
+      console.error('Falha técnica ao tentar conectar ao Supabase:', e);
+      return false;
+    }
+  },
+
   async getFullState() {
     if (!supabase) {
-      console.error('Erro: Cliente Supabase não inicializado.');
+      console.error('Erro: Cliente Supabase não inicializado (chaves ausentes).');
       return null;
     }
 
@@ -44,10 +56,8 @@ export const api = {
         supabase.from('audit_logs').select('*, users(name)').order('created_at', { ascending: false }).limit(100)
       ]);
 
-      const anyError = errC || errCom || errR || errCan || errU || errLog;
-      if (anyError) {
-        console.error('Erro na busca de dados:', anyError);
-        return null;
+      if (errC || errCom || errR || errCan || errU || errLog) {
+        throw new Error('Falha em uma ou mais consultas ao banco de dados.');
       }
 
       return {
@@ -59,30 +69,29 @@ export const api = {
         auditLogs: auditLogs || []
       };
     } catch (error) {
-      console.error('Exceção capturada na sincronização:', error);
+      console.error('Erro detalhado na busca de estado total:', error);
       return null;
     }
   },
 
   async upsert(table: string, data: any) {
     if (!supabase) {
-      console.error(`Impossível salvar em ${table}: Sem conexão.`);
-      return false;
+      throw new Error(`Conexão com banco de dados não estabelecida (Cliente nulo).`);
     }
     const { error } = await supabase.from(table).upsert(data);
     if (error) {
-      console.error(`Erro ao salvar em ${table}:`, error.message);
-      return false;
+      console.error(`Erro de Upsert em ${table}:`, error);
+      throw new Error(error.message);
     }
     return true;
   },
 
   async delete(table: string, id: string) {
-    if (!supabase) return false;
+    if (!supabase) throw new Error('Sem conexão com o banco.');
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (error) {
-      console.error(`Erro ao deletar de ${table}:`, error.message);
-      return false;
+      console.error(`Erro ao deletar de ${table}:`, error);
+      throw new Error(error.message);
     }
     return true;
   },
@@ -98,7 +107,7 @@ export const api = {
       created_at: new Date().toISOString()
     };
     const { error } = await supabase.from('audit_logs').insert(payload);
-    if (error) console.error('Falha ao gravar log de auditoria:', error.message);
+    if (error) console.error('Falha ao gravar log:', error.message);
     return !error;
   },
 
@@ -110,9 +119,7 @@ export const api = {
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         callback();
       })
-      .subscribe((status) => {
-        console.log('Status do canal Realtime:', status);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
