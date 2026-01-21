@@ -84,7 +84,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       return hasBalance && (isUrgent || isLowBalance);
     });
 
-    // Mapeamento detalhado por seção com PIs internos
     const sectionMap: Record<string, { total: number, pis: Record<string, number> }> = {};
     credits.forEach(c => {
       if (filters.ug && c.ug !== filters.ug) return;
@@ -123,7 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         piDetails: Object.entries(data.pis)
           .map(([pi, val]) => ({ pi, val }))
           .sort((a, b) => b.val - a.val)
-          .slice(0, 5) // Mostra top 5 PIs no tooltip
+          .slice(0, 5)
       }))
       .sort((a, b) => b.value - a.value);
 
@@ -143,7 +142,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     setFilters({ ...filters, section: filters.section === sectionName ? undefined : sectionName });
   };
 
-  // Tooltip Customizado
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -173,16 +171,14 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     return null;
   };
 
-  // Label Customizado dentro da barra
-  const renderCustomBarLabel = ({ x, y, width, value }: any) => {
-    if (width < 60) return null; // Não renderiza em barras muito pequenas
+  const renderCustomBarLabel = ({ x, y, value }: any) => {
     return (
       <text 
-        x={x + width - 10} 
-        y={y + 15} 
-        fill="white" 
-        textAnchor="end" 
-        fontSize={9} 
+        x={x} 
+        y={y - 8} 
+        fill="#0f172a" 
+        textAnchor="start" 
+        fontSize={10} 
         fontWeight={900}
         className="pointer-events-none uppercase tracking-tighter"
       >
@@ -261,7 +257,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
           </div>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filteredData.barChartData} layout="vertical" margin={{ left: 10, right: 30 }}>
+              <BarChart data={filteredData.barChartData} layout="vertical" margin={{ left: 10, right: 30, top: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" hide />
                 <YAxis 
@@ -279,9 +275,10 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                 <Bar 
                   dataKey="value" 
                   radius={[0, 10, 10, 0]} 
-                  barSize={24}
+                  barSize={20}
                   label={renderCustomBarLabel}
                   onClick={handleBarClick}
+                  isAnimationActive={false}
                 >
                   {filteredData.barChartData.map((entry, index) => {
                     const isSelected = filters.section === entry.name;
