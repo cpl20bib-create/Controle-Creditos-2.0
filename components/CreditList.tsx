@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Credit, Commitment, Refund, Cancellation, Filters, UserRole } from '../types';
+import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, SortField } from '../types';
 import FilterBar from './FilterBar';
 import CreditForm from './CreditForm';
 import RefundForm from './RefundForm';
@@ -66,8 +66,11 @@ const CreditList: React.FC<CreditListProps> = ({
     return { percentage, daysLeft, balance };
   };
 
-  const filteredCredits = useMemo(() => {
-    return credits.filter(c => {
+  const filteredAndSortedCredits = useMemo(() => {
+    let result = credits.map(c => ({
+      ...c,
+      info: getExecutionInfo(c)
+    })).filter(c => {
       const matchSearch = c.nc.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           c.pi.toLowerCase().includes(searchTerm.toLowerCase());
@@ -75,9 +78,40 @@ const CreditList: React.FC<CreditListProps> = ({
       const matchPi = !filters.pi || c.pi === filters.pi;
       const matchNd = !filters.nd || c.nd === filters.nd;
       const matchSection = !filters.section || c.section === filters.section;
-      return matchSearch && matchUg && matchPi && matchNd && matchSection;
+      
+      const isNotZero = c.info.balance >= 0.01;
+      const matchHideZero = !filters.hideZeroBalance || isNotZero;
+
+      return matchSearch && matchUg && matchPi && matchNd && matchSection && matchHideZero;
     });
-  }, [credits, searchTerm, filters]);
+
+    // Lógica de Ordenação
+    result.sort((a, b) => {
+      // Regra fundamental: Zerados sempre por último
+      const aHasBalance = a.info.balance >= 0.01;
+      const bHasBalance = b.info.balance >= 0.01;
+      
+      if (aHasBalance && !bHasBalance) return -1;
+      if (!aHasBalance && bHasBalance) return 1;
+
+      // Se ambos tiverem saldo ou ambos estiverem zerados, aplicamos o filtro do usuário
+      const sortBy = filters.sortBy || 'createdAt';
+      const order = filters.sortOrder === 'asc' ? 1 : -1;
+
+      if (sortBy === 'value') {
+        return (a.valueReceived - b.valueReceived) * order;
+      }
+      if (sortBy === 'deadline') {
+        return (new Date(a.deadline).getTime() - new Date(b.deadline).getTime()) * order;
+      }
+      if (sortBy === 'createdAt') {
+        return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * order;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [credits, searchTerm, filters, commitments, refunds, cancellations]);
 
   const handleEdit = (credit: Credit) => {
     if (!canEdit) return;
@@ -138,18 +172,20 @@ const CreditList: React.FC<CreditListProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-sans">
-            {filteredCredits.map((credit) => {
-              const info = getExecutionInfo(credit);
+            {filteredAndSortedCredits.map((credit) => {
+              const info = credit.info;
+              const isZero = info.balance < 0.01;
               return (
-                <tr key={credit.id} className="hover:bg-slate-50 transition-colors group">
+                <tr key={credit.id} className={`transition-colors group ${isZero ? 'bg-slate-50/50 opacity-60' : 'hover:bg-slate-50'}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className={`w-1.5 h-10 rounded-full ${info.daysLeft < 0 ? 'bg-red-500' : info.daysLeft < 10 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                      <div className={`w-1.5 h-10 rounded-full ${isZero ? 'bg-slate-300' : info.daysLeft < 0 ? 'bg-red-500' : info.daysLeft < 10 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
                       <div>
-                        <div className="font-black text-emerald-800 text-xs italic flex items-center gap-2">
+                        <div className={`font-black text-xs italic flex items-center gap-2 ${isZero ? 'text-slate-400' : 'text-emerald-800'}`}>
                           {credit.nc}
-                          {info.daysLeft <= 15 && info.daysLeft >= 0 && <Clock size={12} className="text-amber-500 animate-pulse" />}
-                          {info.daysLeft < 0 && <AlertCircle size={12} className="text-red-500" />}
+                          {!isZero && info.daysLeft <= 15 && info.daysLeft >= 0 && <Clock size={12} className="text-amber-500 animate-pulse" />}
+                          {!isZero && info.daysLeft < 0 && <AlertCircle size={12} className="text-red-500" />}
+                          {isZero && <span className="text-[7px] bg-slate-200 text-slate-500 px-1 rounded not-italic tracking-widest font-black uppercase">Liquidado</span>}
                         </div>
                         <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Vence em: {new Date(credit.deadline).toLocaleDateString('pt-BR')} ({info.daysLeft} d)</div>
                       </div>
@@ -163,11 +199,11 @@ const CreditList: React.FC<CreditListProps> = ({
                         <span>{formatCurrency(credit.valueReceived - info.balance)}</span>
                       </div>
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                        <div className={`h-full transition-all duration-1000 ${info.percentage > 95 ? 'bg-red-500' : info.percentage > 70 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, info.percentage)}%` }}></div>
+                        <div className={`h-full transition-all duration-1000 ${isZero ? 'bg-slate-400' : info.percentage > 95 ? 'bg-red-500' : info.percentage > 70 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, info.percentage)}%` }}></div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right text-xs font-black text-emerald-600">{formatCurrency(info.balance)}</td>
+                  <td className={`px-6 py-4 text-right text-xs font-black ${isZero ? 'text-slate-400' : 'text-emerald-600'}`}>{formatCurrency(info.balance)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-1.5 transition-all">
                       <button onClick={() => setDetailCreditId(credit.id)} className="p-1.5 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-700 rounded-lg transition-all" title="Detalhes"><InfoIcon size={14} /></button>
