@@ -70,6 +70,9 @@ export interface Refund {
   description: string;
 }
 
+export type SortField = 'value' | 'date' | 'deadline' | 'createdAt';
+export type SortOrder = 'asc' | 'desc';
+
 export interface Filters {
   ug?: UG;
   pi?: string;
@@ -78,4 +81,7 @@ export interface Filters {
   organ?: string;
   startDate?: string;
   endDate?: string;
+  hideZeroBalance?: boolean;
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
 }
