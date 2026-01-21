@@ -2,14 +2,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { Credit, Commitment, Refund, Cancellation, User, AuditLog } from './types';
 
-// Credenciais reais do Supabase
+// Credenciais do Supabase - Atualizadas com a nova chave fornecida
 const supabaseUrl = 'https://tdbpxsdvtogymvercpqc.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYnB4c2R2dG9neW12ZXJjcHFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NTgyNzQsImV4cCI6MjA4NDQzNDI3NH0.bo4nLx1MkLzWMp-iS8rA-p3JG_BaQZls2-ok4rl0G_o';
+const supabaseAnonKey = 'sb_publishable_uMAhraANc199PrH8EQD9-w_MW39GXUK';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
- * Mappers para converter entre os padrões do Frontend (CamelCase) e do Banco (Snake_Case)
+ * Mappers robustos: Garantem que todo valor monetário vindo do banco
+ * seja tratado como Number e, em caso de nulo/indefinido, retorne 0.
  */
 const mappers = {
   credits: {
@@ -21,8 +22,8 @@ const mappers = {
       nd: c.nd,
       organ: c.organ,
       section: c.section,
-      value_received: c.valueReceived,
-      description: c.description,
+      value_received: Number(c.valueReceived) || 0,
+      description: c.description || '',
       deadline: c.deadline,
       created_at: c.createdAt
     }),
@@ -34,8 +35,8 @@ const mappers = {
       nd: row.nd,
       organ: row.organ,
       section: row.section,
-      valueReceived: row.value_received,
-      description: row.description,
+      valueReceived: Number(row.value_received) || 0,
+      description: row.description || '',
       deadline: row.deadline,
       createdAt: row.created_at
     })
@@ -44,52 +45,58 @@ const mappers = {
     toDB: (c: Commitment) => ({
       id: c.id,
       ne: c.ne,
-      value: c.value,
+      value: Number(c.value) || 0,
       date: c.date,
-      description: c.description,
-      allocations: c.allocations?.map(a => ({ credit_id: a.creditId, value: a.value }))
+      description: c.description || '',
+      allocations: c.allocations?.map(a => ({ 
+        credit_id: a.creditId, 
+        value: Number(a.value) || 0 
+      }))
     }),
     fromDB: (row: any): Commitment => ({
       id: row.id,
       ne: row.ne,
-      value: row.value,
+      value: Number(row.value) || 0,
       date: row.date,
-      description: row.description,
-      allocations: row.allocations?.map((a: any) => ({ credit_id: a.credit_id, value: a.value })) || []
+      description: row.description || '',
+      allocations: (row.allocations || []).map((a: any) => ({ 
+        creditId: a.credit_id, 
+        value: Number(a.value) || 0 
+      }))
     })
   },
   refunds: {
     toDB: (r: Refund) => ({
       id: r.id,
       credit_id: r.creditId,
-      value: r.value,
+      value: Number(r.value) || 0,
       date: r.date,
-      description: r.description
+      description: r.description || ''
     }),
     fromDB: (row: any): Refund => ({
       id: row.id,
       creditId: row.credit_id,
-      value: row.value,
+      value: Number(row.value) || 0,
       date: row.date,
-      description: row.description
+      description: row.description || ''
     })
   },
   cancellations: {
     toDB: (c: Cancellation) => ({
       id: c.id,
       commitment_id: c.commitmentId,
-      value: c.value,
+      value: Number(c.value) || 0,
       ro: c.ro,
       date: c.date,
-      bi: c.bi
+      bi: c.bi || ''
     }),
     fromDB: (row: any): Cancellation => ({
       id: row.id,
       commitmentId: row.commitment_id,
-      value: row.value,
+      value: Number(row.value) || 0,
       ro: row.ro,
       date: row.date,
-      bi: row.bi
+      bi: row.bi || ''
     })
   },
   audit_logs: {
@@ -100,7 +107,7 @@ const mappers = {
       action: l.action,
       entity_type: l.entityType,
       entity_id: l.entityId,
-      description: l.description,
+      description: l.description || '',
       timestamp: l.timestamp
     }),
     fromDB: (row: any): AuditLog => ({
@@ -110,7 +117,7 @@ const mappers = {
       action: row.action,
       entityType: row.entity_type,
       entityId: row.entity_id,
-      description: row.description,
+      description: row.description || '',
       timestamp: row.timestamp
     })
   },
@@ -135,13 +142,15 @@ const mappers = {
 export const api = {
   async checkConnection(): Promise<boolean> {
     try {
-      const { data, error } = await supabase.from('users').select('id').limit(1);
+      const { error } = await supabase.from('users').select('id').limit(1);
+      // Se o erro for Invalid API key, o SDK retorna status 403 ou 401
       if (error) {
-        console.error('Erro ao conectar Supabase:', error.message);
+        console.error('Supabase Connection Error:', error.message);
         return false;
       }
       return true;
-    } catch {
+    } catch (e) {
+      console.error('Unexpected Connection Error:', e);
       return false;
     }
   },
@@ -157,11 +166,6 @@ export const api = {
         supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(100)
       ]);
 
-      if (resC.error || resCom.error || resU.error) {
-        console.error('Falha ao baixar dados do servidor');
-        return null;
-      }
-
       return {
         credits: (resC.data || []).map(mappers.credits.fromDB),
         commitments: (resCom.data || []).map(mappers.commitments.fromDB),
@@ -171,12 +175,13 @@ export const api = {
         auditLogs: (resLog.data || []).map(mappers.audit_logs.fromDB)
       };
     } catch (err) {
+      console.error('Falha ao carregar estado do banco:', err);
       return null;
     }
   },
 
   async upsert(table: string, data: any) {
-    const dbTable = table === 'auditLogs' ? 'audit_logs' : table;
+    const dbTable = (table === 'auditLogs' || table === 'audit_logs') ? 'audit_logs' : table;
     const mapper = (mappers as any)[dbTable];
     const payload = mapper ? mapper.toDB(data) : data;
     
@@ -200,7 +205,7 @@ export const api = {
       const payload = mappers.audit_logs.toDB(log);
       await supabase.from('audit_logs').insert(payload);
     } catch (e) {
-      console.error('Falha ao registrar log');
+      console.warn('Não foi possível gravar log remoto');
     }
     return true;
   },
