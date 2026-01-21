@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType, UserRole } from './types';
 import { INITIAL_CREDITS, INITIAL_COMMITMENTS } from './constants';
 import Dashboard from './components/Dashboard';
@@ -28,28 +28,29 @@ const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sincronização de Estado - Redesenhada para ser a única fonte de verdade
+  // Sincronização de Estado - Redesenhada para ser a única fonte de verdade e forçar reconexão
   const syncWithServer = useCallback(async () => {
     if (isSyncing) return;
     setIsSyncing(true);
     
-    const state = await api.getFullState();
-    
-    if (state) {
-      setCredits(state.credits);
-      setCommitments(state.commitments);
-      setRefunds(state.refunds);
-      setCancellations(state.cancellations);
-      setUsers(state.users);
-      setAuditLogs(state.auditLogs);
-      setIsOnline(true);
-      
-      // Cache apenas para leitura rápida em boot, nunca impede gravação
-      localStorage.setItem('budget_credits', JSON.stringify(state.credits));
+    // Tenta um "ping" real primeiro para validar as credenciais
+    const connected = await api.checkConnection();
+    setIsOnline(connected);
+
+    if (connected) {
+      const state = await api.getFullState();
+      if (state) {
+        setCredits(state.credits);
+        setCommitments(state.commitments);
+        setRefunds(state.refunds);
+        setCancellations(state.cancellations);
+        setUsers(state.users);
+        setAuditLogs(state.auditLogs);
+      }
     } else {
-      setIsOnline(false);
-      console.warn('Sistema operando em modo degradado: Não foi possível conectar ao Supabase.');
+      console.warn('Conexão falhou: SUPABASE_URL/KEY podem estar incorretas ou rede indisponível.');
     }
+    
     setIsSyncing(false);
   }, [isSyncing]);
 
@@ -91,103 +92,101 @@ const App: React.FC = () => {
     localStorage.removeItem('budget_session');
   };
 
-  // Funções de manipulação agora aguardam a confirmação do servidor
+  // Funções agora lançam exceções reais se o banco falhar
   const handleAddCredit = async (newCredit: Credit) => {
-    const success = await api.upsert('credits', newCredit);
-    if (success) {
+    try {
+      await api.upsert('credits', newCredit);
       await addLog('CREATE', 'CRÉDITO', newCredit.id, `NC ${newCredit.nc}`);
-      syncWithServer(); // Força atualização local após sucesso
-    } else {
-      alert('ERRO DE CONEXÃO: Não foi possível gravar o crédito no servidor.');
+      syncWithServer();
+    } catch (e: any) {
+      alert(`FALHA NO ENVIO: ${e.message}`);
     }
   };
 
   const handleUpdateCredit = async (updated: Credit) => {
-    const success = await api.upsert('credits', updated);
-    if (success) {
+    try {
+      await api.upsert('credits', updated);
       await addLog('UPDATE', 'CRÉDITO', updated.id, `NC ${updated.nc}`);
       syncWithServer();
-    } else {
-      alert('ERRO DE CONEXÃO: Falha ao atualizar dados no servidor.');
+    } catch (e: any) {
+      alert(`ERRO AO ATUALIZAR: ${e.message}`);
     }
   };
 
   const handleDeleteCredit = async (id: string) => {
     const credit = credits.find(c => c.id === id);
     if (credit && window.confirm('Excluir este crédito definitivamente?')) {
-      const success = await api.delete('credits', id);
-      if (success) {
+      try {
+        await api.delete('credits', id);
         await addLog('DELETE', 'CRÉDITO', id, `NC ${credit.nc}`);
         syncWithServer();
-      } else {
-        alert('ERRO DE CONEXÃO: Não foi possível excluir o registro no servidor.');
+      } catch (e: any) {
+        alert(`ERRO AO EXCLUIR: ${e.message}`);
       }
     }
   };
 
   const handleAddCommitment = async (newCom: Commitment) => {
-    const success = await api.upsert('commitments', newCom);
-    if (success) {
+    try {
+      await api.upsert('commitments', newCom);
       await addLog('CREATE', 'EMPENHO', newCom.id, `NE ${newCom.ne}`);
       syncWithServer();
-    } else {
-      alert('ERRO DE CONEXÃO: Falha ao registrar empenho no servidor.');
+    } catch (e: any) {
+      alert(`FALHA NO EMPENHO: ${e.message}`);
     }
   };
 
   const handleUpdateCommitment = async (updated: Commitment) => {
-    const success = await api.upsert('commitments', updated);
-    if (success) {
+    try {
+      await api.upsert('commitments', updated);
       await addLog('UPDATE', 'EMPENHO', updated.id, `NE ${updated.ne}`);
       syncWithServer();
-    } else {
-      alert('ERRO DE CONEXÃO: Falha ao atualizar empenho.');
+    } catch (e: any) {
+      alert(`FALHA NA ATUALIZAÇÃO: ${e.message}`);
     }
   };
 
   const handleDeleteCommitment = async (id: string) => {
     const com = commitments.find(c => c.id === id);
     if (com && window.confirm('Excluir este empenho definitivamente?')) {
-      const success = await api.delete('commitments', id);
-      if (success) {
+      try {
+        await api.delete('commitments', id);
         await addLog('DELETE', 'EMPENHO', id, `NE ${com.ne}`);
         syncWithServer();
-      } else {
-        alert('ERRO DE CONEXÃO: Falha ao remover empenho do servidor.');
+      } catch (e: any) {
+        alert(`FALHA NA EXCLUSÃO: ${e.message}`);
       }
     }
   };
 
   const handleAddRefund = async (newRefund: Refund) => {
-    const success = await api.upsert('refunds', newRefund);
-    if (success) {
+    try {
+      await api.upsert('refunds', newRefund);
       await addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento NC individual`);
       syncWithServer();
-    } else {
-      alert('ERRO DE CONEXÃO: Não foi possível registrar o recolhimento.');
+    } catch (e: any) {
+      alert(`FALHA NO RECOLHIMENTO: ${e.message}`);
     }
   };
 
   const handleAddCancellation = async (newCan: Cancellation) => {
-    const success = await api.upsert('cancellations', newCan);
-    if (success) {
+    try {
+      await api.upsert('cancellations', newCan);
       await addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação parcial/total`);
       syncWithServer();
-    } else {
-      alert('ERRO DE CONEXÃO: Não foi possível registrar a anulação.');
+    } catch (e: any) {
+      alert(`FALHA NA ANULAÇÃO: ${e.message}`);
     }
   };
 
   const handleUpdateUsers = async (nextUsers: User[]) => {
-    let allSuccess = true;
-    for (const user of nextUsers) {
-      const success = await api.upsert('users', user);
-      if (!success) allSuccess = false;
-    }
-    if (allSuccess) {
+    try {
+      for (const user of nextUsers) {
+        await api.upsert('users', user);
+      }
       syncWithServer();
-    } else {
-      alert('AVISO: Alguns usuários não puderam ser sincronizados com o servidor.');
+    } catch (e: any) {
+      alert(`FALHA NA GESTÃO DE USUÁRIOS: ${e.message}`);
     }
   };
 
@@ -274,12 +273,18 @@ const App: React.FC = () => {
                 onClick={() => syncWithServer()}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100 animate-pulse'}`}
               >
-                {isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
-                {isSyncing ? 'Conectando...' : isOnline ? 'Supabase Online' : 'Conexão Perdida'}
+                {isSyncing ? <RefreshCw size={10} className="animate-spin" /> : isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
+                {isSyncing ? 'Conectando...' : isOnline ? 'Supabase Online' : 'Clique p/ Reconectar'}
               </button>
             </div>
           </div>
           <div className="flex items-center gap-6">
+            {!isOnline && (
+              <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1 rounded-lg border border-red-100 animate-bounce">
+                <AlertCircle size={14} />
+                <span className="text-[10px] font-black uppercase">ERRO: Verifique Variáveis Supabase</span>
+              </div>
+            )}
             <div className="flex items-center gap-3 border-l pl-6 border-slate-200">
               <div className="text-right hidden sm:block">
                 <p className="text-[10px] font-black text-slate-900 leading-none uppercase tracking-tighter">{currentUser.name}</p>
@@ -290,6 +295,20 @@ const App: React.FC = () => {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto w-full">
+          {!isOnline && (
+            <div className="mb-8 p-6 bg-red-50 border border-red-200 rounded-[2rem] flex items-center gap-6 animate-in slide-in-from-top-4">
+              <div className="p-4 bg-red-100 text-red-600 rounded-2xl"><WifiOff size={32} /></div>
+              <div className="flex-1">
+                <h3 className="text-sm font-black text-red-900 uppercase">Sistema em Modo Offline</h3>
+                <p className="text-[10px] font-bold text-red-700 uppercase opacity-70">
+                  O aplicativo não conseguiu estabelecer conexão com o Supabase. Verifique se as variáveis SUPABASE_URL e SUPABASE_ANON_KEY foram configuradas corretamente no Vercel/Ambiente.
+                </p>
+              </div>
+              <button onClick={() => syncWithServer()} className="px-6 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all flex items-center gap-2">
+                <RefreshCw size={16} /> Tentar Agora
+              </button>
+            </div>
+          )}
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} />}
