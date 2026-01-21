@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Filters, Credit, SortField, SortOrder } from '../types';
-import { RotateCcw, SortAsc, EyeOff } from 'lucide-react';
+import { RotateCcw, SortAsc } from 'lucide-react';
 
 interface FilterBarProps {
   filters: Filters;
@@ -37,14 +37,14 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
   };
 
   return (
-    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4 text-black">
+    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4 text-black font-sans">
       <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 items-end">
         <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Unidade Gestora</label>
+          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidade Gestora</label>
           <select 
             value={filters.ug || ''} 
             onChange={(e) => handleChange('ug', e.target.value)}
-            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
           >
             <option value="">Todas</option>
             {availableOptions.ugs.map(ug => <option key={ug} value={ug}>{ug}</option>)}
@@ -52,11 +52,11 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Plano Interno</label>
+          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Plano Interno (PI)</label>
           <select 
             value={filters.pi || ''} 
             onChange={(e) => handleChange('pi', e.target.value)}
-            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
           >
             <option value="">Todos</option>
             {availableOptions.pis.map(pi => <option key={pi} value={pi}>{pi}</option>)}
@@ -64,11 +64,11 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Natureza (ND)</label>
+          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Natureza (ND)</label>
           <select 
             value={filters.nd || ''} 
             onChange={(e) => handleChange('nd', e.target.value)}
-            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
           >
             <option value="">Todas</option>
             {availableOptions.nds.map(nd => <option key={nd} value={nd}>{nd}</option>)}
@@ -76,11 +76,11 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Seção Interessada</label>
+          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Seção Interessada</label>
           <select 
             value={filters.section || ''} 
             onChange={(e) => handleChange('section', e.target.value)}
-            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
           >
             <option value="">Todas</option>
             {availableOptions.sections.map(s => <option key={s} value={s}>{s}</option>)}
@@ -89,7 +89,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
 
         <button 
           onClick={() => setFilters({ hideZeroBalance: filters.hideZeroBalance })}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-500 font-black py-2 rounded-xl text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 shadow-sm transition-all h-[36px]"
+          className="bg-slate-100 hover:bg-slate-200 text-slate-500 font-black py-2.5 rounded-xl text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 shadow-sm transition-all h-[42px]"
         >
           <RotateCcw size={14} />
           Limpar Filtros
@@ -97,7 +97,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
       </div>
 
       {showExtendedFilters && (
-        <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-slate-100">
+        <div className="flex flex-wrap items-center gap-6 pt-3 border-t border-slate-100 animate-in fade-in slide-in-from-top-1">
           <div className="flex items-center gap-4">
              <div className="flex flex-col gap-1">
                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><SortAsc size={10}/> Ordenar por</label>
