@@ -1,9 +1,20 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// No Vercel, estas variáveis devem ser configuradas no Dashboard do Projeto
-const supabaseUrl = typeof process !== 'undefined' ? process.env.SUPABASE_URL : undefined;
-const supabaseAnonKey = typeof process !== 'undefined' ? process.env.SUPABASE_ANON_KEY : undefined;
+// Tenta obter as chaves de múltiplas fontes possíveis no ambiente
+const getEnv = (key: string) => {
+  if (typeof process !== 'undefined' && process.env?.[key]) return process.env[key];
+  // @ts-ignore - Fallback para outros ambientes de build
+  if (typeof import.meta !== 'undefined' && import.meta.env?.[key]) return import.meta.env[key];
+  return undefined;
+};
+
+const supabaseUrl = getEnv('SUPABASE_URL');
+const supabaseAnonKey = getEnv('SUPABASE_ANON_KEY');
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('CRÍTICO: SUPABASE_URL ou SUPABASE_ANON_KEY não configurados nas variáveis de ambiente.');
+}
 
 export const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
@@ -11,25 +22,33 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
 
 export const api = {
   async getFullState() {
-    if (!supabase) return null;
+    if (!supabase) {
+      console.error('Erro: Cliente Supabase não inicializado.');
+      return null;
+    }
 
     try {
       const [
-        { data: credits },
-        { data: commitments },
-        { data: refunds },
-        { data: cancellations },
-        { data: users },
-        { data: auditLogs }
+        { data: credits, error: errC },
+        { data: commitments, error: errCom },
+        { data: refunds, error: errR },
+        { data: cancellations, error: errCan },
+        { data: users, error: errU },
+        { data: auditLogs, error: errLog }
       ] = await Promise.all([
         supabase.from('credits').select('*'),
         supabase.from('commitments').select('*'),
         supabase.from('refunds').select('*'),
         supabase.from('cancellations').select('*'),
         supabase.from('users').select('*'),
-        // Realiza join com users para obter o nome e ordena por created_at
         supabase.from('audit_logs').select('*, users(name)').order('created_at', { ascending: false }).limit(100)
       ]);
+
+      const anyError = errC || errCom || errR || errCan || errU || errLog;
+      if (anyError) {
+        console.error('Erro na busca de dados:', anyError);
+        return null;
+      }
 
       return {
         credits: credits || [],
@@ -40,26 +59,36 @@ export const api = {
         auditLogs: auditLogs || []
       };
     } catch (error) {
-      console.error('Falha na sincronização inicial:', error);
+      console.error('Exceção capturada na sincronização:', error);
       return null;
     }
   },
 
   async upsert(table: string, data: any) {
-    if (!supabase) return false;
+    if (!supabase) {
+      console.error(`Impossível salvar em ${table}: Sem conexão.`);
+      return false;
+    }
     const { error } = await supabase.from(table).upsert(data);
-    return !error;
+    if (error) {
+      console.error(`Erro ao salvar em ${table}:`, error.message);
+      return false;
+    }
+    return true;
   },
 
   async delete(table: string, id: string) {
     if (!supabase) return false;
     const { error } = await supabase.from(table).delete().eq('id', id);
-    return !error;
+    if (error) {
+      console.error(`Erro ao deletar de ${table}:`, error.message);
+      return false;
+    }
+    return true;
   },
 
   async addLog(log: any) {
     if (!supabase) return false;
-    // Mapeia para os campos que o usuário descreveu se necessário
     const payload = {
       user_id: log.userId,
       action: log.action,
@@ -69,11 +98,10 @@ export const api = {
       created_at: new Date().toISOString()
     };
     const { error } = await supabase.from('audit_logs').insert(payload);
-    if (error) console.error('Erro ao gravar log:', error);
+    if (error) console.error('Falha ao gravar log de auditoria:', error.message);
     return !error;
   },
 
-  // Escuta mudanças em tempo real para múltiplas máquinas
   subscribeToChanges(callback: () => void) {
     if (!supabase) return () => {};
 
@@ -82,7 +110,9 @@ export const api = {
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         callback();
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Status do canal Realtime:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
