@@ -25,34 +25,68 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'list' | 'add' | 'cancel'>('list');
   const [editingItem, setEditingItem] = useState<Commitment | null>(null);
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>({
+    sortBy: 'date',
+    sortOrder: 'desc'
+  });
 
   const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR';
 
   const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
-  const filteredItems = useMemo(() => {
-    return commitments.filter(item => {
-      // Para busca, verificamos se a busca bate em qualquer NC vinculada
-      const linkedNCs = item.allocations?.map(a => credits.find(c => c.id === a.creditId)?.nc || '') || [];
+  const filteredAndSortedItems = useMemo(() => {
+    const safeCommitments = Array.isArray(commitments) ? commitments : [];
+    const safeCredits = Array.isArray(credits) ? credits : [];
+    const safeCancellations = Array.isArray(cancellations) ? cancellations : [];
+
+    let result = safeCommitments.map(item => {
+      const cancelledValue = safeCancellations.filter(can => can.commitmentId === item.id).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+      const currentBalance = (Number(item.value) || 0) - cancelledValue;
+      const firstCredit = item.allocations?.length > 0 ? safeCredits.find(c => c.id === item.allocations[0].creditId) : null;
       
-      const matchSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      return { ...item, currentBalance, firstCredit };
+    }).filter(item => {
+      const linkedNCs = item.allocations?.map(a => safeCredits.find(c => c.id === a.creditId)?.nc || '') || [];
+      
+      const matchSearch = (item.description || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.ne.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           linkedNCs.some(nc => nc.toLowerCase().includes(searchTerm.toLowerCase()));
       
-      // Para filtros de UG/PI/ND, verificamos a primeira alocação (que define o grupo)
-      const firstCredit = item.allocations?.length > 0 ? credits.find(c => c.id === item.allocations[0].creditId) : null;
-      if (!firstCredit && filters.ug) return false;
+      if (!item.firstCredit && filters.ug) return false;
 
-      const matchUg = !filters.ug || firstCredit?.ug === filters.ug;
-      const matchPi = !filters.pi || firstCredit?.pi === filters.pi;
-      const matchNd = !filters.nd || firstCredit?.nd === filters.nd;
-      const matchSection = !filters.section || firstCredit?.section === filters.section;
+      const matchUg = !filters.ug || item.firstCredit?.ug === filters.ug;
+      const matchPi = !filters.pi || item.firstCredit?.pi === filters.pi;
+      const matchNd = !filters.nd || item.firstCredit?.nd === filters.nd;
+      const matchSection = !filters.section || item.firstCredit?.section === filters.section;
+      
+      const isNotZero = item.currentBalance >= 0.01;
+      const matchHideZero = !filters.hideZeroBalance || isNotZero;
 
-      return matchSearch && matchUg && matchPi && matchNd && matchSection;
+      return matchSearch && matchUg && matchPi && matchNd && matchSection && matchHideZero;
     });
-  }, [commitments, credits, searchTerm, filters]);
+
+    result.sort((a, b) => {
+      const aIsZero = a.currentBalance < 0.01;
+      const bIsZero = b.currentBalance < 0.01;
+      
+      if (!aIsZero && bIsZero) return -1;
+      if (aIsZero && !bIsZero) return 1;
+
+      const sortBy = filters.sortBy || 'date';
+      const order = filters.sortOrder === 'asc' ? 1 : -1;
+
+      if (sortBy === 'value') {
+        return (Number(a.value) - Number(b.value)) * order;
+      }
+      if (sortBy === 'date' || (sortBy as string) === 'created_at') {
+        return (new Date(a.date).getTime() - new Date(b.date).getTime()) * order;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [commitments, credits, searchTerm, filters, cancellations]);
 
   if (activeView === 'add') {
     return (
@@ -124,15 +158,16 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-sans">
-            {filteredItems.length > 0 ? filteredItems.map((item) => {
-              const cancelledValue = cancellations.filter(can => can.commitmentId === item.id).reduce((acc, curr) => acc + curr.value, 0);
-              const currentBalance = item.value - cancelledValue;
-              
+            {filteredAndSortedItems.length > 0 ? filteredAndSortedItems.map((item) => {
+              const isZero = item.currentBalance < 0.01;
               return (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
+                <tr key={item.id} className={`transition-colors group ${isZero ? 'bg-slate-50/50 opacity-60 italic' : 'hover:bg-slate-50'}`}>
                   <td className="px-6 py-4">
                     <div className="text-[10px] font-bold text-slate-400 mb-1">{new Date(item.date).toLocaleDateString('pt-BR')}</div>
-                    <div className="font-black text-red-900 text-xs italic">{item.ne}</div>
+                    <div className="font-black text-red-900 text-xs italic flex items-center gap-2">
+                      {item.ne}
+                      {isZero && <span className="text-[7px] bg-slate-200 text-slate-500 px-1 rounded not-italic tracking-widest font-black uppercase">Liquidado/Anulado</span>}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
@@ -148,13 +183,13 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right font-black text-slate-400 text-xs">{formatCurrency(item.value)}</td>
-                  <td className="px-6 py-4 text-right font-black text-red-700 text-xs">{formatCurrency(currentBalance)}</td>
+                  <td className={`px-6 py-4 text-right font-black text-xs ${isZero ? 'text-slate-400' : 'text-red-700'}`}>{formatCurrency(item.currentBalance)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-1.5 transition-all">
                       {canEdit && (
                         <>
-                          <button onClick={() => { setEditingItem(item); setActiveView('add'); }} className="p-1.5 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-700 rounded-lg transition-all"><Edit3 size={14} /></button>
-                          <button onClick={() => onDelete(item.id)} className="p-1.5 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-700 rounded-lg transition-all"><Trash2 size={14} /></button>
+                          <button onClick={() => { setEditingItem(item); setActiveView('add'); }} className="p-1.5 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-700 rounded-lg transition-all" title="Editar"><Edit3 size={14} /></button>
+                          <button onClick={() => onDelete(item.id)} className="p-1.5 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-700 rounded-lg transition-all" title="Excluir"><Trash2 size={14} /></button>
                         </>
                       )}
                     </div>
@@ -162,7 +197,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                 </tr>
               );
             }) : (
-              <tr><td colSpan={5} className="px-6 py-12 text-center text-[10px] font-black uppercase text-slate-300 tracking-widest">Nenhum empenho registrado</td></tr>
+              <tr><td colSpan={5} className="px-6 py-12 text-center text-[10px] font-black uppercase text-slate-300 tracking-widest">Nenhum empenho encontrado</td></tr>
             )}
           </tbody>
         </table>
