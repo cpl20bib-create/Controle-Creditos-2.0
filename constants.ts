@@ -29,7 +29,8 @@ export const INITIAL_CREDITS: Credit[] = [
     valueReceived: 500000,
     description: 'Crédito inicial para manutenção',
     deadline: '2026-12-31',
-    createdAt: '2024-01-15'
+    // Fixed: changed createdAt to created_at to match the Credit interface
+    created_at: '2024-01-15'
   }
 ];
 
