@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Credit, Commitment, Refund, Cancellation } from '../types';
-import { Download, FileText, Share2, Printer, Landmark, TrendingDown, RefreshCcw } from 'lucide-react';
+import { Landmark, TrendingDown, RefreshCcw } from 'lucide-react';
 
 interface ReportsProps {
   credits: Credit[];
@@ -23,14 +23,14 @@ const Reports: React.FC<ReportsProps> = ({ credits, commitments, refunds, cancel
     
     credits.forEach(c => {
       if (!ugSummary[c.ug]) ugSummary[c.ug] = { received: 0, committed: 0, refunded: 0, cancelled: 0 };
-      ugSummary[c.ug].received += c.valueReceived;
+      ugSummary[c.ug].received += (Number(c.valueReceived) || 0);
     });
 
     commitments.forEach(com => {
       com.allocations?.forEach(alloc => {
         const credit = credits.find(cr => cr.id === alloc.creditId);
         if (credit && ugSummary[credit.ug]) {
-          ugSummary[credit.ug].committed += alloc.value;
+          ugSummary[credit.ug].committed += (Number(alloc.value) || 0);
         }
       });
     });
@@ -38,16 +38,17 @@ const Reports: React.FC<ReportsProps> = ({ credits, commitments, refunds, cancel
     refunds.forEach(ref => {
       const credit = credits.find(cr => cr.id === ref.creditId);
       if (credit && ugSummary[credit.ug]) {
-        ugSummary[credit.ug].refunded += ref.value;
+        ugSummary[credit.ug].refunded += (Number(ref.value) || 0);
       }
     });
 
     cancellations.forEach(can => {
       const com = commitments.find(c => c.id === can.commitmentId);
       if (com && com.allocations?.length > 0) {
+        // Encontra a UG baseada no primeiro crédito do empenho
         const firstCredit = credits.find(cr => cr.id === com.allocations[0].creditId);
         if (firstCredit && ugSummary[firstCredit.ug]) {
-          ugSummary[firstCredit.ug].cancelled += can.value;
+          ugSummary[firstCredit.ug].cancelled += (Number(can.value) || 0);
         }
       }
     });
@@ -55,28 +56,26 @@ const Reports: React.FC<ReportsProps> = ({ credits, commitments, refunds, cancel
     return ugSummary;
   }, [credits, commitments, refunds, cancellations]);
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  const formatCurrency = (val: number) => {
+    const num = Number(val) || 0;
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-black">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Consolidado Financeiro</h2>
-          <p className="text-[9px] text-slate-500 mt-1 font-bold uppercase tracking-widest italic">Visão Geral por Unidade Gestora (UG)</p>
-        </div>
+      <div>
+        <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Consolidado Financeiro</h2>
+        <p className="text-[9px] text-slate-500 mt-1 font-bold uppercase tracking-widest italic">Visão Geral por Unidade Gestora (UG)</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {(Object.entries(summary) as [string, UGSummary][]).map(([ug, data]) => (
-          <div key={ug} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-8 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full -mr-16 -mt-16 -z-10"></div>
-            
-            <div className="flex items-center gap-4">
+          <div key={ug} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
+            <div className="flex items-center gap-4 mb-8">
                <div className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl border border-emerald-200"><Landmark size={24} /></div>
                <div>
                   <h3 className="text-xl font-black text-slate-800 italic uppercase leading-none">UG {ug}</h3>
-                  <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1">Lançamentos Consolidados</p>
+                  <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1">Saldos Consolidados</p>
                </div>
             </div>
 
@@ -96,8 +95,10 @@ const Reports: React.FC<ReportsProps> = ({ credits, commitments, refunds, cancel
               </div>
 
               <div className="pt-4 border-t border-dashed border-slate-200 flex justify-between items-center">
-                <span className="text-emerald-700 font-black uppercase text-[10px] tracking-widest italic">Saldo Disponível em Tesouraria</span>
-                <span className="text-2xl font-black text-emerald-600">{formatCurrency(data.received - data.committed - data.refunded + data.cancelled)}</span>
+                <span className="text-emerald-700 font-black uppercase text-[10px] tracking-widest italic">Disponibilidade Real</span>
+                <span className="text-2xl font-black text-emerald-600">
+                  {formatCurrency(data.received - data.committed - data.refunded + data.cancelled)}
+                </span>
               </div>
             </div>
           </div>
