@@ -2,15 +2,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { Credit, Commitment, Refund, Cancellation, User, AuditLog } from './types';
 
-// Credenciais do Supabase - Atualizadas com a nova chave fornecida
+// Credenciais do Supabase - Atualizadas com a chave funcional
 const supabaseUrl = 'https://tdbpxsdvtogymvercpqc.supabase.co';
 const supabaseAnonKey = 'sb_publishable_uMAhraANc199PrH8EQD9-w_MW39GXUK';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
- * Mappers robustos: Garantem que todo valor monetário vindo do banco
- * seja tratado como Number e, em caso de nulo/indefinido, retorne 0.
+ * Mappers Robustos
+ * toDB: Prepara os dados para o Supabase (Snake Case)
+ * fromDB: Converte os dados para o Frontend (Camel Case)
  */
 const mappers = {
   credits: {
@@ -24,8 +25,8 @@ const mappers = {
       section: c.section,
       value_received: Number(c.valueReceived) || 0,
       description: c.description || '',
-      deadline: c.deadline,
-      created_at: c.createdAt
+      deadline: c.deadline
+      // created_at REMOVIDO: O banco de dados gera este campo automaticamente (DEFAULT now())
     }),
     fromDB: (row: any): Credit => ({
       id: row.id,
@@ -38,7 +39,8 @@ const mappers = {
       valueReceived: Number(row.value_received) || 0,
       description: row.description || '',
       deadline: row.deadline,
-      createdAt: row.created_at
+      // Fallback para a data de criação caso o banco retorne nulo
+      createdAt: row.created_at || new Date().toISOString()
     })
   },
   commitments: {
@@ -143,14 +145,12 @@ export const api = {
   async checkConnection(): Promise<boolean> {
     try {
       const { error } = await supabase.from('users').select('id').limit(1);
-      // Se o erro for Invalid API key, o SDK retorna status 403 ou 401
       if (error) {
         console.error('Supabase Connection Error:', error.message);
         return false;
       }
       return true;
     } catch (e) {
-      console.error('Unexpected Connection Error:', e);
       return false;
     }
   },
@@ -175,7 +175,7 @@ export const api = {
         auditLogs: (resLog.data || []).map(mappers.audit_logs.fromDB)
       };
     } catch (err) {
-      console.error('Falha ao carregar estado do banco:', err);
+      console.error('Falha ao carregar estado:', err);
       return null;
     }
   },
@@ -185,6 +185,7 @@ export const api = {
     const mapper = (mappers as any)[dbTable];
     const payload = mapper ? mapper.toDB(data) : data;
     
+    // Upsert usando a ID como alvo de conflito padrão
     const { error } = await supabase.from(dbTable).upsert(payload);
     
     if (error) {
