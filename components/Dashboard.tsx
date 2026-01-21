@@ -210,13 +210,12 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-black">
-      <FilterBar filters={filters} setFilters={setFilters} credits={credits} />
+      <FilterBar filters={filters} setFilters={setFilters} credits={credits} showExtendedFilters={false} />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Dotação Líquida</p>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-center">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Recebido</p>
           <h3 className="text-xl font-black text-slate-900">{formatCurrency(filteredData.totalReceived)}</h3>
-          <div className="mt-2 text-[9px] font-bold text-emerald-600 uppercase">Total Disponível</div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
