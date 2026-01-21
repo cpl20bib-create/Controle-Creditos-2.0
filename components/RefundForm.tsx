@@ -27,20 +27,18 @@ const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, 
 
   // Helper para calcular saldo preciso de uma NC individual
   const calculateNCBalance = (credit: Credit) => {
+    // Fixed: Commitment uses creditId directly, not allocations
     const totalSpent = commitments.reduce((acc, com) => {
-      const alloc = com.allocations?.find(a => a.creditId === credit.id);
-      return acc + (alloc ? alloc.value : 0);
+      return acc + (com.creditId === credit.id ? com.value : 0);
     }, 0);
 
     const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
     
+    // Fixed: Commitment uses creditId directly, not allocations
     const totalCancelled = cancellations.reduce((acc, can) => {
       const com = commitments.find(c => c.id === can.commitmentId);
-      if (!com) return acc;
-      const alloc = com.allocations?.find(a => a.creditId === credit.id);
-      if (!alloc) return acc;
-      const proportion = alloc.value / com.value;
-      return acc + (can.value * proportion);
+      if (!com || com.creditId !== credit.id) return acc;
+      return acc + can.value;
     }, 0);
 
     return parseFloat((credit.valueReceived - totalSpent - totalRefunded + totalCancelled).toFixed(2));
