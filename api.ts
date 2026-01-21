@@ -1,46 +1,35 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-// No Vite (usado pela Vercel), o acesso às variáveis de ambiente 
-// deve ser feito obrigatoriamente usando 'import.meta.env'
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// No Vercel, estas variáveis devem ser configuradas no Dashboard do Projeto
+const supabaseUrl = typeof process !== 'undefined' ? process.env.SUPABASE_URL : undefined;
+const supabaseAnonKey = typeof process !== 'undefined' ? process.env.SUPABASE_ANON_KEY : undefined;
 
-// Esta linha cria a conexão apenas se as chaves existirem
 export const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
-// O restante do código (export const api = { ...) continua igual abaixo
-
 export const api = {
   async getFullState() {
-    if (!supabase) {
-      console.warn('Supabase não configurado. Verifique SUPABASE_URL e SUPABASE_ANON_KEY.');
-      return null;
-    }
+    if (!supabase) return null;
 
     try {
       const [
-        { data: credits, error: errCredits },
-        { data: commitments, error: errCommitments },
-        { data: refunds, error: errRefunds },
-        { data: cancellations, error: errCancellations },
-        { data: users, error: errUsers },
-        { data: auditLogs, error: errLogs }
+        { data: credits },
+        { data: commitments },
+        { data: refunds },
+        { data: cancellations },
+        { data: users },
+        { data: auditLogs }
       ] = await Promise.all([
         supabase.from('credits').select('*'),
         supabase.from('commitments').select('*'),
         supabase.from('refunds').select('*'),
         supabase.from('cancellations').select('*'),
         supabase.from('users').select('*'),
-        supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(100)
+        // Realiza join com users para obter o nome e ordena por created_at
+        supabase.from('audit_logs').select('*, users(name)').order('created_at', { ascending: false }).limit(100)
       ]);
-
-      // Se houver qualquer erro crítico de dotação, tratamos como falha de sincronização
-      if (errCredits || errCommitments || errUsers) {
-        console.error('Erro na resposta do Supabase:', { errCredits, errCommitments });
-        return null;
-      }
 
       return {
         credits: credits || [],
@@ -51,40 +40,52 @@ export const api = {
         auditLogs: auditLogs || []
       };
     } catch (error) {
-      console.error('Erro crítico ao buscar estado do Supabase:', error);
+      console.error('Falha na sincronização inicial:', error);
       return null;
     }
   },
 
   async upsert(table: string, data: any) {
     if (!supabase) return false;
-    try {
-      const { error } = await supabase.from(table).upsert(data);
-      if (error) console.error(`Erro ao salvar em ${table}:`, error);
-      return !error;
-    } catch (e) {
-      return false;
-    }
+    const { error } = await supabase.from(table).upsert(data);
+    return !error;
   },
 
   async delete(table: string, id: string) {
     if (!supabase) return false;
-    try {
-      const { error } = await supabase.from(table).delete().eq('id', id);
-      if (error) console.error(`Erro ao excluir de ${table}:`, error);
-      return !error;
-    } catch (e) {
-      return false;
-    }
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    return !error;
   },
 
   async addLog(log: any) {
     if (!supabase) return false;
-    try {
-      const { error } = await supabase.from('audit_logs').insert(log);
-      return !error;
-    } catch (e) {
-      return false;
-    }
+    // Mapeia para os campos que o usuário descreveu se necessário
+    const payload = {
+      user_id: log.userId,
+      action: log.action,
+      table_name: log.entityType,
+      entity_id: log.entityId,
+      description: log.description,
+      created_at: new Date().toISOString()
+    };
+    const { error } = await supabase.from('audit_logs').insert(payload);
+    if (error) console.error('Erro ao gravar log:', error);
+    return !error;
+  },
+
+  // Escuta mudanças em tempo real para múltiplas máquinas
+  subscribeToChanges(callback: () => void) {
+    if (!supabase) return () => {};
+
+    const channel = supabase
+      .channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        callback();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }
 };
