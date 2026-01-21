@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Filters, Credit, SortField, SortOrder } from '../types';
-import { RotateCcw, SortAsc } from 'lucide-react';
+import { RotateCcw, SortAsc, Filter } from 'lucide-react';
 
 interface FilterBarProps {
   filters: Filters;
@@ -37,16 +37,21 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
   };
 
   return (
-    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4 text-black font-sans">
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4 text-black font-sans">
+      <div className="flex items-center gap-2 mb-2 text-slate-900">
+        <Filter size={16} className="text-emerald-600" />
+        <span className="text-[10px] font-black uppercase tracking-widest">Painel de Filtros Globais</span>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 items-end">
         <div className="space-y-1.5">
           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidade Gestora</label>
           <select 
             value={filters.ug || ''} 
             onChange={(e) => handleChange('ug', e.target.value)}
-            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+            className="w-full bg-slate-50 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm"
           >
-            <option value="">Todas</option>
+            <option value="">Todas as UGs</option>
             {availableOptions.ugs.map(ug => <option key={ug} value={ug}>{ug}</option>)}
           </select>
         </div>
@@ -56,9 +61,9 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
           <select 
             value={filters.pi || ''} 
             onChange={(e) => handleChange('pi', e.target.value)}
-            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+            className="w-full bg-slate-50 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm"
           >
-            <option value="">Todos</option>
+            <option value="">Todos os PIs</option>
             {availableOptions.pis.map(pi => <option key={pi} value={pi}>{pi}</option>)}
           </select>
         </div>
@@ -68,9 +73,9 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
           <select 
             value={filters.nd || ''} 
             onChange={(e) => handleChange('nd', e.target.value)}
-            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+            className="w-full bg-slate-50 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm"
           >
-            <option value="">Todas</option>
+            <option value="">Todas as NDs</option>
             {availableOptions.nds.map(nd => <option key={nd} value={nd}>{nd}</option>)}
           </select>
         </div>
@@ -80,28 +85,28 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
           <select 
             value={filters.section || ''} 
             onChange={(e) => handleChange('section', e.target.value)}
-            className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+            className="w-full bg-slate-50 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm"
           >
-            <option value="">Todas</option>
+            <option value="">Todas as Seções</option>
             {availableOptions.sections.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
 
         <button 
           onClick={() => setFilters({ hideZeroBalance: filters.hideZeroBalance })}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-500 font-black py-2.5 rounded-xl text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 shadow-sm transition-all h-[42px]"
+          className="bg-slate-900 hover:bg-slate-800 text-white font-black py-3 rounded-2xl text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all h-[46px] shadow-lg shadow-slate-950/10"
         >
-          <RotateCcw size={14} />
-          Limpar Filtros
+          <RotateCcw size={14} className="text-emerald-400" />
+          Resetar Filtros
         </button>
       </div>
 
       {showExtendedFilters && (
-        <div className="flex flex-wrap items-center gap-6 pt-3 border-t border-slate-100 animate-in fade-in slide-in-from-top-1">
+        <div className="flex flex-wrap items-center gap-6 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-1">
           <div className="flex items-center gap-4">
              <div className="flex flex-col gap-1">
                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><SortAsc size={10}/> Ordenar por</label>
-               <div className="flex gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+               <div className="flex gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
                   <select 
                     value={filters.sortBy || 'created_at'} 
                     onChange={(e) => handleChange('sortBy', e.target.value as SortField)}
@@ -123,7 +128,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
              </div>
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer group">
+          <label className="flex items-center gap-3 cursor-pointer group">
             <div className="relative">
               <input 
                 type="checkbox" 
@@ -131,10 +136,10 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
                 onChange={(e) => handleChange('hideZeroBalance', e.target.checked)}
                 className="sr-only peer" 
               />
-              <div className="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4 shadow-inner"></div>
+              <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 transition-colors after:content-[''] after:absolute after:top-[2.5px] after:left-[2.5px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5 shadow-inner"></div>
             </div>
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">
-              Ocultar Saldo Zerado
+              Ocultar dotações sem saldo
             </span>
           </label>
         </div>
