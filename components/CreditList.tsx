@@ -36,24 +36,19 @@ const CreditList: React.FC<CreditListProps> = ({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
   const getIndividualNCBalance = (credit: Credit) => {
+    // Fixed: Commitment uses creditId directly, not allocations
     const totalSpent = commitments.reduce((acc, com) => {
-      const alloc = com.allocations?.find(a => a.creditId === credit.id);
-      return acc + (alloc ? Number(alloc.value) || 0 : 0);
+      return acc + (com.creditId === credit.id ? Number(com.value) || 0 : 0);
     }, 0);
 
     const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + (Number(b.value) || 0), 0);
     
+    // Fixed: Commitment uses creditId directly, not allocations. One NE belongs to one NC.
     const totalCancelled = cancellations.reduce((acc, can) => {
       const com = commitments.find(c => c.id === can.commitmentId);
-      if (!com || !Number(com.value)) return acc;
+      if (!com || !Number(com.value) || com.creditId !== credit.id) return acc;
       
-      const alloc = com.allocations?.find(a => a.creditId === credit.id);
-      if (!alloc) return acc;
-
-      const totalComValue = Number(com.value) || 1;
-      const allocValue = Number(alloc.value) || 0;
-      const proportion = allocValue / totalComValue;
-      return acc + ((Number(can.value) || 0) * proportion);
+      return acc + (Number(can.value) || 0);
     }, 0);
 
     return (Number(credit.valueReceived) || 0) - totalSpent - totalRefunded + totalCancelled;
@@ -136,9 +131,9 @@ const CreditList: React.FC<CreditListProps> = ({
   const selectedDetailCredit = Array.isArray(credits) ? credits.find(c => c.id === detailCreditId) : null;
   const creditRefunds = selectedDetailCredit ? refunds.filter(r => r.creditId === selectedDetailCredit.id) : [];
   
+  // Fixed: Commitment uses creditId directly, not allocations.
   const creditAllocations = selectedDetailCredit ? (commitments || []).flatMap(com => {
-    const alloc = com.allocations?.find(a => a.creditId === selectedDetailCredit.id);
-    return alloc ? [{ ne: com.ne, value: alloc.value, date: com.date, id: com.id }] : [];
+    return com.creditId === selectedDetailCredit.id ? [{ ne: com.ne, value: com.value, date: com.date, id: com.id }] : [];
   }) : [];
 
   return (
