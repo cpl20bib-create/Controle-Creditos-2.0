@@ -34,8 +34,12 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
   const filteredCommitments = useMemo(() => {
     if (!formData.ug || !formData.pi) return [];
     return commitments.filter(com => {
-      const credit = credits.find(c => c.id === com.creditId);
-      return credit?.ug === formData.ug && credit?.pi === formData.pi;
+      // Fixed: Commitment does not have a direct creditId property; instead, it has allocations.
+      // We check if any allocation in the commitment belongs to the selected UG and PI.
+      return com.allocations?.some(alloc => {
+        const credit = credits.find(c => c.id === alloc.creditId);
+        return credit?.ug === formData.ug && credit?.pi === formData.pi;
+      });
     });
   }, [formData.ug, formData.pi, commitments, credits]);
 
