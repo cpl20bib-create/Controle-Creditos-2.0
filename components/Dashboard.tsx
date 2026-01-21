@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Text } from 'recharts';
 import { Credit, Commitment, Refund, Cancellation, Filters } from '../types';
-import { Landmark, TrendingDown, AlertTriangle, Clock, ChevronRight, ChevronDown, X, History, Zap, Search, Info, Package, Target } from 'lucide-react';
+import { Landmark, TrendingDown, AlertTriangle, Clock, ChevronRight, ChevronDown, X, History, Zap, Search, Info, Package, Target, ClipboardList } from 'lucide-react';
 import FilterBar from './FilterBar';
 
 interface DashboardProps {
@@ -98,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       if (filters.nd && c.nd !== filters.nd) return;
       
       const available = getIndividualNCBalance(c);
-      if (available > 0.01) {
+      if (available > 0) {
         if (!sectionMap[c.section]) {
           sectionMap[c.section] = { total: 0, pis: {} };
         }
@@ -128,12 +128,11 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     };
   }, [credits, commitments, refunds, cancellations, filters]);
 
-  // Estrutura hierárquica para o Explorador
   const hierarchicalExplorerData = useMemo(() => {
     const data: any = {};
     credits.forEach(c => {
       const balance = getIndividualNCBalance(c);
-      if (balance <= 0.01) return;
+      if (balance <= 0) return;
 
       const searchLower = explorerSearch.toLowerCase();
       if (explorerSearch && !c.nc.toLowerCase().includes(searchLower) && !c.description.toLowerCase().includes(searchLower)) {
@@ -209,7 +208,8 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
           </div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo Livre</p>
+          {/* Alterado: Saldo Livre para Total Disponível */}
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Disponível</p>
           <h3 className="text-xl font-black text-emerald-600">{formatCurrency(filteredData.totalAvailable)}</h3>
           <div className="mt-2 text-[9px] font-bold text-slate-400 uppercase">Disponível p/ Empenho</div>
         </div>
@@ -273,8 +273,8 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         </div>
       </div>
 
-      {/* NOVO: Explorador de Saldos Detalhados */}
-      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+      {/* Explorador de Saldos Detalhados */}
+      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
           <div>
             <h4 className="text-sm font-black text-slate-900 uppercase tracking-tighter italic flex items-center gap-2">
@@ -286,8 +286,8 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
-              placeholder="Buscar por NC ou descrição..." 
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
+              placeholder="Filtrar por Nota de Crédito ou termo..." 
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
               value={explorerSearch}
               onChange={(e) => setExplorerSearch(e.target.value)}
             />
@@ -296,60 +296,67 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
         <div className="space-y-4">
           {Object.entries(hierarchicalExplorerData).length > 0 ? Object.entries(hierarchicalExplorerData).map(([ug, sections]: [string, any]) => (
-            <div key={ug} className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+            <div key={ug} className="border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
               <button 
                 onClick={() => toggleExpand(`ug-${ug}`)}
-                className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+                className="w-full flex items-center justify-between p-5 bg-slate-900 text-white hover:bg-slate-800 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <span className="bg-emerald-600 text-white text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest shadow-sm">UG {ug}</span>
-                  <span className="text-[10px] font-black text-slate-600 uppercase italic">Unidade Gestora Principal</span>
+                <div className="flex items-center gap-4">
+                  <span className="bg-emerald-500 text-slate-900 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-lg">UG {ug}</span>
+                  <span className="text-xs font-black uppercase italic text-slate-300">Unidade Gestora Principal</span>
                 </div>
-                {expandedItems.has(`ug-${ug}`) ? <ChevronDown size={18} className="text-slate-400" /> : <ChevronRight size={18} className="text-slate-400" />}
+                {expandedItems.has(`ug-${ug}`) ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
               </button>
 
               {expandedItems.has(`ug-${ug}`) && (
-                <div className="p-2 space-y-2 bg-white animate-in slide-in-from-top-2 duration-300">
+                <div className="p-4 space-y-3 bg-slate-50 animate-in slide-in-from-top-2 duration-300">
                   {Object.entries(sections).map(([section, pis]: [string, any]) => (
-                    <div key={`${ug}-${section}`} className="border border-slate-50 rounded-xl overflow-hidden">
+                    <div key={`${ug}-${section}`} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                       <button 
                         onClick={() => toggleExpand(`section-${ug}-${section}`)}
-                        className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-slate-50 transition-colors border-l-4 border-slate-200"
+                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors border-l-4 border-emerald-500"
                       >
-                        <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 italic">
-                           <Target size={12} className="text-slate-400" /> {section}
+                        <span className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 italic">
+                           <Target size={14} className="text-emerald-500" /> {section}
                         </span>
-                        {expandedItems.has(`section-${ug}-${section}`) ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+                        {expandedItems.has(`section-${ug}-${section}`) ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
                       </button>
 
                       {expandedItems.has(`section-${ug}-${section}`) && (
-                        <div className="px-6 py-2 space-y-2 border-t border-slate-50">
+                        <div className="px-8 py-4 space-y-4 border-t border-slate-50 bg-white">
                           {Object.entries(pis).map(([pi, ncs]: [string, any]) => (
-                            <div key={`${ug}-${section}-${pi}`} className="space-y-2">
-                              <div className="flex items-center gap-2 py-1">
-                                <span className="text-[8px] font-black bg-slate-900 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter">PI {pi}</span>
+                            <div key={`${ug}-${section}-${pi}`} className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg uppercase tracking-widest border border-emerald-200">PI {pi}</span>
                                 <div className="h-px flex-1 bg-slate-100"></div>
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3">
+                              <div className="grid grid-cols-1 gap-4">
                                 {ncs.map((nc: any) => (
-                                  <div key={nc.id} className="p-4 rounded-xl border border-slate-100 bg-white hover:border-emerald-200 hover:shadow-md transition-all group">
-                                    <div className="flex justify-between items-start mb-3">
-                                      <span className="text-[11px] font-black text-emerald-800 italic uppercase leading-none tracking-tight">{nc.nc}</span>
-                                      <span className="text-[8px] font-black text-slate-400 border border-slate-100 px-1.5 py-0.5 rounded uppercase">{nc.nd}</span>
+                                  <div key={nc.id} className="p-6 rounded-[2rem] border border-slate-200 bg-white hover:border-emerald-300 hover:shadow-xl transition-all group relative overflow-hidden">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                                        <span className="text-sm font-black text-slate-900 italic uppercase leading-none tracking-tight">{nc.nc}</span>
+                                        <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-lg border border-slate-200 uppercase tracking-widest">ND {nc.nd}</span>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo Disponível Atualizado</p>
+                                        <p className="text-3xl font-black text-emerald-600 leading-none">{formatCurrency(nc.balance)}</p>
+                                      </div>
                                     </div>
-                                    <div className="bg-slate-50 p-3 rounded-lg mb-4">
-                                       <p className="text-[10px] font-medium text-slate-600 leading-relaxed line-clamp-3 italic">"{nc.description}"</p>
+                                    
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 relative">
+                                       <ClipboardList className="absolute top-4 right-4 text-slate-200" size={24} />
+                                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">Descrição Detalhada do Crédito</p>
+                                       <p className="text-xs font-medium text-slate-700 leading-relaxed italic pr-8">"{nc.description}"</p>
                                     </div>
-                                    <div className="flex items-end justify-between border-t border-slate-50 pt-3">
-                                       <div>
-                                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Saldo Disponível</p>
-                                          <p className="text-xl font-black text-emerald-600 leading-none mt-1">{formatCurrency(nc.balance)}</p>
-                                       </div>
+
+                                    <div className="mt-6 flex justify-end">
                                        <button 
                                          onClick={() => setDetailCreditId(nc.id)}
-                                         className="p-2 bg-emerald-50 text-emerald-600 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-emerald-600 hover:text-white"
+                                         className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-800 transition-colors"
                                        >
-                                         <Info size={16} />
+                                         <Info size={14} /> Ver Detalhes Adicionais
                                        </button>
                                     </div>
                                   </div>
@@ -365,9 +372,9 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               )}
             </div>
           )) : (
-            <div className="py-20 flex flex-col items-center justify-center opacity-30 text-slate-400">
-               <Search size={48} className="mb-4" />
-               <p className="text-[10px] font-black uppercase tracking-widest text-center">Nenhum crédito com saldo positivo encontrado<br/>para os critérios de busca.</p>
+            <div className="py-24 flex flex-col items-center justify-center opacity-30 text-slate-400 border-2 border-dashed border-slate-100 rounded-3xl">
+               <Search size={64} className="mb-4" />
+               <p className="text-xs font-black uppercase tracking-widest text-center">Nenhum crédito com saldo positivo encontrado<br/>para os critérios atuais.</p>
             </div>
           )}
         </div>
@@ -389,25 +396,25 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
             </div>
 
             <div className="p-8 overflow-y-auto space-y-8 font-sans">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-6 bg-slate-900 text-white rounded-3xl shadow-xl">
-                  <p className="text-[9px] font-black text-emerald-400 uppercase mb-1">Valor Original</p>
-                  <p className="text-2xl font-black">{formatCurrency((credits.find(c => c.id === detailCreditId))?.valueReceived || 0)}</p>
+                  <p className="text-[9px] font-black text-emerald-400 uppercase mb-1">Valor Original Recebido</p>
+                  <p className="text-3xl font-black">{formatCurrency((credits.find(c => c.id === detailCreditId))?.valueReceived || 0)}</p>
                 </div>
                 <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
                   <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Saldo Livre Atual</p>
-                  <p className="text-2xl font-black text-emerald-800">{formatCurrency(getIndividualNCBalance(credits.find(c => c.id === detailCreditId)!))}</p>
+                  <p className="text-3xl font-black text-emerald-800">{formatCurrency(getIndividualNCBalance(credits.find(c => c.id === detailCreditId)!))}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2"><History size={14} className="text-emerald-600" /> Histórico de Alocações</h4>
+                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2"><History size={14} className="text-emerald-600" /> Histórico de Lançamentos</h4>
                 <div className="relative pl-8 space-y-6 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
                    <div className="relative flex items-center gap-4">
                       <div className="absolute -left-8 w-6 h-6 rounded-full bg-emerald-500 border-4 border-white shadow-sm"></div>
-                      <div className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
-                         <span className="text-[10px] font-black uppercase text-slate-500">Aporte de Crédito</span>
-                         <span className="text-xs font-black text-emerald-700">+{formatCurrency((credits.find(c => c.id === detailCreditId))?.valueReceived || 0)}</span>
+                      <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                         <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Aporte Inicial de Crédito</span>
+                         <span className="text-sm font-black text-emerald-700">+{formatCurrency((credits.find(c => c.id === detailCreditId))?.valueReceived || 0)}</span>
                       </div>
                    </div>
                    
@@ -417,12 +424,12 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                    }).map(alloc => (
                      <div key={alloc.id} className="relative flex items-center gap-4">
                         <div className="absolute -left-8 w-6 h-6 rounded-full bg-red-400 border-4 border-white shadow-sm"></div>
-                        <div className="flex-1 bg-white p-3 rounded-xl border border-red-50 flex justify-between items-center">
+                        <div className="flex-1 bg-white p-4 rounded-2xl border border-red-50 flex justify-between items-center">
                            <div>
-                             <span className="text-[10px] font-black uppercase text-red-900 italic">NE {alloc.ne}</span>
-                             <p className="text-[8px] font-bold text-slate-400 mt-0.5 uppercase">{new Date(alloc.date).toLocaleDateString('pt-BR')}</p>
+                             <span className="text-[10px] font-black uppercase text-red-900 italic tracking-tighter">Empenho NE {alloc.ne}</span>
+                             <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{new Date(alloc.date).toLocaleDateString('pt-BR')}</p>
                            </div>
-                           <span className="text-xs font-black text-red-600">-{formatCurrency(alloc.value)}</span>
+                           <span className="text-sm font-black text-red-600">-{formatCurrency(alloc.value)}</span>
                         </div>
                      </div>
                    ))}
@@ -430,7 +437,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               </div>
             </div>
             <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end">
-               <button onClick={() => setDetailCreditId(null)} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Fechar Extrato</button>
+               <button onClick={() => setDetailCreditId(null)} className="px-10 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95">Fechar Extrato</button>
             </div>
           </div>
         </div>
