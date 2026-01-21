@@ -43,15 +43,17 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
     let result = safeCommitments.map(item => {
       const cancelledValue = safeCancellations.filter(can => can.commitmentId === item.id).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
       const currentBalance = (Number(item.value) || 0) - cancelledValue;
-      const firstCredit = item.allocations?.length > 0 ? safeCredits.find(c => c.id === item.allocations[0].creditId) : null;
+      // Fixed: Commitment uses creditId directly, not allocations
+      const firstCredit = safeCredits.find(c => c.id === item.creditId) || null;
       
       return { ...item, currentBalance, firstCredit };
     }).filter(item => {
-      const linkedNCs = item.allocations?.map(a => safeCredits.find(c => c.id === a.creditId)?.nc || '') || [];
+      // Fixed: Commitment uses creditId directly, not allocations
+      const linkedNC = safeCredits.find(c => c.id === item.creditId)?.nc || '';
       
       const matchSearch = (item.description || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.ne.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          linkedNCs.some(nc => nc.toLowerCase().includes(searchTerm.toLowerCase()));
+                          linkedNC.toLowerCase().includes(searchTerm.toLowerCase());
       
       if (!item.firstCredit && filters.ug) return false;
 
@@ -92,9 +94,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
     return (
       <CommitmentForm 
         credits={credits}
-        commitments={commitments}
-        refunds={refunds}
-        cancellations={cancellations}
+        // Removed extra props not accepted by CommitmentForm
         onSave={(c) => {
           if (editingItem) onUpdate(c);
           else onAdd(c);
@@ -171,15 +171,11 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      {item.allocations?.map(a => {
-                        const nc = credits.find(c => c.id === a.creditId);
-                        return (
-                          <div key={a.creditId} className="bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                            <span className="text-[9px] font-black text-emerald-800 italic block leading-none">{nc?.nc || 'Desconhecida'}</span>
-                            <span className="text-[8px] font-bold text-slate-500">{formatCurrency(a.value)}</span>
-                          </div>
-                        );
-                      })}
+                      {/* Fixed: Commitment uses creditId directly, not allocations */}
+                      <div className="bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                        <span className="text-[9px] font-black text-emerald-800 italic block leading-none">{item.firstCredit?.nc || 'Desconhecida'}</span>
+                        <span className="text-[8px] font-bold text-slate-500">{formatCurrency(item.value)}</span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right font-black text-slate-400 text-xs">{formatCurrency(item.value)}</td>
