@@ -27,6 +27,9 @@ export const INITIAL_CREDITS: Credit[] = [
     organ: 'COMANDO MILITAR',
     section: 'SALC',
     valueReceived: 500000,
+    // Added missing properties valueAvailable and valueUsed
+    valueAvailable: 500000,
+    valueUsed: 0,
     description: 'Crédito inicial para manutenção',
     deadline: '2026-12-31',
     // Fixed: changed createdAt to created_at to match the Credit interface
