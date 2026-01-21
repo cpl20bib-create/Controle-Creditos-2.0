@@ -41,12 +41,12 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
       return;
     }
 
-    if (!formData.valueReceived || formData.valueReceived <= 0 || !formData.deadline) {
+    if (formData.valueReceived === undefined || formData.valueReceived <= 0 || !formData.deadline) {
       setError('Preencha os valores e prazos corretamente.');
       return;
     }
 
-    const isDuplicateExact = !initialData && existingCredits.some(c => 
+    const isDuplicateExact = !initialData && (existingCredits || []).some(c => 
       c.nc === formData.nc && 
       c.pi === formData.pi && 
       c.nd === formData.nd && 
@@ -61,7 +61,7 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
     const creditToSave: Credit = {
       ...formData,
       id: initialData?.id || Math.random().toString(36).substr(2, 9),
-      createdAt: initialData?.createdAt || new Date().toISOString(),
+      created_at: initialData?.created_at || new Date().toISOString(),
     } as Credit;
 
     onSave(creditToSave);
