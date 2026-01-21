@@ -11,7 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 /**
  * Mappers Robustos
  * toDB: Prepara os dados para o Supabase (Snake Case)
- * fromDB: Converte os dados para o Frontend (Camel Case)
+ * fromDB: Converte os dados para o Frontend
  */
 const mappers = {
   credits: {
@@ -26,7 +26,7 @@ const mappers = {
       value_received: Number(c.valueReceived) || 0,
       description: c.description || '',
       deadline: c.deadline
-      // created_at REMOVIDO: O banco de dados gera este campo automaticamente (DEFAULT now())
+      // created_at é gerado automaticamente pelo banco (DEFAULT now())
     }),
     fromDB: (row: any): Credit => ({
       id: row.id,
@@ -39,8 +39,7 @@ const mappers = {
       valueReceived: Number(row.value_received) || 0,
       description: row.description || '',
       deadline: row.deadline,
-      // Fallback para a data de criação caso o banco retorne nulo
-      createdAt: row.created_at || new Date().toISOString()
+      created_at: row.created_at || new Date().toISOString()
     })
   },
   commitments: {
@@ -185,7 +184,6 @@ export const api = {
     const mapper = (mappers as any)[dbTable];
     const payload = mapper ? mapper.toDB(data) : data;
     
-    // Upsert usando a ID como alvo de conflito padrão
     const { error } = await supabase.from(dbTable).upsert(payload);
     
     if (error) {
