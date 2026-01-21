@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType, UserRole } from './types';
 import { INITIAL_CREDITS, INITIAL_COMMITMENTS } from './constants';
 import Dashboard from './components/Dashboard';
@@ -28,36 +28,46 @@ const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sincronização de Estado - Redesenhada para ser a única fonte de verdade e forçar reconexão
+  // Carregar cache inicial do localStorage para evitar telas vazias
+  useEffect(() => {
+    const cachedCredits = localStorage.getItem('budget_credits');
+    const cachedComs = localStorage.getItem('budget_commitments');
+    const cachedUsers = localStorage.getItem('budget_users');
+    
+    if (cachedCredits) setCredits(JSON.parse(cachedCredits));
+    if (cachedComs) setCommitments(JSON.parse(cachedComs));
+    if (cachedUsers) setUsers(JSON.parse(cachedUsers));
+  }, []);
+
+  // Sincronização de Estado
   const syncWithServer = useCallback(async () => {
     if (isSyncing) return;
     setIsSyncing(true);
-    
-    // Tenta um "ping" real primeiro para validar as credenciais
-    const connected = await api.checkConnection();
-    setIsOnline(connected);
-
-    if (connected) {
-      const state = await api.getFullState();
-      if (state) {
-        setCredits(state.credits);
-        setCommitments(state.commitments);
-        setRefunds(state.refunds);
-        setCancellations(state.cancellations);
-        setUsers(state.users);
-        setAuditLogs(state.auditLogs);
-      }
+    const state = await api.getFullState();
+    if (state) {
+      setCredits(state.credits);
+      setCommitments(state.commitments);
+      setRefunds(state.refunds);
+      setCancellations(state.cancellations);
+      setUsers(state.users);
+      setAuditLogs(state.auditLogs);
+      setIsOnline(true);
+      
+      // Atualiza cache local
+      localStorage.setItem('budget_credits', JSON.stringify(state.credits));
+      localStorage.setItem('budget_commitments', JSON.stringify(state.commitments));
+      localStorage.setItem('budget_users', JSON.stringify(state.users));
     } else {
-      console.warn('Conexão falhou: SUPABASE_URL/KEY podem estar incorretas ou rede indisponível.');
+      setIsOnline(false);
     }
-    
     setIsSyncing(false);
   }, [isSyncing]);
 
+  // Configuração de REALTIME para múltiplas máquinas
   useEffect(() => {
     syncWithServer();
     const unsubscribe = api.subscribeToChanges(() => {
-      syncWithServer();
+      syncWithServer(); // Atualiza os dados sempre que alguém mudar algo no Supabase
     });
     return () => unsubscribe();
   }, []);
@@ -79,7 +89,7 @@ const App: React.FC = () => {
       description,
       timestamp: new Date().toISOString()
     };
-    await api.addLog(newLog);
+    api.addLog(newLog);
   }, [currentUser]);
 
   const handleLogin = (user: User) => {
@@ -92,101 +102,55 @@ const App: React.FC = () => {
     localStorage.removeItem('budget_session');
   };
 
-  // Funções agora lançam exceções reais se o banco falhar
   const handleAddCredit = async (newCredit: Credit) => {
-    try {
-      await api.upsert('credits', newCredit);
-      await addLog('CREATE', 'CRÉDITO', newCredit.id, `NC ${newCredit.nc}`);
-      syncWithServer();
-    } catch (e: any) {
-      alert(`FALHA NO ENVIO: ${e.message}`);
-    }
+    const success = await api.upsert('credits', newCredit);
+    if (success) addLog('CREATE', 'CRÉDITO', newCredit.id, `NC ${newCredit.nc}`);
   };
 
   const handleUpdateCredit = async (updated: Credit) => {
-    try {
-      await api.upsert('credits', updated);
-      await addLog('UPDATE', 'CRÉDITO', updated.id, `NC ${updated.nc}`);
-      syncWithServer();
-    } catch (e: any) {
-      alert(`ERRO AO ATUALIZAR: ${e.message}`);
-    }
+    const success = await api.upsert('credits', updated);
+    if (success) addLog('UPDATE', 'CRÉDITO', updated.id, `NC ${updated.nc}`);
   };
 
   const handleDeleteCredit = async (id: string) => {
     const credit = credits.find(c => c.id === id);
     if (credit && window.confirm('Excluir este crédito definitivamente?')) {
-      try {
-        await api.delete('credits', id);
-        await addLog('DELETE', 'CRÉDITO', id, `NC ${credit.nc}`);
-        syncWithServer();
-      } catch (e: any) {
-        alert(`ERRO AO EXCLUIR: ${e.message}`);
-      }
+      const success = await api.delete('credits', id);
+      if (success) addLog('DELETE', 'CRÉDITO', id, `NC ${credit.nc}`);
     }
   };
 
   const handleAddCommitment = async (newCom: Commitment) => {
-    try {
-      await api.upsert('commitments', newCom);
-      await addLog('CREATE', 'EMPENHO', newCom.id, `NE ${newCom.ne}`);
-      syncWithServer();
-    } catch (e: any) {
-      alert(`FALHA NO EMPENHO: ${e.message}`);
-    }
+    const success = await api.upsert('commitments', newCom);
+    if (success) addLog('CREATE', 'EMPENHO', newCom.id, `NE ${newCom.ne}`);
   };
 
   const handleUpdateCommitment = async (updated: Commitment) => {
-    try {
-      await api.upsert('commitments', updated);
-      await addLog('UPDATE', 'EMPENHO', updated.id, `NE ${updated.ne}`);
-      syncWithServer();
-    } catch (e: any) {
-      alert(`FALHA NA ATUALIZAÇÃO: ${e.message}`);
-    }
+    const success = await api.upsert('commitments', updated);
+    if (success) addLog('UPDATE', 'EMPENHO', updated.id, `NE ${updated.ne}`);
   };
 
   const handleDeleteCommitment = async (id: string) => {
     const com = commitments.find(c => c.id === id);
     if (com && window.confirm('Excluir este empenho definitivamente?')) {
-      try {
-        await api.delete('commitments', id);
-        await addLog('DELETE', 'EMPENHO', id, `NE ${com.ne}`);
-        syncWithServer();
-      } catch (e: any) {
-        alert(`FALHA NA EXCLUSÃO: ${e.message}`);
-      }
+      const success = await api.delete('commitments', id);
+      if (success) addLog('DELETE', 'EMPENHO', id, `NE ${com.ne}`);
     }
   };
 
   const handleAddRefund = async (newRefund: Refund) => {
-    try {
-      await api.upsert('refunds', newRefund);
-      await addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento NC individual`);
-      syncWithServer();
-    } catch (e: any) {
-      alert(`FALHA NO RECOLHIMENTO: ${e.message}`);
-    }
+    const success = await api.upsert('refunds', newRefund);
+    if (success) addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento NC individual`);
   };
 
   const handleAddCancellation = async (newCan: Cancellation) => {
-    try {
-      await api.upsert('cancellations', newCan);
-      await addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação parcial/total`);
-      syncWithServer();
-    } catch (e: any) {
-      alert(`FALHA NA ANULAÇÃO: ${e.message}`);
-    }
+    const success = await api.upsert('cancellations', newCan);
+    if (success) addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação parcial/total`);
   };
 
   const handleUpdateUsers = async (nextUsers: User[]) => {
-    try {
-      for (const user of nextUsers) {
-        await api.upsert('users', user);
-      }
-      syncWithServer();
-    } catch (e: any) {
-      alert(`FALHA NA GESTÃO DE USUÁRIOS: ${e.message}`);
+    for (const user of nextUsers) {
+      await api.upsert('users', user);
     }
   };
 
@@ -203,6 +167,7 @@ const App: React.FC = () => {
     return <Login users={users} setUsers={handleUpdateUsers} onLogin={handleLogin} />;
   }
 
+  // Use a type assertion to allow checking currentUser.role (UserRole) against role arrays that might be narrowed by 'as const'.
   const filteredMenuItems = menuItems.filter(item => (item.roles as readonly string[]).includes(currentUser.role));
 
   return (
@@ -271,44 +236,24 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => syncWithServer()}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100 animate-pulse'}`}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}
               >
-                {isSyncing ? <RefreshCw size={10} className="animate-spin" /> : isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
-                {isSyncing ? 'Conectando...' : isOnline ? 'Supabase Online' : 'Clique p/ Reconectar'}
+                {isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
+                {isSyncing ? 'Atualizando...' : isOnline ? 'Multi-Machine Sync' : 'Offline'}
               </button>
             </div>
           </div>
           <div className="flex items-center gap-6">
-            {!isOnline && (
-              <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1 rounded-lg border border-red-100 animate-bounce">
-                <AlertCircle size={14} />
-                <span className="text-[10px] font-black uppercase">ERRO: Verifique Variáveis Supabase</span>
-              </div>
-            )}
             <div className="flex items-center gap-3 border-l pl-6 border-slate-200">
               <div className="text-right hidden sm:block">
                 <p className="text-[10px] font-black text-slate-900 leading-none uppercase tracking-tighter">{currentUser.name}</p>
-                <p className="text-[9px] text-emerald-600 font-bold mt-1 uppercase tracking-widest italic">BIB 20 - Gestão de Créditos</p>
+                <p className="text-[9px] text-emerald-600 font-bold mt-1 uppercase tracking-widest italic">BIB 20 - Supabase Realtime</p>
               </div>
             </div>
           </div>
         </header>
 
         <div className="p-8 max-w-7xl mx-auto w-full">
-          {!isOnline && (
-            <div className="mb-8 p-6 bg-red-50 border border-red-200 rounded-[2rem] flex items-center gap-6 animate-in slide-in-from-top-4">
-              <div className="p-4 bg-red-100 text-red-600 rounded-2xl"><WifiOff size={32} /></div>
-              <div className="flex-1">
-                <h3 className="text-sm font-black text-red-900 uppercase">Sistema em Modo Offline</h3>
-                <p className="text-[10px] font-bold text-red-700 uppercase opacity-70">
-                  O aplicativo não conseguiu estabelecer conexão com o Supabase. Verifique se as variáveis SUPABASE_URL e SUPABASE_ANON_KEY foram configuradas corretamente no Vercel/Ambiente.
-                </p>
-              </div>
-              <button onClick={() => syncWithServer()} className="px-6 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all flex items-center gap-2">
-                <RefreshCw size={16} /> Tentar Agora
-              </button>
-            </div>
-          )}
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} />}
