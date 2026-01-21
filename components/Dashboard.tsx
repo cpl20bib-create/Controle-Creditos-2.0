@@ -98,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       if (filters.nd && c.nd !== filters.nd) return;
       
       const available = getIndividualNCBalance(c);
-      if (available >= 0.01) { // Ajustado para incluir 0.01
+      if (available > 0) {
         if (!sectionMap[c.section]) {
           sectionMap[c.section] = { total: 0, pis: {} };
         }
@@ -132,8 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const data: any = {};
     credits.forEach(c => {
       const balance = getIndividualNCBalance(c);
-      // Alterado para incluir qualquer saldo maior que zero (incluindo 0.01)
-      if (balance < 0.01) return;
+      if (balance <= 0) return;
 
       const searchLower = explorerSearch.toLowerCase();
       if (explorerSearch && !c.nc.toLowerCase().includes(searchLower) && !c.description.toLowerCase().includes(searchLower)) {
