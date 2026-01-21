@@ -23,7 +23,12 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
   };
 
   const filteredData = useMemo(() => {
-    const filteredCredits = (credits || []).filter(c => {
+    const safeCredits = Array.isArray(credits) ? credits : [];
+    const safeCommitments = Array.isArray(commitments) ? commitments : [];
+    const safeRefunds = Array.isArray(refunds) ? refunds : [];
+    const safeCancellations = Array.isArray(cancellations) ? cancellations : [];
+
+    const filteredCredits = safeCredits.filter(c => {
       if (filters.ug && c.ug !== filters.ug) return false;
       if (filters.pi && c.pi !== filters.pi) return false;
       if (filters.nd && c.nd !== filters.nd) return false;
@@ -34,23 +39,23 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const creditIds = new Set(filteredCredits.map(c => c.id));
     
     const totalReceived = filteredCredits.reduce((acc, curr) => acc + (Number(curr.valueReceived) || 0), 0);
-    const totalRefunded = (refunds || [])
+    const totalRefunded = safeRefunds
       .filter(ref => creditIds.has(ref.creditId))
       .reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
 
     let totalCommittedNet = 0;
     filteredCredits.forEach(credit => {
-      const creditAllocationsSum = (commitments || []).reduce((acc, com) => {
+      const creditAllocationsSum = safeCommitments.reduce((acc, com) => {
         const alloc = com.allocations?.find(a => a.creditId === credit.id);
         return acc + (Number(alloc?.value) || 0);
       }, 0);
 
-      const creditCancellationsSum = (cancellations || []).reduce((acc, can) => {
-        const com = commitments.find(c => c.id === can.commitmentId);
-        if (!com || !com.value) return acc;
+      const creditCancellationsSum = safeCancellations.reduce((acc, can) => {
+        const com = safeCommitments.find(c => c.id === can.commitmentId);
+        if (!com || !Number(com.value)) return acc;
         const alloc = com.allocations?.find(a => a.creditId === credit.id);
         if (!alloc) return acc;
-        // Proporção do cancelamento baseada na fatia da NC no empenho
+        
         const totalComValue = Number(com.value) || 1;
         const allocValue = Number(alloc.value) || 0;
         const proportion = allocValue / totalComValue;
@@ -62,21 +67,23 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
     const netReceived = totalReceived - totalRefunded;
     const totalAvailable = netReceived - totalCommittedNet;
+    
+    // Proteção contra divisão por zero e correção de NaN
     const executionPercentage = netReceived > 0 ? (totalCommittedNet / netReceived) * 100 : 0;
 
     const criticalAlerts = filteredCredits.map(c => {
-      const spent = (commitments || []).reduce((acc, com) => {
+      const spent = safeCommitments.reduce((acc, com) => {
         const alloc = com.allocations?.find(a => a.creditId === c.id);
         return acc + (Number(alloc?.value) || 0);
       }, 0);
       
-      const refunded = (refunds || [])
+      const refunded = safeRefunds
         .filter(ref => ref.creditId === c.id)
         .reduce((a, b) => a + (Number(b.value) || 0), 0);
       
-      const cancelled = (cancellations || []).reduce((acc, can) => {
-        const com = commitments.find(comItem => comItem.id === can.commitmentId);
-        if (!com || !com.value) return acc;
+      const cancelled = safeCancellations.reduce((acc, can) => {
+        const com = safeCommitments.find(comItem => comItem.id === can.commitmentId);
+        if (!com || !Number(com.value)) return acc;
         const alloc = com.allocations?.find(a => a.creditId === c.id);
         if (!alloc) return acc;
         const totalComValue = Number(com.value) || 1;
@@ -97,18 +104,15 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     });
 
     const sectionMap: Record<string, { total: number, pis: Record<string, number> }> = {};
-    (credits || []).forEach(c => {
-      if (filters.ug && c.ug !== filters.ug) return;
-      if (filters.nd && c.nd !== filters.nd) return;
-      
-      const spent = (commitments || []).reduce((acc, com) => {
+    filteredCredits.forEach(c => {
+      const spent = safeCommitments.reduce((acc, com) => {
         const allocItem = com.allocations?.find(a => a.creditId === c.id);
         return acc + (Number(allocItem?.value) || 0);
       }, 0);
       
-      const cancelled = (cancellations || []).reduce((acc, can) => {
-        const com = commitments.find(comItem => comItem.id === can.commitmentId);
-        if (!com || !com.value) return acc;
+      const cancelled = safeCancellations.reduce((acc, can) => {
+        const com = safeCommitments.find(comItem => comItem.id === can.commitmentId);
+        if (!com || !Number(com.value)) return acc;
         const allocItem = com.allocations?.find(a => a.creditId === c.id);
         if (!allocItem) return acc;
         const totalComValue = Number(com.value) || 1;
@@ -117,7 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         return acc + ((Number(can.value) || 0) * proportion);
       }, 0);
 
-      const refundedTotal = (refunds || [])
+      const refundedTotal = safeRefunds
         .filter(r => r.creditId === c.id)
         .reduce((a, b) => a + (Number(b.value) || 0), 0);
 
@@ -193,7 +197,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     );
   };
 
-  const selectedDetailCredit = (credits || []).find(c => c.id === detailCreditId);
+  const selectedDetailCredit = Array.isArray(credits) ? credits.find(c => c.id === detailCreditId) : null;
   
   const getIndividualNCBalance = (credit: Credit) => {
     const spent = (commitments || []).reduce((acc, com) => {
@@ -203,7 +207,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const refunded = (refunds || []).filter(ref => ref.creditId === credit.id).reduce((a, b) => a + (Number(b.value) || 0), 0);
     const cancelled = (cancellations || []).reduce((acc, can) => {
       const com = commitments.find(c => c.id === can.commitmentId);
-      if (!com || !com.value) return acc;
+      if (!com || !Number(com.value)) return acc;
       const alloc = com.allocations?.find(a => a.creditId === credit.id);
       if (!alloc) return acc;
       const totalComValue = Number(com.value) || 1;
@@ -232,7 +236,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
             <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
               <div className="h-full bg-red-500" style={{ width: `${Math.min(100, filteredData.executionPercentage)}%` }}></div>
             </div>
-            <span className="text-[9px] font-black text-red-600">{filteredData.executionPercentage.toFixed(1)}%</span>
+            <span className="text-[9px] font-black text-red-600">{(filteredData.executionPercentage || 0).toFixed(1)}%</span>
           </div>
         </div>
 
