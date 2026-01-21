@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AuditLog, ActionType, EntityType } from '../types';
 import { Search, History, Clock, User, FileText, Tag, FilterX } from 'lucide-react';
 
@@ -12,15 +12,25 @@ const AuditHistory: React.FC<AuditHistoryProps> = ({ logs }) => {
   const [filterAction, setFilterAction] = useState<ActionType | ''>('');
   const [filterEntity, setFilterEntity] = useState<EntityType | ''>('');
 
+  useEffect(() => {
+    console.log('Audit logs loaded:', logs);
+  }, [logs]);
+
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
+      // Tenta pegar o nome do join (users.name) ou o userName legado
+      const operatorName = log.users?.name || log.userName || 'Operador Desconhecido';
+      const description = log.description || '';
+      const entityId = log.entityId || '';
+      const tableName = log.table_name || log.entityType || '';
+
       const matchSearch = 
-        log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.entityId.toLowerCase().includes(searchTerm.toLowerCase());
+        operatorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entityId.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchAction = !filterAction || log.action === filterAction;
-      const matchEntity = !filterEntity || log.entityType === filterEntity;
+      const matchEntity = !filterEntity || tableName === filterEntity;
 
       return matchSearch && matchAction && matchEntity;
     });
@@ -34,11 +44,15 @@ const AuditHistory: React.FC<AuditHistoryProps> = ({ logs }) => {
         return <span className="bg-blue-100 text-blue-700 border border-blue-200 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Alteração</span>;
       case 'DELETE':
         return <span className="bg-red-100 text-red-700 border border-red-200 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Exclusão</span>;
+      default:
+        return <span className="bg-slate-100 text-slate-500 border border-slate-200 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">{action}</span>;
     }
   };
 
-  const formatDate = (isoString: string) => {
+  const formatDate = (isoString: string | undefined) => {
+    if (!isoString) return { date: '--/--/--', time: '--:--' };
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return { date: '--/--/--', time: '--:--' };
     return {
       date: date.toLocaleDateString('pt-BR'),
       time: date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -113,7 +127,9 @@ const AuditHistory: React.FC<AuditHistoryProps> = ({ logs }) => {
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
               {filteredLogs.length > 0 ? filteredLogs.map((log) => {
-                const { date, time } = formatDate(log.timestamp);
+                const { date, time } = formatDate(log.created_at || log.timestamp);
+                const operatorName = log.users?.name || log.userName || 'Operador';
+                const tableName = log.table_name || log.entityType || '--';
                 return (
                   <tr key={log.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -124,18 +140,18 @@ const AuditHistory: React.FC<AuditHistoryProps> = ({ logs }) => {
                       {getActionBadge(log.action)}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">{log.entityType}</span>
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">{tableName}</span>
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-[11px] font-bold text-slate-700 leading-relaxed max-w-md">{log.description}</p>
-                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest block mt-1">ID: {log.entityId}</span>
+                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest block mt-1">ID: {log.entity_id || log.entityId || '--'}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">
-                          {log.userName.charAt(0)}
+                          {operatorName.charAt(0)}
                         </div>
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">{log.userName}</span>
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">{operatorName}</span>
                       </div>
                     </td>
                   </tr>
