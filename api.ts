@@ -43,7 +43,7 @@ const mappers = {
     toDB: (c: Commitment) => ({
       id: c.id,
       ne: c.ne,
-      creditId: c.creditId, // Nome exato solicitado
+      creditId: c.creditId,
       value: Number(c.value) || 0,
       date: c.date,
       description: c.description || ''
@@ -60,7 +60,7 @@ const mappers = {
   cancellations: {
     toDB: (c: Cancellation) => ({
       id: c.id,
-      commitmentId: c.commitmentId, // Nome exato solicitado
+      commitmentId: c.commitmentId,
       value: Number(c.value) || 0,
       ro: c.ro,
       date: c.date,
@@ -106,6 +106,27 @@ const mappers = {
       role: row.role,
       name: row.name
     })
+  },
+  audit_logs: {
+    toDB: (l: AuditLog) => ({
+      userId: l.userId,
+      userName: l.userName,
+      action: l.action,
+      entityType: l.entityType,
+      entityId: l.entityId,
+      description: l.description,
+      timestamp: l.timestamp
+    }),
+    fromDB: (row: any): AuditLog => ({
+      id: row.id,
+      userId: row.userId,
+      userName: row.userName,
+      action: row.action,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      description: row.description,
+      timestamp: row.timestamp
+    })
   }
 };
 
@@ -136,7 +157,7 @@ export const api = {
         refunds: (resR.data || []).map(mappers.refunds.fromDB),
         cancellations: (resCan.data || []).map(mappers.cancellations.fromDB),
         users: (resU.data || []).map(mappers.users.fromDB),
-        auditLogs: resLog.data || []
+        auditLogs: (resLog.data || []).map(mappers.audit_logs.fromDB)
       };
     } catch (err) {
       console.error('Erro ao buscar estado:', err);
@@ -160,8 +181,12 @@ export const api = {
 
   async addLog(log: AuditLog) {
     try {
-      await supabase.from('audit_logs').insert(log);
-    } catch {}
+      const payload = mappers.audit_logs.toDB(log);
+      const { error } = await supabase.from('audit_logs').insert(payload);
+      if (error) console.error('Supabase Insert Error:', error.message);
+    } catch (err) {
+      console.error('Erro ao processar auditoria:', err);
+    }
     return true;
   },
 
@@ -170,6 +195,8 @@ export const api = {
       .channel('db-changes')
       .on('postgres_changes', { event: '*', schema: 'public' }, () => callback())
       .subscribe();
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }
 };
