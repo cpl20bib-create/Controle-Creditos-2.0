@@ -1,23 +1,83 @@
-Ajuste o código do aplicativo para que ele siga rigorosamente a estrutura atual do meu banco de dados Supabase. Não tente usar nomes de colunas diferentes dos listados abaixo:
 
-1. Mapeamento de Tabelas:
+export type UG = '160211' | '167211';
+export type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER';
 
-Tabela credits: Use valueReceived para o valor inicial, valueAvailable para o saldo atual e valueUsed para o total gasto. Use id, nc, description e created_at.
+export interface User {
+  id: string;
+  username: string;
+  password?: string;
+  role: UserRole;
+  name: string;
+}
 
-Tabela commitments: Use creditId (com 'I' maiúsculo) para vincular ao crédito. Use value para o valor do empenho.
+export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
+export type EntityType = 'CRÉDITO' | 'EMPENHO' | 'RECOLHIMENTO' | 'ANULAÇÃO';
 
-Tabela cancellations: Use commitmentId e value.
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: ActionType;
+  entityType: EntityType;
+  entityId: string;
+  description: string;
+  timestamp: string;
+}
 
-Tabela users: Use id, username, password, role e name.
+export interface Credit {
+  id: string;
+  ug: UG;
+  pi: string;
+  nc: string;
+  nd: string;
+  organ: string;
+  section: string;
+  valueReceived: number; // Valor Inicial
+  valueAvailable: number; // Saldo Atual
+  valueUsed: number; // Total Gasto
+  description: string;
+  deadline: string;
+  created_at: string;
+}
 
-2. Correções Necessárias:
+export interface Commitment {
+  id: string;
+  ne: string;
+  creditId: string; // Vínculo direto com a NC
+  value: number; // Valor da NE
+  date: string;
+  description: string;
+}
 
-Cálculos de Saldo: O valueAvailable de um crédito deve ser calculado como: valueReceived minus (soma de value de todos os commitments vinculados) plus (soma de value de todos os cancellations vinculados).
+export interface Cancellation {
+  id: string;
+  commitmentId: string; // Vínculo com a NE
+  value: number;
+  ro: string;
+  date: string;
+  bi: string;
+}
 
-Percentuais: Corrija o cálculo de utilização para: (valueUsed / valueReceived) * 100. Se valueReceived for zero, retorne 0%.
+export interface Refund {
+  id: string;
+  creditId: string;
+  value: number;
+  date: string;
+  description: string;
+}
 
-Cadastro de Crédito: Ao salvar um novo crédito, envie os dados para valueReceived, valueTotal e valueAvailable usando o valor digitado pelo usuário. Nunca tente enviar para 'value_received'.
+export type SortField = 'valueReceived' | 'value' | 'date' | 'deadline' | 'created_at';
+export type SortOrder = 'asc' | 'desc';
 
-3. Estabilidade:
-
-Certifique-se de que todas as listagens de Créditos e Empenhos busquem os dados usando esses nomes exatos. Se algum valor estiver aparecendo zerado, é porque o mapeamento de nomes de colunas está errado. Corrija-o agora.
+export interface Filters {
+  ug?: UG;
+  pi?: string;
+  nd?: string;
+  section?: string;
+  organ?: string;
+  startDate?: string;
+  endDate?: string;
+  hideZeroBalance?: boolean;
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
+}
