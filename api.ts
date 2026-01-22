@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Credit, Commitment, Refund, Cancellation, User, AuditLog } from './types';
+import { Credit, Commitment, Refund, Cancellation, User } from './types';
 
 const supabaseUrl = 'https://tdbpxsdvtogymvercpqc.supabase.co';
 const supabaseAnonKey = 'sb_publishable_uMAhraANc199PrH8EQD9-w_MW39GXUK';
@@ -106,27 +106,6 @@ const mappers = {
       role: row.role,
       name: row.name
     })
-  },
-  audit_logs: {
-    toDB: (l: AuditLog) => ({
-      userId: l.userId,
-      userName: l.userName,
-      action: l.action,
-      entityType: l.entityType,
-      entityId: l.entityId,
-      description: l.description,
-      timestamp: l.timestamp
-    }),
-    fromDB: (row: any): AuditLog => ({
-      id: row.id,
-      userId: row.userId,
-      userName: row.userName,
-      action: row.action,
-      entityType: row.entityType,
-      entityId: row.entityId,
-      description: row.description,
-      timestamp: row.timestamp
-    })
   }
 };
 
@@ -142,13 +121,12 @@ export const api = {
 
   async getFullState() {
     try {
-      const [resC, resCom, resR, resCan, resU, resLog] = await Promise.all([
+      const [resC, resCom, resR, resCan, resU] = await Promise.all([
         supabase.from('credits').select('*'),
         supabase.from('commitments').select('*'),
         supabase.from('refunds').select('*'),
         supabase.from('cancellations').select('*'),
-        supabase.from('users').select('*'),
-        supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(100)
+        supabase.from('users').select('*')
       ]);
 
       return {
@@ -156,8 +134,7 @@ export const api = {
         commitments: (resCom.data || []).map(mappers.commitments.fromDB),
         refunds: (resR.data || []).map(mappers.refunds.fromDB),
         cancellations: (resCan.data || []).map(mappers.cancellations.fromDB),
-        users: (resU.data || []).map(mappers.users.fromDB),
-        auditLogs: (resLog.data || []).map(mappers.audit_logs.fromDB)
+        users: (resU.data || []).map(mappers.users.fromDB)
       };
     } catch (err) {
       console.error('Erro ao buscar estado:', err);
@@ -176,30 +153,6 @@ export const api = {
   async delete(table: string, id: string) {
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (error) throw new Error(error.message);
-    return true;
-  },
-
-  async addLog(log: AuditLog) {
-    try {
-      // Garantimos que o objeto enviado segue rigorosamente o esquema do banco
-      const payload = {
-        userId: log.userId,
-        userName: log.userName,
-        action: log.action,
-        entityType: log.entityType,
-        entityId: log.entityId,
-        description: log.description,
-        timestamp: log.timestamp
-      };
-      
-      const { error } = await supabase.from('audit_logs').insert(payload);
-      if (error) {
-        console.error('Erro ao inserir log de auditoria no Supabase:', error.message);
-        throw new Error(`Falha na auditoria: ${error.message}`);
-      }
-    } catch (err) {
-      console.error('Erro fatal no processamento de auditoria:', err);
-    }
     return true;
   },
 
