@@ -10,20 +10,6 @@ export interface User {
   name: string;
 }
 
-export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
-export type EntityType = 'CRÉDITO' | 'EMPENHO' | 'RECOLHIMENTO' | 'ANULAÇÃO';
-
-export interface AuditLog {
-  id: string;
-  userId: string;
-  userName: string;
-  action: ActionType;
-  entityType: EntityType;
-  entityId: string;
-  description: string;
-  timestamp: string;
-}
-
 export interface Credit {
   id: string;
   ug: UG;
@@ -80,4 +66,19 @@ export interface Filters {
   hideZeroBalance?: boolean;
   sortBy?: SortField;
   sortOrder?: SortOrder;
+}
+
+// Fixed missing types for AuditHistory component
+export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
+export type EntityType = 'CRÉDITO' | 'EMPENHO' | 'RECOLHIMENTO' | 'ANULAÇÃO';
+
+export interface AuditLog {
+  id: string;
+  action: ActionType;
+  entityType: EntityType;
+  entityId: string;
+  userId: string;
+  userName: string;
+  description: string;
+  timestamp: string;
 }
