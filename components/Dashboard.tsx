@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Credit, Commitment, Refund, Cancellation, Filters } from '../types';
-import { Landmark, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt, Zap } from 'lucide-react';
+import { Landmark, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt, Zap, Layers, Calendar, Target } from 'lucide-react';
 import FilterBar from './FilterBar';
 
 interface DashboardProps {
@@ -66,7 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       if (filters.ug && c.ug !== filters.ug) return false;
       if (filters.pi && c.pi !== filters.pi) return false;
       if (filters.nd && c.nd !== filters.nd) return false;
-      if (filters.section && c.section !== filters.section) return false; // CORREÇÃO: Adicionado filtro de seção
+      if (filters.section && c.section !== filters.section) return false;
       return true;
     });
 
@@ -164,7 +164,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       const matchesGlobal = (!filters.ug || c.ug === filters.ug) && 
                             (!filters.pi || c.pi === filters.pi) &&
                             (!filters.nd || c.nd === filters.nd) &&
-                            (!filters.section || c.section === filters.section); // CORREÇÃO: Adicionado filtro de seção
+                            (!filters.section || c.section === filters.section);
       return hasBalance && matchesSearch && matchesBarFilter && matchesGlobal;
     });
 
@@ -210,7 +210,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
           <div className="mt-2 text-[9px] font-bold text-emerald-500 uppercase italic">Disponibilidade Real</div>
         </div>
 
-        {/* CARD DE ATENÇÃO ULTRA-MODERNO (SÍMBOLO DE ATENÇÃO) */}
         <div className="bg-slate-950 p-6 rounded-2xl shadow-2xl shadow-emerald-950/20 border border-slate-800 flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
           
@@ -230,7 +229,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         </div>
       </div>
 
-      {/* Gráfico de Barras e Alertas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col min-h-[460px]">
           <div className="flex items-center justify-between mb-8">
@@ -332,155 +330,152 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         </div>
       </div>
 
-      {/* EXPLORADOR DE SALDOS ULTRA-MODERNO (DARK RAIO STYLE) */}
+      {/* EXPLORADOR DE SALDOS OTIMIZADO */}
       <div className="pt-12 mt-12 border-t border-slate-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
            <div className="flex items-center gap-5">
-              <div className="p-5 bg-slate-950 text-emerald-500 rounded-[2rem] shadow-2xl border border-slate-800"><Zap size={32} className="fill-emerald-500/20" /></div>
+              <div className="p-4 bg-slate-950 text-emerald-500 rounded-2xl shadow-xl border border-slate-800">
+                <Layers size={28} />
+              </div>
               <div>
                 <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight italic leading-none">Explorador de Saldos Estruturados</h2>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.4em] mt-2 italic flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div> Painel Executivo de Disponibilidade (FIFO)
+                  Monitoramento Hierárquico de Disponibilidade (FIFO)
                 </p>
               </div>
            </div>
-           <div className="relative w-full md:w-[450px] group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
+           <div className="relative w-full md:w-[450px]">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <input 
                 type="text" 
                 placeholder="Filtrar por Nota de Crédito, PI ou Natureza..." 
-                className="w-full pl-14 pr-6 py-4 bg-slate-100 border-2 border-transparent focus:border-emerald-500/30 focus:bg-white rounded-[1.5rem] text-sm font-bold outline-none transition-all shadow-inner"
+                className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm"
                 value={explorerSearch}
                 onChange={e => setExplorerSearch(e.target.value)}
               />
            </div>
         </div>
 
-        <div className="bg-slate-950 rounded-[3rem] p-8 md:p-12 shadow-[0_40px_100px_rgba(0,0,0,0.2)] border border-slate-800 relative overflow-hidden">
-           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
-           
-           <div className="space-y-6 relative z-10">
-              {Object.keys(explorerHierarchy).length > 0 ? Object.entries(explorerHierarchy).map(([ug, sections]: [string, any]) => (
-                <div key={ug} className="border border-slate-800/50 rounded-[2.5rem] overflow-hidden bg-slate-900/10 backdrop-blur-sm">
-                   <button 
-                     onClick={() => toggleExpand(`ug-${ug}`)}
-                     className="w-full px-10 py-7 flex items-center justify-between hover:bg-slate-900/30 transition-colors"
-                   >
-                     <div className="flex items-center gap-6">
-                       <span className="bg-emerald-600/10 text-emerald-500 text-[11px] font-black px-6 py-2 rounded-2xl uppercase tracking-[0.3em] border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">UG {ug}</span>
-                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{Object.keys(sections).length} Seções com Dotação</span>
-                     </div>
-                     <ChevronDown className={`transition-transform duration-500 text-slate-600 ${expandedItems[`ug-${ug}`] ? 'rotate-180 text-emerald-500' : ''}`} size={24} />
-                   </button>
-
-                   {expandedItems[`ug-${ug}`] && (
-                     <div className="px-10 pb-8 space-y-6">
-                       {Object.entries(sections).map(([section, pis]: [string, any]) => (
-                         <div key={section} className="border border-slate-800/50 rounded-[2rem] overflow-hidden bg-slate-950/40">
-                           <button 
-                             onClick={() => toggleExpand(`sec-${ug}-${section}`)}
-                             className="w-full px-8 py-5 flex items-center justify-between hover:bg-slate-900/30 transition-colors"
-                           >
-                             <div className="flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500/50"></div>
-                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest italic">{section}</span>
-                             </div>
-                             <ChevronDown className={`transition-transform duration-500 text-slate-700 ${expandedItems[`sec-${ug}-${section}`] ? 'rotate-180 text-emerald-500' : ''}`} size={20} />
-                           </button>
-
-                           {expandedItems[`sec-${ug}-${section}`] && (
-                             <div className="px-8 pb-8 pt-4 space-y-10 border-t border-slate-800/30">
-                               {Object.entries(pis).map(([pi, ncs]: [string, any]) => (
-                                 <div key={pi} className="space-y-6">
-                                   <div className="flex items-center gap-4">
-                                     <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] bg-emerald-500/5 px-5 py-1.5 rounded-full border border-emerald-500/10">PI {pi}</span>
-                                     <div className="h-[1px] flex-1 bg-gradient-to-r from-emerald-500/20 to-transparent"></div>
-                                   </div>
-                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                     {ncs.map((nc: any) => {
-                                       const perc = Number(nc.valueReceived) > 0 ? (nc.usedValue / Number(nc.valueReceived)) * 100 : 0;
-                                       const isExpanded = expandedItems[`nc-det-${nc.id}`];
-                                       return (
-                                         <div 
-                                           key={nc.id}
-                                           className={`flex flex-col rounded-[2rem] border transition-all duration-500 ${isExpanded ? 'border-emerald-500/50 shadow-[0_0_40px_rgba(16,185,129,0.1)] bg-slate-900' : 'border-slate-800 bg-slate-950/50 hover:border-slate-700 shadow-sm'}`}
-                                         >
-                                           <button 
-                                             onClick={() => toggleExpand(`nc-det-${nc.id}`)}
-                                             className="p-7 text-left w-full"
-                                           >
-                                             <div className="flex justify-between items-center mb-6">
-                                                <div className="flex items-center gap-3">
-                                                   <Zap size={14} className={nc.balanceValue > 0 ? 'text-emerald-400' : 'text-slate-800'} />
-                                                   <span className="text-[12px] font-black text-white uppercase italic tracking-tight">{nc.nc}</span>
-                                                </div>
-                                                <div className="text-right">
-                                                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Saldo Livre</p>
-                                                   <p className="text-lg font-black text-emerald-400 tracking-tight">{formatCurrency(nc.balanceValue)}</p>
-                                                </div>
-                                             </div>
-                                             
-                                             <div className="space-y-2">
-                                                <div className="flex justify-between text-[8px] font-black uppercase text-slate-500 tracking-[0.2em]">
-                                                  <span>Consumo: {perc.toFixed(1)}%</span>
-                                                  <span className="text-slate-600">Aporte: {formatCurrency(nc.valueReceived)}</span>
-                                                </div>
-                                                <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800 shadow-inner">
-                                                   <div 
-                                                     className={`h-full transition-all duration-1000 shadow-[0_0_15px_rgba(16,185,129,0.4)] ${perc > 90 ? 'bg-red-500' : perc > 65 ? 'bg-amber-500' : 'bg-emerald-500'}`} 
-                                                     style={{ width: `${Math.min(100, perc)}%` }}
-                                                   ></div>
-                                                </div>
-                                             </div>
-                                           </button>
-                                           
-                                           {isExpanded && (
-                                             <div className="px-7 pb-8 animate-in fade-in slide-in-from-top-1">
-                                                <div className="p-6 bg-slate-900/80 rounded-2xl border border-slate-800 shadow-inner space-y-6">
-                                                   <div className="flex items-center gap-3 text-emerald-500 border-b border-slate-800 pb-3">
-                                                     <Receipt size={16} />
-                                                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">Especificação Técnica</span>
-                                                   </div>
-                                                   <p className="text-[11px] font-medium text-slate-400 leading-relaxed italic border-l-2 border-emerald-500/30 pl-4">
-                                                     {nc.description || "Sem descrição informada no cadastro."}
-                                                   </p>
-                                                   <div className="grid grid-cols-3 gap-4">
-                                                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-md">
-                                                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-1">Lançamento</p>
-                                                         <p className="text-[10px] font-black text-slate-300">{new Date(nc.created_at).toLocaleDateString('pt-BR')}</p>
-                                                      </div>
-                                                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-md">
-                                                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-1">Natureza</p>
-                                                         <p className="text-[10px] font-black text-slate-300">ND {nc.nd}</p>
-                                                      </div>
-                                                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-md">
-                                                         <p className="text-[8px] font-black text-red-500 uppercase tracking-tighter mb-1">Empenhado</p>
-                                                         <p className="text-[10px] font-black text-red-400">{formatCurrency(nc.usedValue)}</p>
-                                                      </div>
-                                                   </div>
-                                                </div>
-                                             </div>
-                                           )}
-                                         </div>
-                                       );
-                                     })}
-                                   </div>
-                                 </div>
-                               ))}
-                             </div>
-                           )}
-                         </div>
-                       ))}
-                     </div>
-                   )}
+        <div className="space-y-6">
+          {Object.keys(explorerHierarchy).length > 0 ? Object.entries(explorerHierarchy).map(([ug, sections]: [string, any]) => (
+            <div key={ug} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+              <button 
+                onClick={() => toggleExpand(`ug-${ug}`)}
+                className="w-full px-8 py-6 flex items-center justify-between bg-slate-50/50 hover:bg-slate-50 transition-colors border-b border-slate-100"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="bg-slate-900 text-white text-[10px] font-black px-4 py-1.5 rounded-lg uppercase tracking-widest">UG {ug}</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{Object.keys(sections).length} Seções Interessadas</span>
                 </div>
-              )) : (
-                <div className="py-24 text-center opacity-30">
-                   <Search size={56} className="mx-auto mb-6 text-slate-800" />
-                   <p className="text-sm font-black uppercase tracking-[0.5em] text-slate-600 italic">Nenhum registro encontrado</p>
+                <ChevronDown className={`transition-transform duration-300 text-slate-400 ${expandedItems[`ug-${ug}`] ? 'rotate-180 text-emerald-600' : ''}`} size={20} />
+              </button>
+
+              {expandedItems[`ug-${ug}`] && (
+                <div className="p-8 space-y-8 bg-slate-50/20">
+                  {Object.entries(sections).map(([section, pis]: [string, any]) => (
+                    <div key={section} className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-4 w-1 bg-emerald-500 rounded-full"></div>
+                        <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-widest italic">{section}</h3>
+                        <div className="h-[1px] flex-1 bg-slate-200"></div>
+                      </div>
+
+                      <div className="space-y-8 pl-4">
+                        {Object.entries(pis).map(([pi, ncs]: [string, any]) => (
+                          <div key={pi} className="space-y-4">
+                            <div className="flex items-center gap-2 text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full w-fit border border-emerald-100 shadow-sm">
+                              <Target size={10} /> PI {pi}
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-5">
+                              {ncs.map((nc: any) => {
+                                const perc = Number(nc.valueReceived) > 0 ? (nc.usedValue / Number(nc.valueReceived)) * 100 : 0;
+                                const isCritical = nc.daysToDeadline <= 20 && nc.balanceValue > 0;
+                                const isExpanded = expandedItems[`nc-det-${nc.id}`];
+
+                                return (
+                                  <div 
+                                    key={nc.id}
+                                    className={`relative group bg-slate-950 rounded-3xl border transition-all duration-300 ${isExpanded ? 'border-emerald-500/40 shadow-2xl ring-4 ring-emerald-500/5' : 'border-slate-800 hover:border-slate-700'}`}
+                                  >
+                                    <div className="p-6 cursor-pointer" onClick={() => toggleExpand(`nc-det-${nc.id}`)}>
+                                      <div className="flex justify-between items-start mb-6">
+                                        <div className="flex flex-col gap-1">
+                                          <div className="flex items-center gap-2">
+                                            {isCritical ? (
+                                              <AlertTriangle size={14} className="text-amber-500 animate-pulse" />
+                                            ) : (
+                                              <Zap size={14} className="text-emerald-500/40" />
+                                            )}
+                                            <span className="text-[11px] font-black text-white italic tracking-tight">{nc.nc}</span>
+                                          </div>
+                                          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Natureza {nc.nd}</span>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Saldo Livre</p>
+                                          <p className={`text-lg font-black tracking-tight ${nc.balanceValue > 0 ? 'text-emerald-400' : 'text-slate-600 italic'}`}>
+                                            {formatCurrency(nc.balanceValue)}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <div className="flex justify-between text-[8px] font-black uppercase text-slate-500 tracking-widest">
+                                          <span>Consumo: {perc.toFixed(1)}%</span>
+                                          <span className="text-slate-400">Aporte: {formatCurrency(nc.valueReceived)}</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800 p-[1px]">
+                                          <div 
+                                            className={`h-full transition-all duration-1000 rounded-full ${perc > 90 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : perc > 65 ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} 
+                                            style={{ width: `${Math.min(100, perc)}%` }}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {isExpanded && (
+                                      <div className="px-6 pb-6 animate-in slide-in-from-top-2 duration-300">
+                                        <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 space-y-4">
+                                          <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+                                            <Receipt size={12} className="text-emerald-500" />
+                                            <span className="text-[9px] font-black text-white uppercase tracking-widest">Especificação Técnica</span>
+                                          </div>
+                                          <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic border-l-2 border-emerald-500/20 pl-3">
+                                            {nc.description || "Sem descrição técnica informada."}
+                                          </p>
+                                          <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                              <p className="text-[7px] font-black text-slate-500 uppercase mb-1">Data Lançamento</p>
+                                              <p className="text-[9px] font-black text-slate-300 flex items-center gap-1.5">
+                                                <Calendar size={10} className="text-emerald-500/40" /> {new Date(nc.created_at).toLocaleDateString('pt-BR')}
+                                              </p>
+                                            </div>
+                                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                              <p className="text-[7px] font-black text-red-500 uppercase mb-1">Total Empenhado</p>
+                                              <p className="text-[9px] font-black text-red-400">{formatCurrency(nc.usedValue)}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-           </div>
+            </div>
+          )) : (
+            <div className="py-24 bg-white rounded-3xl border border-slate-100 text-center opacity-30 shadow-sm">
+               <Layers size={56} className="mx-auto mb-6 text-slate-300" />
+               <p className="text-sm font-black uppercase tracking-[0.5em] text-slate-400 italic">Nenhum registro ativo</p>
+            </div>
+          )}
         </div>
       </div>
 
