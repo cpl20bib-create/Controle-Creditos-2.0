@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Credit, Commitment, UG } from '../types';
 import { Save, ArrowLeft, Landmark, Zap, AlertCircle, Calendar, FileText, CheckCircle2 } from 'lucide-react';
@@ -25,15 +24,36 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Filtragem Hierárquica Progressiva
+  // Helper para verificar saldo de um conjunto de créditos
+  const hasBalance = (filteredCredits: Credit[]) => {
+    // Fix: Explicitly type reduce accumulator to avoid 'unknown' type error on line 73
+    const total = filteredCredits.reduce((acc: number, c: Credit) => acc + (Number(c.valueAvailable) || 0), 0);
+    return total > 0.01;
+  };
+
+  // 1. Filtragem Hierárquica Progressiva com Verificação de Saldo
   const availablePIs = useMemo(() => {
     if (!formData.ug) return [];
-    return Array.from(new Set(credits.filter(c => c.ug === formData.ug).map(c => c.pi))).sort();
+    const pis = Array.from(new Set(credits.filter(c => c.ug === formData.ug).map(c => c.pi))).sort();
+    
+    // Filtra apenas PIs que possuem algum crédito com saldo disponível
+    return pis.filter(pi => {
+      const piCredits = credits.filter(c => c.ug === formData.ug && c.pi === pi);
+      // Fix: Explicitly type parameter in some() to ensure correct type inference on line 113
+      return piCredits.some((c: Credit) => Number(c.valueAvailable) > 0.01);
+    });
   }, [credits, formData.ug]);
 
   const availableNDs = useMemo(() => {
     if (!formData.ug || !formData.pi) return [];
-    return Array.from(new Set(credits.filter(c => c.ug === formData.ug && c.pi === formData.pi).map(c => c.nd))).sort();
+    const nds = Array.from(new Set(credits.filter(c => c.ug === formData.ug && c.pi === formData.pi).map(c => c.nd))).sort();
+    
+    // Filtra apenas NDs que possuem algum crédito com saldo disponível
+    return nds.filter(nd => {
+      const ndCredits = credits.filter(c => c.ug === formData.ug && c.pi === formData.pi && c.nd === nd);
+      // Fix: Explicitly type parameter in some() to ensure correct type inference
+      return ndCredits.some((c: Credit) => Number(c.valueAvailable) > 0.01);
+    });
   }, [credits, formData.ug, formData.pi]);
 
   // NCs Disponíveis ordenadas por antiguidade (FIFO)
@@ -41,8 +61,10 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
     if (!formData.ug || !formData.pi || !formData.nd) return [];
     return credits
       .filter(c => c.ug === formData.ug && c.pi === formData.pi && c.nd === formData.nd)
-      .filter(c => c.valueAvailable > 0)
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      // Fix: Explicitly type parameter in filter() to ensure correct type inference on line 132
+      .filter((c: Credit) => Number(c.valueAvailable) > 0)
+      // Fix: Explicitly type parameters in sort() to ensure correct type inference for arithmetic operation
+      .sort((a: Credit, b: Credit) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [credits, formData.ug, formData.pi, formData.nd]);
 
   // Resets ao mudar a hierarquia
@@ -50,7 +72,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
   useEffect(() => { setFormData(prev => ({ ...prev, nd: '', totalValue: 0 })); setAllocations({}); }, [formData.pi]);
   useEffect(() => { setFormData(prev => ({ ...prev, totalValue: 0 })); setAllocations({}); }, [formData.nd]);
 
-  const currentAllocatedSum = Object.values(allocations).reduce((a, b) => a + b, 0);
+  // Fix: Explicitly type reduce accumulator and cast Object.values to number[] to resolve 'unknown' type errors for arithmetic operations
+  const currentAllocatedSum = (Object.values(allocations) as number[]).reduce((a: number, b: number) => a + b, 0);
   const needsDistribution = formData.totalValue > 0 && currentAllocatedSum === 0;
 
   const handleAutoDistribute = () => {
@@ -102,7 +125,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
     }
 
     if (!formData.date) {
-      setError("A Data do Empenho é obrigatória.");
+      setError("A Data do Empenho é um campo obrigatório para efetivação.");
       return;
     }
 
@@ -151,7 +174,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
             </div>
           )}
 
-          {/* Seleção de UG, PI e ND */}
+          {/* Seleção de UG, PI e ND (Filtrada por Saldo) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
              <div className="space-y-2">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidade Gestora (UG)</label>
@@ -165,26 +188,26 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
                 </select>
              </div>
              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Plano Interno (PI)</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Plano Interno (PI com Saldo)</label>
                 <select 
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-xs font-bold focus:ring-2 focus:ring-red-500 outline-none disabled:opacity-40 transition-all" 
                   value={formData.pi} 
                   onChange={e => setFormData({...formData, pi: e.target.value})}
                   disabled={!formData.ug}
                 >
-                  <option value="">Selecione o PI</option>
+                  <option value="">{availablePIs.length === 0 ? 'Sem PI disponível' : 'Selecione o PI'}</option>
                   {availablePIs.map(pi => <option key={pi} value={pi}>{pi}</option>)}
                 </select>
              </div>
              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Natureza (ND)</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Natureza (ND com Saldo)</label>
                 <select 
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-xs font-bold focus:ring-2 focus:ring-red-500 outline-none disabled:opacity-40 transition-all" 
                   value={formData.nd} 
                   onChange={e => setFormData({...formData, nd: e.target.value})}
                   disabled={!formData.pi}
                 >
-                  <option value="">Selecione a ND</option>
+                  <option value="">{availableNDs.length === 0 ? 'Sem ND disponível' : 'Selecione a ND'}</option>
                   {availableNDs.map(nd => <option key={nd} value={nd}>{nd}</option>)}
                 </select>
              </div>
@@ -192,7 +215,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
              <div className="space-y-8">
-                {/* PAINEL PRETO DE DISTRIBUIÇÃO */}
+                {/* PAINEL PRETO DE DISTRIBUIÇÃO (ESTILO RAIO) */}
                 <div className="bg-slate-950 p-10 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group border border-slate-800">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
                   
@@ -247,10 +270,11 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
                    </div>
                    <div className="space-y-2">
                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                         <Calendar size={14} className="text-red-500"/> Data do Empenho
+                         <Calendar size={14} className="text-red-500"/> Data do Empenho (Obrigatório)
                       </label>
                       <input 
                         type="date" 
+                        required
                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:ring-2 focus:ring-red-500 [color-scheme:light] shadow-sm" 
                         value={formData.date} 
                         onChange={e => setFormData({...formData, date: e.target.value})} 
@@ -298,7 +322,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
                      <div className="h-full flex flex-col items-center justify-center opacity-20 text-center px-12">
                         <Landmark size={64} className="mb-6 text-slate-400" />
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">
-                          Aguardando seleção de ND para exibir Notas de Crédito disponíveis para empenho
+                          Aguardando seleção de UG/PI/ND para exibir Notas de Crédito com saldo disponível
                         </p>
                      </div>
                    )}
@@ -307,11 +331,12 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
                 <div className="mt-8 pt-8 border-t border-slate-200 flex justify-between items-center">
                    <div className="text-left">
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Consumido</p>
-                      <p className={`text-2xl font-black italic ${Math.abs(currentAllocatedSum - formData.totalValue) < 0.01 && formData.totalValue > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        {formatCurrency(currentAllocatedSum)}
+                      {/* Fix: Explicitly treat currentAllocatedSum as number for arithmetic operations in JSX on lines 331, 334 */}
+                      <p className={`text-2xl font-black italic ${Math.abs((currentAllocatedSum as number) - formData.totalValue) < 0.01 && formData.totalValue > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {formatCurrency(currentAllocatedSum as number)}
                       </p>
                    </div>
-                   {Math.abs(currentAllocatedSum - formData.totalValue) < 0.01 && formData.totalValue > 0 && (
+                   {Math.abs((currentAllocatedSum as number) - formData.totalValue) < 0.01 && formData.totalValue > 0 && (
                      <div className="bg-emerald-500 text-white p-3 rounded-2xl shadow-xl shadow-emerald-500/20 animate-bounce">
                         <CheckCircle2 size={24} />
                      </div>
@@ -334,7 +359,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
           <button 
             type="submit" 
             className="w-full py-7 bg-red-700 hover:bg-red-800 text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] shadow-2xl flex items-center justify-center gap-4 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={formData.totalValue <= 0 || Math.abs(currentAllocatedSum - formData.totalValue) > 0.01}
+            /* Fix: Explicitly treat currentAllocatedSum as number for comparison on line 357 */
+            disabled={formData.totalValue <= 0 || Math.abs((currentAllocatedSum as number) - formData.totalValue) > 0.01}
           >
             <Save size={24} /> Efetivar Nota de Empenho no Sistema
           </button>
