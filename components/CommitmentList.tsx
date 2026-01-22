@@ -43,12 +43,10 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
     let result = safeCommitments.map(item => {
       const cancelledValue = safeCancellations.filter(can => can.commitmentId === item.id).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
       const currentBalance = (Number(item.value) || 0) - cancelledValue;
-      // Fixed: Commitment uses creditId directly, not allocations
       const firstCredit = safeCredits.find(c => c.id === item.creditId) || null;
       
       return { ...item, currentBalance, firstCredit };
     }).filter(item => {
-      // Fixed: Commitment uses creditId directly, not allocations
       const linkedNC = safeCredits.find(c => c.id === item.creditId)?.nc || '';
       
       const matchSearch = (item.description || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -94,7 +92,9 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
     return (
       <CommitmentForm 
         credits={credits}
-        // Removed extra props not accepted by CommitmentForm
+        commitments={commitments}
+        refunds={refunds}
+        cancellations={cancellations}
         onSave={(c) => {
           if (editingItem) onUpdate(c);
           else onAdd(c);
@@ -171,7 +171,6 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      {/* Fixed: Commitment uses creditId directly, not allocations */}
                       <div className="bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
                         <span className="text-[9px] font-black text-emerald-800 italic block leading-none">{item.firstCredit?.nc || 'Desconhecida'}</span>
                         <span className="text-[8px] font-bold text-slate-500">{formatCurrency(item.value)}</span>
