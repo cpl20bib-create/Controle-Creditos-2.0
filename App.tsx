@@ -1,26 +1,24 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, ShieldCheck, History, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
-import { Credit, Commitment, Refund, Cancellation, Filters, User, AuditLog, ActionType, EntityType, UserRole } from './types';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Credit, Commitment, Refund, Cancellation, Filters, User } from './types';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
 import CommitmentList from './components/CommitmentList';
 import Reports from './components/Reports';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
-import AuditHistory from './components/AuditHistory';
 import { api } from './api';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'reports' | 'users' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'reports' | 'users'>('dashboard');
   
   const [credits, setCredits] = useState<Credit[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [cancellations, setCancellations] = useState<Cancellation[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [filters, setFilters] = useState<Filters>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -42,7 +40,6 @@ const App: React.FC = () => {
         setRefunds(state.refunds);
         setCancellations(state.cancellations);
         setUsers(state.users);
-        setAuditLogs(state.auditLogs);
         
         localStorage.setItem('budget_credits', JSON.stringify(state.credits));
         localStorage.setItem('budget_commitments', JSON.stringify(state.commitments));
@@ -75,21 +72,6 @@ const App: React.FC = () => {
     if (savedSession) setCurrentUser(JSON.parse(savedSession));
   }, []);
 
-  const addLog = useCallback(async (action: ActionType, entityType: EntityType, entityId: string, description: string) => {
-    if (!currentUser) return;
-    const newLog: AuditLog = {
-      id: '', // Deixamos o Supabase gerar o ID real
-      userId: currentUser.id,
-      userName: currentUser.name,
-      action,
-      entityType,
-      entityId,
-      description,
-      timestamp: new Date().toISOString()
-    };
-    await api.addLog(newLog);
-  }, [currentUser]);
-
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('budget_session', JSON.stringify(user));
@@ -103,7 +85,6 @@ const App: React.FC = () => {
   const handleAddCredit = async (newCredit: Credit) => {
     try {
       await api.upsert('credits', newCredit);
-      await addLog('CREATE', 'CRÉDITO', newCredit.id, `NC ${newCredit.nc}`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
@@ -113,7 +94,6 @@ const App: React.FC = () => {
   const handleUpdateCredit = async (updated: Credit) => {
     try {
       await api.upsert('credits', updated);
-      await addLog('UPDATE', 'CRÉDITO', updated.id, `NC ${updated.nc}`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
@@ -125,7 +105,6 @@ const App: React.FC = () => {
     if (credit && window.confirm('Excluir este crédito definitivamente?')) {
       try {
         await api.delete('credits', id);
-        await addLog('DELETE', 'CRÉDITO', id, `NC ${credit.nc}`);
         syncWithServer();
       } catch (e: any) {
         alert(e.message);
@@ -136,7 +115,6 @@ const App: React.FC = () => {
   const handleAddCommitment = async (newCom: Commitment) => {
     try {
       await api.upsert('commitments', newCom);
-      await addLog('CREATE', 'EMPENHO', newCom.id, `NE ${newCom.ne}`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
@@ -146,7 +124,6 @@ const App: React.FC = () => {
   const handleUpdateCommitment = async (updated: Commitment) => {
     try {
       await api.upsert('commitments', updated);
-      await addLog('UPDATE', 'EMPENHO', updated.id, `NE ${updated.ne} (Edição)`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
@@ -158,7 +135,6 @@ const App: React.FC = () => {
     if (com && window.confirm('Excluir este empenho definitivamente?')) {
       try {
         await api.delete('commitments', id);
-        await addLog('DELETE', 'EMPENHO', id, `NE ${com.ne}`);
         syncWithServer();
       } catch (e: any) {
         alert(e.message);
@@ -169,7 +145,6 @@ const App: React.FC = () => {
   const handleAddRefund = async (newRefund: Refund) => {
     try {
       await api.upsert('refunds', newRefund);
-      await addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento efetuado`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
@@ -179,7 +154,6 @@ const App: React.FC = () => {
   const handleAddCancellation = async (newCan: Cancellation) => {
     try {
       await api.upsert('cancellations', newCan);
-      await addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação de Empenho (RO ${newCan.ro})`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
@@ -204,7 +178,6 @@ const App: React.FC = () => {
     { id: 'commitments', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'reports', label: 'Relatórios', icon: FilePieChart, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'users', label: 'Usuários', icon: Users, roles: ['ADMIN'] },
-    { id: 'history', label: 'Histórico', icon: History, roles: ['ADMIN'] },
   ] as const;
 
   if (!currentUser) {
@@ -315,7 +288,6 @@ const App: React.FC = () => {
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} />}
           {activeTab === 'reports' && <Reports credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} />}
           {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} />}
-          {activeTab === 'history' && currentUser.role === 'ADMIN' && <AuditHistory logs={auditLogs} />}
         </div>
       </main>
     </div>
