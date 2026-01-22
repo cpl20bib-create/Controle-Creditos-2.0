@@ -1,8 +1,8 @@
 
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Credit, Commitment, Refund, Cancellation, Filters } from '../types';
-import { Landmark, TrendingDown, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3 } from 'lucide-react';
+import { Landmark, TrendingDown, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt } from 'lucide-react';
 import FilterBar from './FilterBar';
 
 interface DashboardProps {
@@ -21,7 +21,12 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
   const [activeSectionFilter, setActiveSectionFilter] = useState<string | null>(null);
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
+    return new Intl.NumberFormat('pt-BR', { 
+      style: 'currency', 
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Number(val) || 0);
   };
 
   const toggleExpand = (id: string) => {
@@ -34,7 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const safeCancellations = cancellations || [];
     const safeRefunds = refunds || [];
 
-    // Primeiro passo: Processar todos os créditos com seus saldos REAIS
+    // Cálculo real de saldos seguindo a regra: Recebido - Empenhos + Anulações
     const allProcessedCredits = safeCredits.map(credit => {
       const comms = safeCommitments.filter(com => com.creditId === credit.id);
       const commTotal = comms.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
@@ -45,15 +50,15 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       const refs = safeRefunds.filter(ref => ref.creditId === credit.id);
       const refsTotal = refs.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
 
-      // Fórmulas solicitadas: Saldo = Recebido - Empenhos + Anulações - Recolhimentos
-      const balanceValue = (Number(credit.valueReceived) || 0) - commTotal + cansTotal - refsTotal;
+      // Saldo Disponível: Recebido - (Empenhos - Anulações) - Recolhimentos
+      const balanceValue = (Number(credit.valueReceived) || 0) - (commTotal - cansTotal) - refsTotal;
       const usedValue = commTotal - cansTotal;
       const daysToDeadline = Math.ceil((new Date(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
 
       return { ...credit, balanceValue, usedValue, daysToDeadline };
     });
 
-    // Dados para o Gráfico (Sempre baseados nos filtros de topo, sem o filtro de seção local)
+    // Filtros de topo (UG, PI, ND)
     const topFiltered = allProcessedCredits.filter(c => {
       if (filters.ug && c.ug !== filters.ug) return false;
       if (filters.pi && c.pi !== filters.pi) return false;
@@ -61,6 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       return true;
     });
 
+    // Dados para o Gráfico de Barras por Seção (baseado nos filtros globais)
     const sectionMap: Record<string, { totalAvailable: number, pis: Record<string, number> }> = {};
     topFiltered.forEach(c => {
       if (c.balanceValue > 0) {
@@ -78,16 +84,15 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       }))
       .sort((a, b) => b.value - a.value);
 
-    // Dados para os Cards e Alertas (Aplicando o filtro de Seção da Barra se existir)
-    const dashboardFiltered = topFiltered.filter(c => {
+    // Filtro de Seção Interativo (Local)
+    const localFiltered = topFiltered.filter(c => {
       if (activeSectionFilter && c.section !== activeSectionFilter) return false;
-      if (filters.section && c.section !== filters.section) return false; // Filtro global
       return true;
     });
 
     let summaryReceived = 0;
     let summaryCommitted = 0;
-    dashboardFiltered.forEach(c => {
+    localFiltered.forEach(c => {
       summaryReceived += Number(c.valueReceived) || 0;
       summaryCommitted += c.usedValue;
     });
@@ -95,8 +100,9 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const summaryAvailable = summaryReceived - summaryCommitted;
     const executionPercentage = summaryReceived > 0 ? (summaryCommitted / summaryReceived) * 100 : 0;
 
-    const alerts = dashboardFiltered.filter(c => 
-      c.balanceValue > 0 && (c.daysToDeadline <= 15 || c.balanceValue < (c.valueReceived * 0.05))
+    // Notas em Atenção: saldo > 0 e (vencimento em 15 dias ou saldo < 5%)
+    const attentionNCs = localFiltered.filter(c => 
+      c.balanceValue > 0 && (c.daysToDeadline <= 15 || c.balanceValue < (Number(c.valueReceived) * 0.05))
     );
 
     return {
@@ -104,7 +110,8 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       summaryCommitted,
       summaryAvailable,
       executionPercentage,
-      criticalAlerts: alerts.slice(0, 10),
+      attentionCount: attentionNCs.length,
+      criticalAlerts: attentionNCs.slice(0, 10),
       barChartData,
       allProcessedCredits: allProcessedCredits
     };
@@ -142,13 +149,13 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
   };
 
   const explorerHierarchy = useMemo(() => {
-    const active = dashboardData.allProcessedCredits.filter(c => {
-      // Regra 1: valueReceived > 0
-      const matchesBase = Number(c.valueReceived) > 0;
-      // Regra 2: Filtro de busca
+    const filtered = dashboardData.allProcessedCredits.filter(c => {
+      // Regra 1: valueReceived > 0 (mostrar todos com dotação)
+      const matchesBase = (Number(c.valueReceived) || 0) > 0;
+      // Regra 2: Filtro de busca por NC ou Descrição
       const matchesSearch = c.nc.toLowerCase().includes(explorerSearch.toLowerCase()) || 
-                            c.description.toLowerCase().includes(explorerSearch.toLowerCase());
-      // Regra 3: Filtro de seção da barra
+                            (c.description || '').toLowerCase().includes(explorerSearch.toLowerCase());
+      // Regra 3: Integração com Filtro de Seção da Barra
       const matchesBarFilter = !activeSectionFilter || c.section === activeSectionFilter;
       // Regra 4: Filtros globais
       const matchesGlobal = (!filters.ug || c.ug === filters.ug) && 
@@ -159,7 +166,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     });
 
     const tree: any = {};
-    active.forEach(c => {
+    filtered.forEach(c => {
       if (!tree[c.ug]) tree[c.ug] = {};
       if (!tree[c.ug][c.section]) tree[c.ug][c.section] = {};
       if (!tree[c.ug][c.section][c.pi]) tree[c.ug][c.section][c.pi] = [];
@@ -172,12 +179,12 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     <div className="space-y-8 animate-in fade-in duration-500 text-black font-sans pb-24">
       <FilterBar filters={filters} setFilters={setFilters} credits={credits} showExtendedFilters={false} />
 
-      {/* Cartões de Resumo Atualizados */}
+      {/* Cartões de Resumo Atualizados conforme solicitação */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Recebido</p>
           <h3 className="text-xl font-black text-slate-900">{formatCurrency(dashboardData.summaryReceived)}</h3>
-          <div className="mt-2 text-[9px] font-bold text-slate-400 uppercase">Soma de Dotações</div>
+          <div className="mt-2 text-[9px] font-bold text-slate-400 uppercase">Dotação Acumulada</div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -205,12 +212,12 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
             <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Notas em Atenção</p>
             <AlertTriangle size={16} className="text-amber-500" />
           </div>
-          <h3 className="text-2xl font-black text-amber-900">{dashboardData.criticalAlerts.length} <span className="text-xs">NCs</span></h3>
-          <p className="text-[8px] font-bold text-amber-700 uppercase tracking-tighter">Prazos ou Saldos Críticos</p>
+          <h3 className="text-2xl font-black text-amber-900">{dashboardData.attentionCount} <span className="text-xs">NCs</span></h3>
+          <p className="text-[8px] font-bold text-amber-700 uppercase tracking-tighter">Vencimento Próximo / Saldo Baixo</p>
         </div>
       </div>
 
-      {/* Gráfico de Barras e Alertas */}
+      {/* Gráfico de Barras e Notas de Atenção */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col min-h-[460px]">
           <div className="flex items-center justify-between mb-8">
@@ -228,7 +235,16 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
           </div>
           <div className="flex-1 min-h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dashboardData.barChartData} layout="vertical" margin={{ left: 20, right: 100, top: 0, bottom: 0 }}>
+              <BarChart 
+                data={dashboardData.barChartData} 
+                layout="vertical" 
+                margin={{ left: 20, right: 120, top: 0, bottom: 0 }}
+                onClick={(state) => {
+                  if (state && state.activeLabel) {
+                    setActiveSectionFilter(prev => prev === state.activeLabel ? null : state.activeLabel as string);
+                  }
+                }}
+              >
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" hide />
                 <YAxis 
@@ -244,7 +260,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                   dataKey="value" 
                   radius={[0, 8, 8, 0]} 
                   barSize={24}
-                  onClick={handleBarClick}
                   className="cursor-pointer"
                 >
                   {dashboardData.barChartData.map((entry, index) => (
@@ -254,23 +269,16 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                       className="hover:opacity-80 transition-opacity"
                     />
                   ))}
+                  <LabelList 
+                    dataKey="value" 
+                    position="right" 
+                    formatter={(val: number) => formatCurrency(val)} 
+                    style={{ fontSize: 10, fontWeight: 900, fill: '#0f172a' }}
+                    offset={10}
+                  />
                 </Bar>
-                {/* Rótulo de Valor à Frente da Barra */}
-                <Tooltip />
               </BarChart>
             </ResponsiveContainer>
-            {/* Implementação Manual de Labels por causa de limitações do ResponsiveContainer vertical */}
-            <div className="relative -mt-[350px] pointer-events-none h-[350px] w-full">
-              {dashboardData.barChartData.map((entry, idx) => (
-                <div 
-                  key={idx} 
-                  className="absolute right-0 text-[10px] font-black text-slate-900"
-                  style={{ top: `${(idx * (100 / dashboardData.barChartData.length)) + (50 / dashboardData.barChartData.length)}%`, transform: 'translateY(-50%)' }}
-                >
-                  {formatCurrency(entry.value)}
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -304,7 +312,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
             )) : (
               <div className="h-full flex flex-col items-center justify-center opacity-20">
                 <Activity size={40} className="mb-2" />
-                <p className="text-[9px] font-black uppercase text-center tracking-widest">Tudo sob controle</p>
+                <p className="text-[9px] font-black uppercase text-center tracking-widest">Nenhuma nota em situação de alerta</p>
               </div>
             )}
           </div>
@@ -318,7 +326,9 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               <div className="p-3 bg-slate-900 text-white rounded-2xl shadow-lg"><Activity size={24} /></div>
               <div>
                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight italic">Explorador de Saldos Detalhados</h2>
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1 italic">Navegação estruturada por UG > Seção > PI > NC</p>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1 italic">
+                  {'Navegação estruturada por UG > Seção > PI > NC'}
+                </p>
               </div>
            </div>
            <div className="relative w-full md:w-96">
@@ -388,10 +398,10 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                                              </div>
                                           </div>
                                           
-                                          {/* Barra de Progresso Local */}
+                                          {/* Barra de Progresso do Crédito Individual */}
                                           <div className="space-y-1.5">
                                              <div className="flex justify-between text-[8px] font-black uppercase text-slate-400">
-                                               <span>Consumido: {perc.toFixed(1)}%</span>
+                                               <span>Empenhado: {perc.toFixed(1)}%</span>
                                                <span>Dotação: {formatCurrency(nc.valueReceived)}</span>
                                              </div>
                                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
@@ -405,21 +415,25 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                                         
                                         {isExpanded && (
                                           <div className="px-5 pb-6 animate-in fade-in slide-in-from-top-1">
-                                             <div className="p-4 bg-white rounded-2xl border border-emerald-100 shadow-inner">
-                                                <div className="flex items-center gap-2 mb-3 text-emerald-600">
-                                                  <Info size={14} />
-                                                  <span className="text-[9px] font-black uppercase tracking-widest">Informação Detalhada</span>
+                                             <div className="p-4 bg-white rounded-2xl border border-emerald-100 shadow-inner space-y-4">
+                                                <div className="flex items-center gap-2 text-emerald-600">
+                                                  <Receipt size={14} />
+                                                  <span className="text-[9px] font-black uppercase tracking-widest">Detalhes do Crédito</span>
                                                 </div>
-                                                <p className="text-[11px] font-medium text-slate-600 leading-relaxed italic mb-4">
-                                                  {nc.description || "Nenhuma descrição detalhada informada para este crédito orçamentário."}
+                                                <p className="text-[11px] font-medium text-slate-600 leading-relaxed italic">
+                                                  {nc.description || "Nenhuma descrição detalhada informada."}
                                                 </p>
-                                                <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-3 gap-3">
                                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter mb-1">Empenhado (Líquido)</p>
-                                                      <p className="text-xs font-black text-red-600">{formatCurrency(nc.usedValue)}</p>
+                                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter mb-1">Dotação</p>
+                                                      <p className="text-xs font-black text-slate-900">{formatCurrency(nc.valueReceived)}</p>
+                                                   </div>
+                                                   <div className="bg-red-50 p-3 rounded-xl border border-red-100">
+                                                      <p className="text-[8px] font-black text-red-600 uppercase tracking-tighter mb-1">Empenhado</p>
+                                                      <p className="text-xs font-black text-red-700">{formatCurrency(nc.usedValue)}</p>
                                                    </div>
                                                    <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                                                      <p className="text-[8px] font-black text-emerald-600 uppercase tracking-tighter mb-1">Saldo Livre Total</p>
+                                                      <p className="text-[8px] font-black text-emerald-600 uppercase tracking-tighter mb-1">Saldo</p>
                                                       <p className="text-xs font-black text-emerald-700">{formatCurrency(nc.balanceValue)}</p>
                                                    </div>
                                                 </div>
@@ -442,13 +456,13 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
            )) : (
              <div className="bg-slate-50 p-20 rounded-[3rem] border-2 border-dashed border-slate-200 text-center opacity-40">
                 <Search size={48} className="mx-auto mb-4 text-slate-300" />
-                <p className="text-sm font-black uppercase tracking-widest text-slate-400">Nenhum registro ativo para os critérios selecionados</p>
+                <p className="text-sm font-black uppercase tracking-widest text-slate-400">Nenhum registro encontrado para os filtros atuais</p>
              </div>
            )}
         </div>
       </div>
 
-      {/* Modal de Detalhes de NC em Atenção (Reutilizado do explorador) */}
+      {/* Modal de Detalhes de NC (Modo sob Atenção ou Explorador) */}
       {detailCreditId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200">
@@ -462,7 +476,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                       <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg"><Info size={24} /></div>
                       <div>
                         <h3 className="text-xl font-black uppercase italic leading-none tracking-tight">{nc.nc}</h3>
-                        <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mt-2 italic">Dotação em Situação de Alerta</p>
+                        <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mt-2 italic">Dotação Orçamentária BIB 20</p>
                       </div>
                     </div>
                     <button onClick={() => setDetailCreditId(null)} className="p-2 hover:bg-emerald-800 rounded-full transition-colors"><X size={28} /></button>
@@ -474,11 +488,11 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                      </div>
                      <div className="grid grid-cols-3 gap-4">
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1 leading-none">Original</p>
+                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1 leading-none">Dotação</p>
                            <p className="text-xs font-black text-slate-900">{formatCurrency(nc.valueReceived)}</p>
                         </div>
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1 leading-none">Líquido</p>
+                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1 leading-none">Empenhado</p>
                            <p className="text-xs font-black text-red-600">{formatCurrency(nc.usedValue)}</p>
                         </div>
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -487,7 +501,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                         </div>
                      </div>
                      <div className="flex justify-between items-center bg-slate-50 px-5 py-3 rounded-xl border border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                        <span>PI: {nc.pi} | ND: {nc.nd}</span>
+                        <span>PI: {nc.pi} | ND: {nc.nd} | UG: {nc.ug}</span>
                         <span className={`font-black ${nc.daysToDeadline <= 5 ? 'text-red-600 animate-pulse' : ''}`}>
                           Vencimento: {new Date(nc.deadline).toLocaleDateString('pt-BR')} ({nc.daysToDeadline} d)
                         </span>
