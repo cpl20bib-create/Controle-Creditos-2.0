@@ -25,16 +25,28 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
 
   const [error, setError] = useState<string | null>(null);
 
+  // Filtragem de PIs: Apenas PIs que possuem empenhos emitidos na UG selecionada
   const piOptions = useMemo(() => {
     if (!formData.ug) return [];
-    const groupCredits = credits.filter(c => c.ug === formData.ug);
-    return Array.from(new Set(groupCredits.map(c => c.pi))).sort();
-  }, [formData.ug, credits]);
+    
+    // 1. Filtrar empenhos cujos créditos pertencem à UG selecionada
+    const commitmentsInUG = commitments.filter(com => {
+      const credit = credits.find(c => c.id === com.creditId);
+      return credit?.ug === formData.ug;
+    });
+
+    // 2. Extrair os PIs únicos desses créditos
+    const pisWithCommitments = commitmentsInUG.map(com => {
+      const credit = credits.find(c => c.id === com.creditId);
+      return credit?.pi;
+    }).filter(Boolean) as string[];
+
+    return Array.from(new Set(pisWithCommitments)).sort();
+  }, [formData.ug, credits, commitments]);
 
   const filteredCommitments = useMemo(() => {
     if (!formData.ug || !formData.pi) return [];
     return commitments.filter(com => {
-      // Fixed: Commitment uses creditId directly, not allocations.
       const credit = credits.find(c => c.id === com.creditId);
       return credit?.ug === formData.ug && credit?.pi === formData.pi;
     });
@@ -89,14 +101,21 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Landmark size={10} /> UG do Empenho</label>
               <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black" value={formData.ug} onChange={e => setFormData({...formData, ug: e.target.value as UG})}>
-                <option value="">Selecione...</option>
+                <option value="">Selecione a UG...</option>
                 {UGS.map(ug => <option key={ug} value={ug}>{ug}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><PieChart size={10} /> PI do Empenho</label>
-              <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black disabled:opacity-50" value={formData.pi} onChange={e => setFormData({...formData, pi: e.target.value})} disabled={!formData.ug}>
-                <option value="">{!formData.ug ? 'Aguardando UG...' : 'Selecione...'}</option>
+              <select 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black disabled:opacity-50 transition-all" 
+                value={formData.pi} 
+                onChange={e => setFormData({...formData, pi: e.target.value})} 
+                disabled={!formData.ug}
+              >
+                <option value="">
+                  {!formData.ug ? 'Aguardando UG...' : piOptions.length === 0 ? 'Sem empenhos emitidos nesta UG' : 'Selecione o PI...'}
+                </option>
                 {piOptions.map(pi => <option key={pi} value={pi}>{pi}</option>)}
               </select>
             </div>
@@ -113,7 +132,7 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
           </div>
 
           {formData.commitmentId && (
-            <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
+            <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 animate-in fade-in slide-in-from-top-2 shadow-inner">
               <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Saldo Remanescente do Empenho</p>
               <p className="text-2xl font-black text-blue-900">R$ {maxCancellableValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
@@ -121,33 +140,43 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Valor da Anulação (R$)</label>
-              <input type="number" step="0.01" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-2xl font-black text-black outline-none focus:ring-2 focus:ring-blue-500" placeholder="0,00" value={formData.value || ''} onChange={e => setFormData({...formData, value: parseFloat(e.target.value) || 0})} />
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor da Anulação (R$)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-slate-300">R$</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-4 text-2xl font-black text-black outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" 
+                  placeholder="0,00" 
+                  value={formData.value || ''} 
+                  onChange={e => setFormData({...formData, value: parseFloat(e.target.value) || 0})} 
+                />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Número da RO (2026ROXXXXXX)</label>
-              <input type="text" maxLength={12} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black" value={formData.ro} onChange={e => { const v = e.target.value.toUpperCase(); if (v.startsWith('2026RO') || v === '') setFormData({...formData, ro: v}); }} />
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Número da RO (2026ROXXXXXX)</label>
+              <input type="text" maxLength={12} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black shadow-sm" value={formData.ro} onChange={e => { const v = e.target.value.toUpperCase(); if (v.startsWith('2026RO') || v === '') setFormData({...formData, ro: v}); }} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><ClipboardList size={10} /> Publicação em BI</label>
-              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 text-black" value={formData.bi} onChange={e => setFormData({...formData, bi: e.target.value})} onClick={(e) => { if (formData.bi === 'BI nº XX, de DD/MM/AAAA') setFormData({...formData, bi: 'BI nº '}); }} />
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 ml-1"><ClipboardList size={10} /> Publicação em BI</label>
+              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 text-black shadow-sm" value={formData.bi} onChange={e => setFormData({...formData, bi: e.target.value})} onClick={(e) => { if (formData.bi === 'BI nº XX, de DD/MM/AAAA') setFormData({...formData, bi: 'BI nº '}); }} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Data da Anulação</label>
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Data da Anulação</label>
               <input 
                 type="date" 
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-4 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500 text-slate-950 [color-scheme:light]" 
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-4 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500 text-slate-950 [color-scheme:light] shadow-sm" 
                 value={formData.date} 
                 onChange={e => setFormData({...formData, date: e.target.value})} 
               />
             </div>
           </div>
 
-          <button type="submit" className="w-full py-4 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50" disabled={!formData.commitmentId || formData.value <= 0}>
-            <Save size={18} /> Confirmar Anulação
+          <button type="submit" className="w-full py-5 bg-blue-700 hover:bg-blue-800 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-50 active:scale-[0.98]" disabled={!formData.commitmentId || formData.value <= 0}>
+            <Save size={20} /> Efetivar Anulação no Sistema
           </button>
         </form>
       </div>
