@@ -66,6 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       if (filters.ug && c.ug !== filters.ug) return false;
       if (filters.pi && c.pi !== filters.pi) return false;
       if (filters.nd && c.nd !== filters.nd) return false;
+      if (filters.section && c.section !== filters.section) return false; // CORREÇÃO: Adicionado filtro de seção
       return true;
     });
 
@@ -162,7 +163,8 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       const matchesBarFilter = !activeSectionFilter || c.section === activeSectionFilter;
       const matchesGlobal = (!filters.ug || c.ug === filters.ug) && 
                             (!filters.pi || c.pi === filters.pi) &&
-                            (!filters.nd || c.nd === filters.nd);
+                            (!filters.nd || c.nd === filters.nd) &&
+                            (!filters.section || c.section === filters.section); // CORREÇÃO: Adicionado filtro de seção
       return hasBalance && matchesSearch && matchesBarFilter && matchesGlobal;
     });
 
@@ -208,7 +210,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
           <div className="mt-2 text-[9px] font-bold text-emerald-500 uppercase italic">Disponibilidade Real</div>
         </div>
 
-        {/* CARD DE ATENÇÃO ULTRA-MODERNO (ALTERADO PARA SÍMBOLO DE ATENÇÃO) */}
+        {/* CARD DE ATENÇÃO ULTRA-MODERNO (SÍMBOLO DE ATENÇÃO) */}
         <div className="bg-slate-950 p-6 rounded-2xl shadow-2xl shadow-emerald-950/20 border border-slate-800 flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
           
