@@ -131,7 +131,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({ credits, onSave, onCanc
 
     // Salva um registro para cada NC que recebeu saldo
     Object.entries(allocations).forEach(([ncId, value]) => {
-      if (value > 0) {
+      // Fix: Explicitly cast 'value' to number to avoid 'unknown' type error on comparison (Line 134 fix)
+      if ((value as number) > 0) {
         onSave({
           id: Math.random().toString(36).substr(2, 9),
           ne: formData.ne.toUpperCase(),
