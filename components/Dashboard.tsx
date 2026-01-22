@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Credit, Commitment, Refund, Cancellation, Filters } from '../types';
-import { Landmark, TrendingDown, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt } from 'lucide-react';
+import { Landmark, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt } from 'lucide-react';
 import FilterBar from './FilterBar';
 
 interface DashboardProps {
@@ -39,26 +39,37 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const safeCancellations = cancellations || [];
     const safeRefunds = refunds || [];
 
-    // Cálculo real de saldos seguindo a regra: Recebido - Empenhos + Anulações
+    // 1. Processamento individual de cada crédito para cálculo de saldos reais
     const allProcessedCredits = safeCredits.map(credit => {
-      const comms = safeCommitments.filter(com => com.creditId === credit.id);
-      const commTotal = comms.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+      // Empenhos vinculados
+      const cComms = safeCommitments.filter(com => com.creditId === credit.id);
+      const cCommsBruto = cComms.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
       
-      const cans = safeCancellations.filter(can => comms.some(com => com.id === can.commitmentId));
-      const cansTotal = cans.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+      // Anulações vinculadas aos empenhos deste crédito
+      const cCans = safeCancellations.filter(can => cComms.some(com => com.id === can.commitmentId));
+      const cCansTotal = cCans.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
       
-      const refs = safeRefunds.filter(ref => ref.creditId === credit.id);
-      const refsTotal = refs.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+      // Recolhimentos vinculados a este crédito
+      const cRefs = safeRefunds.filter(ref => ref.creditId === credit.id);
+      const cRefsTotal = cRefs.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
 
-      // Saldo Disponível: Recebido - (Empenhos - Anulações) - Recolhimentos
-      const balanceValue = (Number(credit.valueReceived) || 0) - (commTotal - cansTotal) - refsTotal;
-      const usedValue = commTotal - cansTotal;
+      // Saldo da NC: Recebido - (Empenhado - Anulado) - Recolhido
+      const balanceValue = (Number(credit.valueReceived) || 0) - (cCommsBruto - cCansTotal) - cRefsTotal;
+      const usedValue = cCommsBruto - cCansTotal;
       const daysToDeadline = Math.ceil((new Date(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
 
-      return { ...credit, balanceValue, usedValue, daysToDeadline };
+      return { 
+        ...credit, 
+        balanceValue, 
+        usedValue, 
+        daysToDeadline,
+        rawRefunds: cRefsTotal,
+        rawCommitted: cCommsBruto,
+        rawCancellations: cCansTotal
+      };
     });
 
-    // Filtros de topo (UG, PI, ND)
+    // Filtros Globais (Topo)
     const topFiltered = allProcessedCredits.filter(c => {
       if (filters.ug && c.ug !== filters.ug) return false;
       if (filters.pi && c.pi !== filters.pi) return false;
@@ -66,7 +77,46 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       return true;
     });
 
-    // Dados para o Gráfico de Barras por Seção (baseado nos filtros globais)
+    // Filtro Local (Gráfico de Barras)
+    const localFiltered = topFiltered.filter(c => {
+      if (activeSectionFilter && c.section !== activeSectionFilter) return false;
+      return true;
+    });
+
+    // CÁLCULOS DOS TOTAIS CONFORME REGRAS SOLICITADAS
+    // 1.1 Total Recebido: Soma(valueReceived) - Soma(refunds.value)
+    let sumReceivedBruto = 0;
+    let sumRefunds = 0;
+    
+    // 1.2 Total Empenhado: Soma(commitments.value) - Soma(cancellations.value)
+    let sumCommittedBruto = 0;
+    let sumCancellations = 0;
+
+    // 2. Contabilização do Total Disponível (Somente NCs com saldo > 0)
+    let sumAvailableUseful = 0;
+
+    localFiltered.forEach(c => {
+      sumReceivedBruto += (Number(c.valueReceived) || 0);
+      sumRefunds += c.rawRefunds;
+      sumCommittedBruto += c.rawCommitted;
+      sumCancellations += c.rawCancellations;
+
+      if (c.balanceValue > 0) {
+        sumAvailableUseful += c.balanceValue;
+      }
+    });
+
+    const summaryReceived = sumReceivedBruto - sumRefunds;
+    const summaryCommitted = sumCommittedBruto - sumCancellations;
+    const summaryAvailable = sumAvailableUseful;
+    const executionPercentage = summaryReceived > 0 ? (summaryCommitted / summaryReceived) * 100 : 0;
+
+    // 1.3 Notas em Atenção: Saldo > 0 e Prazo <= 20 dias
+    const attentionNCs = localFiltered.filter(c => 
+      c.balanceValue > 0 && c.daysToDeadline <= 20
+    );
+
+    // Dados para o Gráfico (sempre baseados no filtro global)
     const sectionMap: Record<string, { totalAvailable: number, pis: Record<string, number> }> = {};
     topFiltered.forEach(c => {
       if (c.balanceValue > 0) {
@@ -84,27 +134,6 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       }))
       .sort((a, b) => b.value - a.value);
 
-    // Filtro de Seção Interativo (Local)
-    const localFiltered = topFiltered.filter(c => {
-      if (activeSectionFilter && c.section !== activeSectionFilter) return false;
-      return true;
-    });
-
-    let summaryReceived = 0;
-    let summaryCommitted = 0;
-    localFiltered.forEach(c => {
-      summaryReceived += Number(c.valueReceived) || 0;
-      summaryCommitted += c.usedValue;
-    });
-
-    const summaryAvailable = summaryReceived - summaryCommitted;
-    const executionPercentage = summaryReceived > 0 ? (summaryCommitted / summaryReceived) * 100 : 0;
-
-    // Notas em Atenção: saldo > 0 e (vencimento em 15 dias ou saldo < 5%)
-    const attentionNCs = localFiltered.filter(c => 
-      c.balanceValue > 0 && (c.daysToDeadline <= 15 || c.balanceValue < (Number(c.valueReceived) * 0.05))
-    );
-
     return {
       summaryReceived,
       summaryCommitted,
@@ -113,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       attentionCount: attentionNCs.length,
       criticalAlerts: attentionNCs.slice(0, 10),
       barChartData,
-      allProcessedCredits: allProcessedCredits
+      allProcessedCredits
     };
   }, [credits, commitments, refunds, cancellations, filters, activeSectionFilter]);
 
@@ -150,19 +179,19 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
   const explorerHierarchy = useMemo(() => {
     const filtered = dashboardData.allProcessedCredits.filter(c => {
-      // Regra 1: valueReceived > 0 (mostrar todos com dotação)
-      const matchesBase = (Number(c.valueReceived) || 0) > 0;
-      // Regra 2: Filtro de busca por NC ou Descrição
+      // REGRA 3: Mostrar apenas créditos com saldo disponível estritamente maior que zero
+      const hasBalance = c.balanceValue > 0;
+      
       const matchesSearch = c.nc.toLowerCase().includes(explorerSearch.toLowerCase()) || 
                             (c.description || '').toLowerCase().includes(explorerSearch.toLowerCase());
-      // Regra 3: Integração com Filtro de Seção da Barra
+      
       const matchesBarFilter = !activeSectionFilter || c.section === activeSectionFilter;
-      // Regra 4: Filtros globais
+      
       const matchesGlobal = (!filters.ug || c.ug === filters.ug) && 
                             (!filters.pi || c.pi === filters.pi) &&
                             (!filters.nd || c.nd === filters.nd);
 
-      return matchesBase && matchesSearch && matchesBarFilter && matchesGlobal;
+      return hasBalance && matchesSearch && matchesBarFilter && matchesGlobal;
     });
 
     const tree: any = {};
@@ -179,23 +208,23 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     <div className="space-y-8 animate-in fade-in duration-500 text-black font-sans pb-24">
       <FilterBar filters={filters} setFilters={setFilters} credits={credits} showExtendedFilters={false} />
 
-      {/* Cartões de Resumo Atualizados conforme solicitação */}
+      {/* Cartões de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Recebido</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Recebido (Líq)</p>
           <h3 className="text-xl font-black text-slate-900">{formatCurrency(dashboardData.summaryReceived)}</h3>
-          <div className="mt-2 text-[9px] font-bold text-slate-400 uppercase">Dotação Acumulada</div>
+          <div className="mt-2 text-[9px] font-bold text-slate-400 uppercase italic">Dotação - Recolhimentos</div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Empenhado</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Empenhado (Líq)</p>
           <h3 className="text-xl font-black text-red-600">{formatCurrency(dashboardData.summaryCommitted)}</h3>
           <div className="mt-2 space-y-1.5">
             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${Math.min(100, dashboardData.executionPercentage)}%` }}></div>
             </div>
             <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter flex justify-between">
-              <span>Utilização</span>
+              <span>Execução</span>
               <span>{dashboardData.executionPercentage.toFixed(1)}%</span>
             </div>
           </div>
@@ -204,7 +233,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor Em Tela</p>
           <h3 className="text-xl font-black text-emerald-600">{formatCurrency(dashboardData.summaryAvailable)}</h3>
-          <div className="mt-2 text-[9px] font-bold text-emerald-500 uppercase italic">Saldo Real Disponível</div>
+          <div className="mt-2 text-[9px] font-bold text-emerald-500 uppercase italic">Disponibilidade Real</div>
         </div>
 
         <div className="bg-amber-50 p-6 rounded-2xl shadow-sm border border-amber-200 flex flex-col justify-between">
@@ -213,11 +242,11 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
             <AlertTriangle size={16} className="text-amber-500" />
           </div>
           <h3 className="text-2xl font-black text-amber-900">{dashboardData.attentionCount} <span className="text-xs">NCs</span></h3>
-          <p className="text-[8px] font-bold text-amber-700 uppercase tracking-tighter">Vencimento Próximo / Saldo Baixo</p>
+          <p className="text-[8px] font-bold text-amber-700 uppercase tracking-tighter">Saldo &gt; 0 e Prazo &lt; 20d</p>
         </div>
       </div>
 
-      {/* Gráfico de Barras e Notas de Atenção */}
+      {/* Gráfico de Barras e Alertas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col min-h-[460px]">
           <div className="flex items-center justify-between mb-8">
@@ -312,7 +341,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
             )) : (
               <div className="h-full flex flex-col items-center justify-center opacity-20">
                 <Activity size={40} className="mb-2" />
-                <p className="text-[9px] font-black uppercase text-center tracking-widest">Nenhuma nota em situação de alerta</p>
+                <p className="text-[9px] font-black uppercase text-center tracking-widest">Tudo sob controle</p>
               </div>
             )}
           </div>
@@ -327,7 +356,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               <div>
                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight italic">Explorador de Saldos Detalhados</h2>
                 <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1 italic">
-                  {'Navegação estruturada por UG > Seção > PI > NC'}
+                  {'Navegação estruturada por UG &gt; Seção &gt; PI &gt; NC'}
                 </p>
               </div>
            </div>
@@ -335,7 +364,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
                 type="text" 
-                placeholder="Filtrar por Nota de Crédito ou Descrição..." 
+                placeholder="Filtrar por NC ou Descrição..." 
                 className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
                 value={explorerSearch}
                 onChange={e => setExplorerSearch(e.target.value)}
@@ -398,10 +427,9 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                                              </div>
                                           </div>
                                           
-                                          {/* Barra de Progresso do Crédito Individual */}
                                           <div className="space-y-1.5">
                                              <div className="flex justify-between text-[8px] font-black uppercase text-slate-400">
-                                               <span>Empenhado: {perc.toFixed(1)}%</span>
+                                               <span>Consumido: {perc.toFixed(1)}%</span>
                                                <span>Dotação: {formatCurrency(nc.valueReceived)}</span>
                                              </div>
                                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
@@ -418,10 +446,10 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                                              <div className="p-4 bg-white rounded-2xl border border-emerald-100 shadow-inner space-y-4">
                                                 <div className="flex items-center gap-2 text-emerald-600">
                                                   <Receipt size={14} />
-                                                  <span className="text-[9px] font-black uppercase tracking-widest">Detalhes do Crédito</span>
+                                                  <span className="text-[9px] font-black uppercase tracking-widest">Detalhes da NC</span>
                                                 </div>
                                                 <p className="text-[11px] font-medium text-slate-600 leading-relaxed italic">
-                                                  {nc.description || "Nenhuma descrição detalhada informada."}
+                                                  {nc.description || "Sem descrição informada."}
                                                 </p>
                                                 <div className="grid grid-cols-3 gap-3">
                                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -456,13 +484,13 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
            )) : (
              <div className="bg-slate-50 p-20 rounded-[3rem] border-2 border-dashed border-slate-200 text-center opacity-40">
                 <Search size={48} className="mx-auto mb-4 text-slate-300" />
-                <p className="text-sm font-black uppercase tracking-widest text-slate-400">Nenhum registro encontrado para os filtros atuais</p>
+                <p className="text-sm font-black uppercase tracking-widest text-slate-400">Nenhum crédito com saldo ativo encontrado</p>
              </div>
            )}
         </div>
       </div>
 
-      {/* Modal de Detalhes de NC (Modo sob Atenção ou Explorador) */}
+      {/* Modal de Detalhes de NC */}
       {detailCreditId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200">
@@ -476,14 +504,14 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                       <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg"><Info size={24} /></div>
                       <div>
                         <h3 className="text-xl font-black uppercase italic leading-none tracking-tight">{nc.nc}</h3>
-                        <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mt-2 italic">Dotação Orçamentária BIB 20</p>
+                        <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mt-2 italic">Dotação Orçamentária</p>
                       </div>
                     </div>
                     <button onClick={() => setDetailCreditId(null)} className="p-2 hover:bg-emerald-800 rounded-full transition-colors"><X size={28} /></button>
                   </div>
                   <div className="p-8 space-y-6">
                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-inner">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Histórico / Descrição</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Descrição da Dotação</p>
                         <p className="text-[11px] font-medium text-slate-700 leading-relaxed italic">"{nc.description}"</p>
                      </div>
                      <div className="grid grid-cols-3 gap-4">
@@ -496,7 +524,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                            <p className="text-xs font-black text-red-600">{formatCurrency(nc.usedValue)}</p>
                         </div>
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                           <p className="text-[8px] font-black text-emerald-600 uppercase mb-1 leading-none">Saldo</p>
+                           <p className="text-[8px] font-black text-emerald-600 uppercase mb-1 leading-none">Saldo Livre</p>
                            <p className="text-xs font-black text-emerald-600">{formatCurrency(nc.balanceValue)}</p>
                         </div>
                      </div>
