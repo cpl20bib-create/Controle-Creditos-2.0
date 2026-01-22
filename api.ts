@@ -181,11 +181,24 @@ export const api = {
 
   async addLog(log: AuditLog) {
     try {
-      const payload = mappers.audit_logs.toDB(log);
+      // Garantimos que o objeto enviado segue rigorosamente o esquema do banco
+      const payload = {
+        userId: log.userId,
+        userName: log.userName,
+        action: log.action,
+        entityType: log.entityType,
+        entityId: log.entityId,
+        description: log.description,
+        timestamp: log.timestamp
+      };
+      
       const { error } = await supabase.from('audit_logs').insert(payload);
-      if (error) console.error('Supabase Insert Error:', error.message);
+      if (error) {
+        console.error('Erro ao inserir log de auditoria no Supabase:', error.message);
+        throw new Error(`Falha na auditoria: ${error.message}`);
+      }
     } catch (err) {
-      console.error('Erro ao processar auditoria:', err);
+      console.error('Erro fatal no processamento de auditoria:', err);
     }
     return true;
   },
