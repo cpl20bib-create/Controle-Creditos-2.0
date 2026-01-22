@@ -27,7 +27,6 @@ const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sincronização de Estado com o Banco Real
   const syncWithServer = useCallback(async () => {
     if (isSyncing) return;
     setIsSyncing(true);
@@ -66,7 +65,6 @@ const App: React.FC = () => {
     const unsubscribe = api.subscribeToChanges(() => {
       syncWithServer();
     });
-    // Fixed: return a void function to cleanup, avoiding returning the Promise from unsubscribe()
     return () => {
       unsubscribe();
     };
@@ -80,7 +78,7 @@ const App: React.FC = () => {
   const addLog = useCallback(async (action: ActionType, entityType: EntityType, entityId: string, description: string) => {
     if (!currentUser) return;
     const newLog: AuditLog = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: '', // Deixamos o Supabase gerar o ID real
       userId: currentUser.id,
       userName: currentUser.name,
       action,
@@ -148,7 +146,7 @@ const App: React.FC = () => {
   const handleUpdateCommitment = async (updated: Commitment) => {
     try {
       await api.upsert('commitments', updated);
-      await addLog('UPDATE', 'EMPENHO', updated.id, `NE ${updated.ne}`);
+      await addLog('UPDATE', 'EMPENHO', updated.id, `NE ${updated.ne} (Edição)`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
@@ -171,7 +169,7 @@ const App: React.FC = () => {
   const handleAddRefund = async (newRefund: Refund) => {
     try {
       await api.upsert('refunds', newRefund);
-      await addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento NC individual`);
+      await addLog('CREATE', 'RECOLHIMENTO', newRefund.id, `Recolhimento efetuado`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
@@ -181,7 +179,7 @@ const App: React.FC = () => {
   const handleAddCancellation = async (newCan: Cancellation) => {
     try {
       await api.upsert('cancellations', newCan);
-      await addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação parcial/total`);
+      await addLog('CREATE', 'ANULAÇÃO', newCan.id, `Anulação de Empenho (RO ${newCan.ro})`);
       syncWithServer();
     } catch (e: any) {
       alert(e.message);
