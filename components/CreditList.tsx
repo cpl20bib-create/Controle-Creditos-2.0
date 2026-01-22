@@ -36,14 +36,12 @@ const CreditList: React.FC<CreditListProps> = ({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
   const getIndividualNCBalance = (credit: Credit) => {
-    // Fixed: Commitment uses creditId directly, not allocations
     const totalSpent = commitments.reduce((acc, com) => {
       return acc + (com.creditId === credit.id ? Number(com.value) || 0 : 0);
     }, 0);
 
     const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + (Number(b.value) || 0), 0);
     
-    // Fixed: Commitment uses creditId directly, not allocations. One NE belongs to one NC.
     const totalCancelled = cancellations.reduce((acc, can) => {
       const com = commitments.find(c => c.id === can.commitmentId);
       if (!com || !Number(com.value) || com.creditId !== credit.id) return acc;
@@ -131,7 +129,6 @@ const CreditList: React.FC<CreditListProps> = ({
   const selectedDetailCredit = Array.isArray(credits) ? credits.find(c => c.id === detailCreditId) : null;
   const creditRefunds = selectedDetailCredit ? refunds.filter(r => r.creditId === selectedDetailCredit.id) : [];
   
-  // Fixed: Commitment uses creditId directly, not allocations.
   const creditAllocations = selectedDetailCredit ? (commitments || []).flatMap(com => {
     return com.creditId === selectedDetailCredit.id ? [{ ne: com.ne, value: com.value, date: com.date, id: com.id }] : [];
   }) : [];
@@ -184,7 +181,11 @@ const CreditList: React.FC<CreditListProps> = ({
                           {!isZero && info.daysLeft < 0 && <AlertCircle size={12} className="text-red-500" />}
                           {isZero && <span className="text-[7px] bg-slate-200 text-slate-500 px-1 rounded not-italic tracking-widest font-black uppercase">Liquidado</span>}
                         </div>
-                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Vence em: {new Date(credit.deadline).toLocaleDateString('pt-BR')} ({info.daysLeft} d)</div>
+                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic flex items-center gap-1">
+                           <span>PI: {credit.pi}</span>
+                           <span className="opacity-30">|</span>
+                           <span>ND: {credit.nd}</span>
+                        </div>
                       </div>
                     </div>
                   </td>
