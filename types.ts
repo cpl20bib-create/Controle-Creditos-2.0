@@ -68,17 +68,17 @@ export interface Filters {
   sortOrder?: SortOrder;
 }
 
-// Fixed missing types for AuditHistory component
+// Fix: Added missing types used by AuditHistory component
 export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
 export type EntityType = 'CRÉDITO' | 'EMPENHO' | 'RECOLHIMENTO' | 'ANULAÇÃO';
 
 export interface AuditLog {
   id: string;
+  userId: string;
+  userName: string;
   action: ActionType;
   entityType: EntityType;
   entityId: string;
-  userId: string;
-  userName: string;
   description: string;
   timestamp: string;
 }
