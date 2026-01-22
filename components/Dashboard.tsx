@@ -210,19 +210,19 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
         {/* CARD DE ATENÇÃO ULTRA-MODERNO (ESTILO RAIO) */}
         <div className="bg-slate-950 p-6 rounded-2xl shadow-2xl shadow-emerald-950/20 border border-slate-800 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-12 -mt-12 blur-2xl group-hover:bg-emerald-500/10 transition-all"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
           
           <div className="flex items-center justify-between relative z-10">
-            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">Notas em Atenção</p>
-            <Zap size={20} className={`text-emerald-400 ${dashboardData.attentionCount > 0 ? 'animate-pulse fill-emerald-400' : 'opacity-20'}`} />
+            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Status de Atenção</p>
+            <Zap size={22} className={`text-emerald-400 ${dashboardData.attentionCount > 0 ? 'animate-pulse fill-emerald-400' : 'opacity-20'}`} />
           </div>
           
           <div className="relative z-10 mt-4">
             <h3 className="text-3xl font-black text-white italic tracking-tighter">
-              {dashboardData.attentionCount} <span className="text-xs font-black uppercase text-slate-600">NCs Ativas</span>
+              {dashboardData.attentionCount} <span className="text-[10px] font-black uppercase text-slate-600 tracking-widest not-italic ml-2">NCs Ativas</span>
             </h3>
-            <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-[0.15em] mt-1 italic">
-              Vencimento em menos de 20 dias
+            <p className="text-[8px] font-bold text-emerald-700 uppercase tracking-[0.2em] mt-1 italic">
+              Vencimento crítico (&lt; 20 dias)
             </p>
           </div>
         </div>
@@ -330,15 +330,15 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         </div>
       </div>
 
-      {/* EXPLORADOR DE SALDOS ULTRA-MODERNO (DARK STYLE) */}
+      {/* EXPLORADOR DE SALDOS ULTRA-MODERNO (DARK RAIO STYLE) */}
       <div className="pt-12 mt-12 border-t border-slate-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
            <div className="flex items-center gap-5">
-              <div className="p-4 bg-slate-950 text-emerald-500 rounded-3xl shadow-2xl border border-slate-800"><Activity size={32} /></div>
+              <div className="p-5 bg-slate-950 text-emerald-500 rounded-[2rem] shadow-2xl border border-slate-800"><Zap size={32} className="fill-emerald-500/20" /></div>
               <div>
                 <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight italic leading-none">Explorador de Saldos Estruturados</h2>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-2 italic flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div> Monitoramento em tempo real (UG &gt; Seção &gt; PI &gt; NC)
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.4em] mt-2 italic flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div> Painel Executivo de Disponibilidade (FIFO)
                 </p>
               </div>
            </div>
@@ -346,7 +346,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
               <input 
                 type="text" 
-                placeholder="Pesquisar Nota de Crédito, PI ou Objeto..." 
+                placeholder="Filtrar por Nota de Crédito, PI ou Natureza..." 
                 className="w-full pl-14 pr-6 py-4 bg-slate-100 border-2 border-transparent focus:border-emerald-500/30 focus:bg-white rounded-[1.5rem] text-sm font-bold outline-none transition-all shadow-inner"
                 value={explorerSearch}
                 onChange={e => setExplorerSearch(e.target.value)}
@@ -354,134 +354,138 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
            </div>
         </div>
 
-        <div className="space-y-6">
-           {Object.keys(explorerHierarchy).length > 0 ? Object.entries(explorerHierarchy).map(([ug, sections]: [string, any]) => (
-             <div key={ug} className="bg-slate-950 rounded-[3rem] border border-slate-800 overflow-hidden shadow-2xl">
-                <button 
-                  onClick={() => toggleExpand(`ug-${ug}`)}
-                  className="w-full px-10 py-7 flex items-center justify-between bg-slate-900/50 hover:bg-slate-900 transition-colors border-b border-slate-800/50"
-                >
-                  <div className="flex items-center gap-6">
-                    <span className="bg-emerald-600 text-white text-[11px] font-black px-6 py-2 rounded-2xl uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(16,185,129,0.3)]">UG {ug}</span>
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{Object.keys(sections).length} Seções Ativas</span>
-                  </div>
-                  <ChevronDown className={`transition-transform duration-500 text-slate-600 ${expandedItems[`ug-${ug}`] ? 'rotate-180 text-emerald-500' : ''}`} size={24} />
-                </button>
+        <div className="bg-slate-950 rounded-[3rem] p-8 md:p-12 shadow-[0_40px_100px_rgba(0,0,0,0.2)] border border-slate-800 relative overflow-hidden">
+           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
+           
+           <div className="space-y-6 relative z-10">
+              {Object.keys(explorerHierarchy).length > 0 ? Object.entries(explorerHierarchy).map(([ug, sections]: [string, any]) => (
+                <div key={ug} className="border border-slate-800/50 rounded-[2.5rem] overflow-hidden bg-slate-900/10 backdrop-blur-sm">
+                   <button 
+                     onClick={() => toggleExpand(`ug-${ug}`)}
+                     className="w-full px-10 py-7 flex items-center justify-between hover:bg-slate-900/30 transition-colors"
+                   >
+                     <div className="flex items-center gap-6">
+                       <span className="bg-emerald-600/10 text-emerald-500 text-[11px] font-black px-6 py-2 rounded-2xl uppercase tracking-[0.3em] border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">UG {ug}</span>
+                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{Object.keys(sections).length} Seções com Dotação</span>
+                     </div>
+                     <ChevronDown className={`transition-transform duration-500 text-slate-600 ${expandedItems[`ug-${ug}`] ? 'rotate-180 text-emerald-500' : ''}`} size={24} />
+                   </button>
 
-                {expandedItems[`ug-${ug}`] && (
-                  <div className="p-8 space-y-6 bg-slate-950">
-                    {Object.entries(sections).map(([section, pis]: [string, any]) => (
-                      <div key={section} className="border border-slate-800/50 rounded-[2.5rem] overflow-hidden bg-slate-900/20">
-                        <button 
-                          onClick={() => toggleExpand(`sec-${ug}-${section}`)}
-                          className="w-full px-8 py-5 flex items-center justify-between hover:bg-slate-900 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                             <div className="w-2 h-2 rounded-full bg-emerald-500/50"></div>
-                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest italic">{section}</span>
-                          </div>
-                          <ChevronDown className={`transition-transform duration-500 text-slate-700 ${expandedItems[`sec-${ug}-${section}`] ? 'rotate-180 text-emerald-500' : ''}`} size={20} />
-                        </button>
+                   {expandedItems[`ug-${ug}`] && (
+                     <div className="px-10 pb-8 space-y-6">
+                       {Object.entries(sections).map(([section, pis]: [string, any]) => (
+                         <div key={section} className="border border-slate-800/50 rounded-[2rem] overflow-hidden bg-slate-950/40">
+                           <button 
+                             onClick={() => toggleExpand(`sec-${ug}-${section}`)}
+                             className="w-full px-8 py-5 flex items-center justify-between hover:bg-slate-900/30 transition-colors"
+                           >
+                             <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500/50"></div>
+                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest italic">{section}</span>
+                             </div>
+                             <ChevronDown className={`transition-transform duration-500 text-slate-700 ${expandedItems[`sec-${ug}-${section}`] ? 'rotate-180 text-emerald-500' : ''}`} size={20} />
+                           </button>
 
-                        {expandedItems[`sec-${ug}-${section}`] && (
-                          <div className="p-8 space-y-10 border-t border-slate-800/50">
-                            {Object.entries(pis).map(([pi, ncs]: [string, any]) => (
-                              <div key={pi} className="space-y-6">
-                                <div className="flex items-center gap-4 mb-4">
-                                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] bg-emerald-500/5 px-4 py-1.5 rounded-full border border-emerald-500/20">PI {pi}</span>
-                                  <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/20 to-transparent"></div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                  {ncs.map((nc: any) => {
-                                    const perc = Number(nc.valueReceived) > 0 ? (nc.usedValue / Number(nc.valueReceived)) * 100 : 0;
-                                    const isExpanded = expandedItems[`nc-det-${nc.id}`];
-                                    return (
-                                      <div 
-                                        key={nc.id}
-                                        className={`flex flex-col rounded-[2rem] border transition-all duration-500 ${isExpanded ? 'border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.15)] bg-slate-900' : 'border-slate-800 bg-slate-950 hover:border-slate-700 shadow-sm'}`}
-                                      >
-                                        <button 
-                                          onClick={() => toggleExpand(`nc-det-${nc.id}`)}
-                                          className="p-7 text-left w-full"
-                                        >
-                                          <div className="flex justify-between items-center mb-6">
-                                             <div className="flex items-center gap-3">
-                                                <Zap size={14} className={nc.balanceValue > 0 ? 'text-emerald-500' : 'text-slate-800'} />
-                                                <span className="text-[12px] font-black text-white uppercase italic tracking-tight">{nc.nc}</span>
-                                             </div>
-                                             <div className="text-right">
-                                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Saldo Disponível</p>
-                                                <p className="text-lg font-black text-emerald-500 tracking-tight">{formatCurrency(nc.balanceValue)}</p>
-                                             </div>
-                                          </div>
-                                          
-                                          <div className="space-y-2">
-                                             <div className="flex justify-between text-[9px] font-black uppercase text-slate-500 tracking-widest">
-                                               <span>Consumo: {perc.toFixed(1)}%</span>
-                                               <span className="text-slate-700">Aporte: {formatCurrency(nc.valueReceived)}</span>
-                                             </div>
-                                             <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800 shadow-inner">
-                                                <div 
-                                                  className={`h-full transition-all duration-1000 shadow-[0_0_10px_rgba(16,185,129,0.3)] ${perc > 90 ? 'bg-red-500' : perc > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`} 
-                                                  style={{ width: `${Math.min(100, perc)}%` }}
-                                                ></div>
-                                             </div>
-                                          </div>
-                                        </button>
-                                        
-                                        {isExpanded && (
-                                          <div className="px-7 pb-8 animate-in fade-in slide-in-from-top-1">
-                                             <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 shadow-inner space-y-6">
-                                                <div className="flex items-center gap-3 text-emerald-500 border-b border-slate-800 pb-3">
-                                                  <Receipt size={16} />
-                                                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Especificação Técnica</span>
+                           {expandedItems[`sec-${ug}-${section}`] && (
+                             <div className="px-8 pb-8 pt-4 space-y-10 border-t border-slate-800/30">
+                               {Object.entries(pis).map(([pi, ncs]: [string, any]) => (
+                                 <div key={pi} className="space-y-6">
+                                   <div className="flex items-center gap-4">
+                                     <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] bg-emerald-500/5 px-5 py-1.5 rounded-full border border-emerald-500/10">PI {pi}</span>
+                                     <div className="h-[1px] flex-1 bg-gradient-to-r from-emerald-500/20 to-transparent"></div>
+                                   </div>
+                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                     {ncs.map((nc: any) => {
+                                       const perc = Number(nc.valueReceived) > 0 ? (nc.usedValue / Number(nc.valueReceived)) * 100 : 0;
+                                       const isExpanded = expandedItems[`nc-det-${nc.id}`];
+                                       return (
+                                         <div 
+                                           key={nc.id}
+                                           className={`flex flex-col rounded-[2rem] border transition-all duration-500 ${isExpanded ? 'border-emerald-500/50 shadow-[0_0_40px_rgba(16,185,129,0.1)] bg-slate-900' : 'border-slate-800 bg-slate-950/50 hover:border-slate-700 shadow-sm'}`}
+                                         >
+                                           <button 
+                                             onClick={() => toggleExpand(`nc-det-${nc.id}`)}
+                                             className="p-7 text-left w-full"
+                                           >
+                                             <div className="flex justify-between items-center mb-6">
+                                                <div className="flex items-center gap-3">
+                                                   <Zap size={14} className={nc.balanceValue > 0 ? 'text-emerald-400' : 'text-slate-800'} />
+                                                   <span className="text-[12px] font-black text-white uppercase italic tracking-tight">{nc.nc}</span>
                                                 </div>
-                                                <p className="text-[11px] font-medium text-slate-400 leading-relaxed italic border-l-2 border-emerald-500/30 pl-4">
-                                                  {nc.description || "Sem descrição informada no cadastro."}
-                                                </p>
-                                                <div className="grid grid-cols-3 gap-4">
-                                                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-1">Lançamento</p>
-                                                      <p className="text-[10px] font-black text-slate-300">{new Date(nc.created_at).toLocaleDateString('pt-BR')}</p>
-                                                   </div>
-                                                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-1">Natureza</p>
-                                                      <p className="text-[10px] font-black text-slate-300">ND {nc.nd}</p>
-                                                   </div>
-                                                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                                                      <p className="text-[8px] font-black text-red-500 uppercase tracking-tighter mb-1">Gasto Líquido</p>
-                                                      <p className="text-[10px] font-black text-red-400">{formatCurrency(nc.usedValue)}</p>
-                                                   </div>
+                                                <div className="text-right">
+                                                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Saldo Livre</p>
+                                                   <p className="text-lg font-black text-emerald-400 tracking-tight">{formatCurrency(nc.balanceValue)}</p>
                                                 </div>
                                              </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-             </div>
-           )) : (
-             <div className="bg-slate-950 p-24 rounded-[4rem] border-2 border-dashed border-slate-800 text-center opacity-40">
-                <Search size={56} className="mx-auto mb-6 text-slate-800" />
-                <p className="text-sm font-black uppercase tracking-[0.4em] text-slate-600 italic">Nenhum registro encontrado para os critérios de busca</p>
-             </div>
-           )}
+                                             
+                                             <div className="space-y-2">
+                                                <div className="flex justify-between text-[8px] font-black uppercase text-slate-500 tracking-[0.2em]">
+                                                  <span>Consumo: {perc.toFixed(1)}%</span>
+                                                  <span className="text-slate-600">Aporte: {formatCurrency(nc.valueReceived)}</span>
+                                                </div>
+                                                <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800 shadow-inner">
+                                                   <div 
+                                                     className={`h-full transition-all duration-1000 shadow-[0_0_15px_rgba(16,185,129,0.4)] ${perc > 90 ? 'bg-red-500' : perc > 65 ? 'bg-amber-500' : 'bg-emerald-500'}`} 
+                                                     style={{ width: `${Math.min(100, perc)}%` }}
+                                                   ></div>
+                                                </div>
+                                             </div>
+                                           </button>
+                                           
+                                           {isExpanded && (
+                                             <div className="px-7 pb-8 animate-in fade-in slide-in-from-top-1">
+                                                <div className="p-6 bg-slate-900/80 rounded-2xl border border-slate-800 shadow-inner space-y-6">
+                                                   <div className="flex items-center gap-3 text-emerald-500 border-b border-slate-800 pb-3">
+                                                     <Receipt size={16} />
+                                                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">Especificação Técnica</span>
+                                                   </div>
+                                                   <p className="text-[11px] font-medium text-slate-400 leading-relaxed italic border-l-2 border-emerald-500/30 pl-4">
+                                                     {nc.description || "Sem descrição informada no cadastro."}
+                                                   </p>
+                                                   <div className="grid grid-cols-3 gap-4">
+                                                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-md">
+                                                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-1">Lançamento</p>
+                                                         <p className="text-[10px] font-black text-slate-300">{new Date(nc.created_at).toLocaleDateString('pt-BR')}</p>
+                                                      </div>
+                                                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-md">
+                                                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-1">Natureza</p>
+                                                         <p className="text-[10px] font-black text-slate-300">ND {nc.nd}</p>
+                                                      </div>
+                                                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-md">
+                                                         <p className="text-[8px] font-black text-red-500 uppercase tracking-tighter mb-1">Empenhado</p>
+                                                         <p className="text-[10px] font-black text-red-400">{formatCurrency(nc.usedValue)}</p>
+                                                      </div>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                           )}
+                                         </div>
+                                       );
+                                     })}
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
+                           )}
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                </div>
+              )) : (
+                <div className="py-24 text-center opacity-30">
+                   <Search size={56} className="mx-auto mb-6 text-slate-800" />
+                   <p className="text-sm font-black uppercase tracking-[0.5em] text-slate-600 italic">Nenhum registro encontrado</p>
+                </div>
+              )}
+           </div>
         </div>
       </div>
 
       {/* Modal de Detalhes de NC */}
       {detailCreditId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.5)] w-full max-w-xl overflow-hidden border border-slate-200">
             {(() => {
               const nc = dashboardData.allProcessedCredits.find(c => c.id === detailCreditId);
               if (!nc) return null;
@@ -489,37 +493,37 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                 <>
                   <div className="bg-slate-950 p-8 text-white flex items-center justify-between">
                     <div className="flex items-center gap-5">
-                      <div className="p-3 bg-emerald-600 rounded-2xl shadow-lg shadow-emerald-500/20"><Info size={24} /></div>
+                      <div className="p-4 bg-emerald-600 rounded-2xl shadow-lg shadow-emerald-500/20"><Zap size={24} className="fill-white" /></div>
                       <div>
-                        <h3 className="text-xl font-black uppercase italic leading-none tracking-tight">{nc.nc}</h3>
-                        <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mt-2 italic">Dotação Orçamentária</p>
+                        <h3 className="text-2xl font-black uppercase italic leading-none tracking-tight">{nc.nc}</h3>
+                        <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.3em] mt-3 italic">Módulo de Auditoria Individual</p>
                       </div>
                     </div>
-                    <button onClick={() => setDetailCreditId(null)} className="p-2 hover:bg-slate-900 rounded-full transition-colors"><X size={28} /></button>
+                    <button onClick={() => setDetailCreditId(null)} className="p-3 hover:bg-slate-900 rounded-full transition-colors"><X size={28} /></button>
                   </div>
-                  <div className="p-8 space-y-6">
-                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-inner">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Descrição da Dotação</p>
-                        <p className="text-[11px] font-medium text-slate-700 leading-relaxed italic">"{nc.description}"</p>
+                  <div className="p-10 space-y-8 font-sans">
+                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-inner">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Objeto da Dotação</p>
+                        <p className="text-[11px] font-medium text-slate-700 leading-relaxed italic border-l-2 border-emerald-500/30 pl-5">"{nc.description}"</p>
                      </div>
-                     <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1 leading-none">Dotação</p>
+                     <div className="grid grid-cols-3 gap-5">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                           <p className="text-[8px] font-black text-slate-400 uppercase mb-2 leading-none tracking-widest">Original</p>
                            <p className="text-xs font-black text-slate-900">{formatCurrency(nc.valueReceived)}</p>
                         </div>
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1 leading-none">Empenhado</p>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                           <p className="text-[8px] font-black text-red-500 uppercase mb-2 leading-none tracking-widest">Empenhado</p>
                            <p className="text-xs font-black text-red-600">{formatCurrency(nc.usedValue)}</p>
                         </div>
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                           <p className="text-[8px] font-black text-emerald-600 uppercase mb-1 leading-none">Saldo Livre</p>
+                        <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-md">
+                           <p className="text-[8px] font-black text-emerald-600 uppercase mb-2 leading-none tracking-widest">Livre</p>
                            <p className="text-xs font-black text-emerald-600">{formatCurrency(nc.balanceValue)}</p>
                         </div>
                      </div>
-                     <div className="flex justify-between items-center bg-slate-50 px-5 py-3 rounded-xl border border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                        <span>PI: {nc.pi} | ND: {nc.nd} | UG: {nc.ug}</span>
-                        <span className={`font-black ${nc.daysToDeadline <= 5 ? 'text-red-600 animate-pulse' : ''}`}>
-                          Vencimento: {new Date(nc.deadline).toLocaleDateString('pt-BR')} ({nc.daysToDeadline} d)
+                     <div className="flex justify-between items-center bg-slate-950 p-5 rounded-[1.5rem] border border-slate-800 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                        <span className="text-slate-400">PI: {nc.pi} | ND: {nc.nd} | UG: {nc.ug}</span>
+                        <span className={`flex items-center gap-2 ${nc.daysToDeadline <= 5 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>
+                          <Clock size={12} /> Prazo: {new Date(nc.deadline).toLocaleDateString('pt-BR')}
                         </span>
                      </div>
                   </div>
