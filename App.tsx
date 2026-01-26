@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract } from './types';
@@ -27,42 +27,51 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  
+  // Ref para evitar loops infinitos e concorrência no sync
+  const syncingLock = useRef(false);
 
   const syncWithServer = useCallback(async () => {
-    if (isSyncing) return;
+    if (syncingLock.current) return;
+    syncingLock.current = true;
     setIsSyncing(true);
     
-    const connected = await api.checkConnection();
-    setIsOnline(connected);
+    try {
+      const connected = await api.checkConnection();
+      setIsOnline(connected);
 
-    if (connected) {
-      const state = await api.getFullState();
-      if (state) {
-        setCredits(state.credits);
-        setCommitments(state.commitments);
-        setRefunds(state.refunds);
-        setCancellations(state.cancellations);
-        setUsers(state.users);
-        setContracts(state.contracts || []);
-        
-        localStorage.setItem('budget_credits', JSON.stringify(state.credits));
-        localStorage.setItem('budget_commitments', JSON.stringify(state.commitments));
-        localStorage.setItem('budget_users', JSON.stringify(state.users));
-        localStorage.setItem('budget_contracts', JSON.stringify(state.contracts || []));
+      if (connected) {
+        const state = await api.getFullState();
+        if (state) {
+          setCredits(state.credits);
+          setCommitments(state.commitments);
+          setRefunds(state.refunds);
+          setCancellations(state.cancellations);
+          setUsers(state.users);
+          setContracts(state.contracts || []);
+          
+          localStorage.setItem('budget_credits', JSON.stringify(state.credits));
+          localStorage.setItem('budget_commitments', JSON.stringify(state.commitments));
+          localStorage.setItem('budget_users', JSON.stringify(state.users));
+          localStorage.setItem('budget_contracts', JSON.stringify(state.contracts || []));
+        }
+      } else {
+        const cachedCredits = localStorage.getItem('budget_credits');
+        const cachedComs = localStorage.getItem('budget_commitments');
+        const cachedUsers = localStorage.getItem('budget_users');
+        const cachedContracts = localStorage.getItem('budget_contracts');
+        if (cachedCredits) setCredits(JSON.parse(cachedCredits));
+        if (cachedComs) setCommitments(JSON.parse(cachedComs));
+        if (cachedUsers) setUsers(JSON.parse(cachedUsers));
+        if (cachedContracts) setContracts(JSON.parse(cachedContracts));
       }
-    } else {
-      const cachedCredits = localStorage.getItem('budget_credits');
-      const cachedComs = localStorage.getItem('budget_commitments');
-      const cachedUsers = localStorage.getItem('budget_users');
-      const cachedContracts = localStorage.getItem('budget_contracts');
-      if (cachedCredits) setCredits(JSON.parse(cachedCredits));
-      if (cachedComs) setCommitments(JSON.parse(cachedComs));
-      if (cachedUsers) setUsers(JSON.parse(cachedUsers));
-      if (cachedContracts) setContracts(JSON.parse(cachedContracts));
+    } catch (error) {
+      console.error("Erro na sincronização:", error);
+    } finally {
+      setIsSyncing(false);
+      syncingLock.current = false;
     }
-    
-    setIsSyncing(false);
-  }, [isSyncing]);
+  }, []); // Identidade estável evita disparos desnecessários do useEffect
 
   useEffect(() => {
     syncWithServer();
