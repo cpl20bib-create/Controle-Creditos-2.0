@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Credit, Commitment, Refund, Cancellation, User } from './types';
+import { Credit, Commitment, Refund, Cancellation, User, Contract } from './types';
 
 const supabaseUrl = 'https://tdbpxsdvtogymvercpqc.supabase.co';
 const supabaseAnonKey = 'sb_publishable_uMAhraANc199PrH8EQD9-w_MW39GXUK';
@@ -91,6 +91,35 @@ const mappers = {
       description: row.description || ''
     })
   },
+  contracts: {
+    toDB: (c: Contract) => ({
+      id: c.id,
+      contract_number: c.contractNumber,
+      company_name: c.companyName,
+      value: Number(c.value) || 0,
+      object: c.object || '',
+      start_date: c.startDate,
+      end_date: c.endDate,
+      status: c.status,
+      main_fiscal: c.mainFiscal,
+      substitute_fiscal: c.substituteFiscal,
+      bi_number: c.biNumber
+    }),
+    fromDB: (row: any): Contract => ({
+      id: row.id,
+      contractNumber: row.contract_number,
+      companyName: row.company_name,
+      value: Number(row.value) || 0,
+      object: row.object || '',
+      startDate: row.start_date,
+      endDate: row.end_date,
+      status: row.status,
+      mainFiscal: row.main_fiscal,
+      substituteFiscal: row.substitute_fiscal,
+      biNumber: row.bi_number,
+      created_at: row.created_at
+    })
+  },
   users: {
     toDB: (u: User) => ({
       id: u.id,
@@ -121,12 +150,13 @@ export const api = {
 
   async getFullState() {
     try {
-      const [resC, resCom, resR, resCan, resU] = await Promise.all([
+      const [resC, resCom, resR, resCan, resU, resCon] = await Promise.all([
         supabase.from('credits').select('*'),
         supabase.from('commitments').select('*'),
         supabase.from('refunds').select('*'),
         supabase.from('cancellations').select('*'),
-        supabase.from('users').select('*')
+        supabase.from('users').select('*'),
+        supabase.from('contracts').select('*')
       ]);
 
       return {
@@ -134,7 +164,8 @@ export const api = {
         commitments: (resCom.data || []).map(mappers.commitments.fromDB),
         refunds: (resR.data || []).map(mappers.refunds.fromDB),
         cancellations: (resCan.data || []).map(mappers.cancellations.fromDB),
-        users: (resU.data || []).map(mappers.users.fromDB)
+        users: (resU.data || []).map(mappers.users.fromDB),
+        contracts: (resCon.data || []).map(mappers.contracts.fromDB)
       };
     } catch (err) {
       console.error('Erro ao buscar estado:', err);
