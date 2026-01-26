@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
-import { Credit, Commitment, Refund, Cancellation, Filters, User } from './types';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase } from 'lucide-react';
+import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract } from './types';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
 import CommitmentList from './components/CommitmentList';
+import ContractList from './components/ContractList';
 import Reports from './components/Reports';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
@@ -12,12 +14,13 @@ import { api } from './api';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'reports' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'contracts' | 'reports' | 'users'>('dashboard');
   
   const [credits, setCredits] = useState<Credit[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [cancellations, setCancellations] = useState<Cancellation[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
   const [filters, setFilters] = useState<Filters>({});
@@ -40,18 +43,22 @@ const App: React.FC = () => {
         setRefunds(state.refunds);
         setCancellations(state.cancellations);
         setUsers(state.users);
+        setContracts(state.contracts || []);
         
         localStorage.setItem('budget_credits', JSON.stringify(state.credits));
         localStorage.setItem('budget_commitments', JSON.stringify(state.commitments));
         localStorage.setItem('budget_users', JSON.stringify(state.users));
+        localStorage.setItem('budget_contracts', JSON.stringify(state.contracts || []));
       }
     } else {
       const cachedCredits = localStorage.getItem('budget_credits');
       const cachedComs = localStorage.getItem('budget_commitments');
       const cachedUsers = localStorage.getItem('budget_users');
+      const cachedContracts = localStorage.getItem('budget_contracts');
       if (cachedCredits) setCredits(JSON.parse(cachedCredits));
       if (cachedComs) setCommitments(JSON.parse(cachedComs));
       if (cachedUsers) setUsers(JSON.parse(cachedUsers));
+      if (cachedContracts) setContracts(JSON.parse(cachedContracts));
     }
     
     setIsSyncing(false);
@@ -142,6 +149,35 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddContract = async (newCon: Contract) => {
+    try {
+      await api.upsert('contracts', newCon);
+      syncWithServer();
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleUpdateContract = async (updated: Contract) => {
+    try {
+      await api.upsert('contracts', updated);
+      syncWithServer();
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleDeleteContract = async (id: string) => {
+    if (window.confirm('Excluir este contrato definitivamente?')) {
+      try {
+        await api.delete('contracts', id);
+        syncWithServer();
+      } catch (e: any) {
+        alert(e.message);
+      }
+    }
+  };
+
   const handleAddRefund = async (newRefund: Refund) => {
     try {
       await api.upsert('refunds', newRefund);
@@ -176,6 +212,7 @@ const App: React.FC = () => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'credits', label: 'Créditos', icon: ReceiptText, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'commitments', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
+    { id: 'contracts', label: 'Contratos', icon: Briefcase, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'reports', label: 'Relatórios', icon: FilePieChart, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'users', label: 'Usuários', icon: Users, roles: ['ADMIN'] },
   ] as const;
@@ -286,6 +323,7 @@ const App: React.FC = () => {
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} />}
+          {activeTab === 'contracts' && <ContractList contracts={contracts} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
           {activeTab === 'reports' && <Reports credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} />}
           {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} />}
         </div>
@@ -294,7 +332,6 @@ const App: React.FC = () => {
   );
 };
 
-// BLOCO DE INICIALIZAÇÃO FUNDAMENTAL
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
