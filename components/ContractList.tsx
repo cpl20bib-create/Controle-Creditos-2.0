@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
 import { Contract, UserRole } from '../types';
 import ContractForm from './ContractForm';
-import { Search, PlusCircle, Calendar, Briefcase, Building2, UserCircle, Clock, Info, X, Edit3, Trash2, AlertTriangle, CheckCircle2, FileText, Landmark } from 'lucide-react';
+import { Search, PlusCircle, Calendar, Briefcase, Building2, UserCircle, Clock, Info, X, Edit3, Trash2, AlertTriangle, Landmark } from 'lucide-react';
 
 interface ContractListProps {
   contracts: Contract[];
@@ -182,22 +181,32 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, onAdd, onUpdate,
         )}
       </div>
 
-      {/* Modal de Detalhes do Contrato */}
+      {/* Modal de Detalhes do Contrato - Ajustado para altura máxima e rolagem */}
       {detailContract && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200">
-            <div className="bg-slate-900 p-8 text-white flex items-center justify-between">
+          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            {/* Cabeçalho Fixo */}
+            <div className="bg-slate-900 p-8 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-5">
-                <div className="p-4 bg-emerald-600 rounded-2xl shadow-lg shadow-emerald-500/20"><Briefcase size={24} /></div>
+                <div className="p-4 bg-emerald-600 rounded-2xl shadow-lg shadow-emerald-500/20">
+                  <Briefcase size={24} />
+                </div>
                 <div>
                   <h3 className="text-2xl font-black uppercase italic leading-none tracking-tight">Contrato {detailContract.contractNumber}</h3>
                   <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.3em] mt-3 italic">Ficha Técnica Contratual</p>
                 </div>
               </div>
-              <button onClick={() => setDetailContract(null)} className="p-3 hover:bg-slate-800 rounded-full transition-colors"><X size={28} /></button>
+              <button 
+                onClick={() => setDetailContract(null)} 
+                className="p-3 hover:bg-slate-800 rounded-full transition-colors"
+                aria-label="Fechar Modal"
+              >
+                <X size={28} />
+              </button>
             </div>
 
-            <div className="p-10 space-y-8 font-sans">
+            {/* Corpo do Modal com Rolagem */}
+            <div className="p-10 space-y-8 font-sans overflow-y-auto flex-1 custom-scrollbar">
               <div className="grid grid-cols-2 gap-8">
                  <div className="space-y-1">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Empresa Favorecida</p>
@@ -257,10 +266,15 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, onAdd, onUpdate,
                 </div>
               </div>
               
-              <div className="flex justify-between items-center gap-4">
+              <div className="flex justify-between items-center gap-4 pt-4 border-t border-slate-100">
                 {canEdit && (
                   <button 
-                    onClick={() => onDelete(detailContract.id)}
+                    onClick={() => {
+                      if (window.confirm('Excluir este contrato definitivamente?')) {
+                        onDelete(detailContract.id);
+                        setDetailContract(null);
+                      }
+                    }}
                     className="flex items-center gap-2 text-[9px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors"
                   >
                     <Trash2 size={14} /> Excluir Contrato Definitivamente
