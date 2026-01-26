@@ -18,9 +18,9 @@ export interface Credit {
   nd: string;
   organ: string;
   section: string;
-  valueReceived: number; // Valor Inicial
-  valueAvailable: number; // Saldo Atual
-  valueUsed: number; // Total Gasto
+  valueReceived: number;
+  valueAvailable: number;
+  valueUsed: number;
   description: string;
   deadline: string;
   created_at: string;
@@ -29,15 +29,15 @@ export interface Credit {
 export interface Commitment {
   id: string;
   ne: string;
-  creditId: string; // Vínculo direto com a NC
-  value: number; // Valor da NE
+  creditId: string;
+  value: number;
   date: string;
   description: string;
 }
 
 export interface Cancellation {
   id: string;
-  commitmentId: string; // Vínculo com a NE
+  commitmentId: string;
   value: number;
   ro: string;
   date: string;
@@ -50,6 +50,23 @@ export interface Refund {
   value: number;
   date: string;
   description: string;
+}
+
+export type ContractStatus = 'INICIAL' | '1º ADITIVO' | '2º ADITIVO' | '3º ADITIVO' | '4º ADITIVO';
+
+export interface Contract {
+  id: string;
+  contractNumber: string;
+  companyName: string;
+  value: number;
+  object: string;
+  startDate: string;
+  endDate: string;
+  status: ContractStatus;
+  mainFiscal: string;
+  substituteFiscal: string;
+  biNumber: string;
+  created_at?: string;
 }
 
 export type SortField = 'valueReceived' | 'value' | 'date' | 'deadline' | 'created_at';
@@ -68,9 +85,8 @@ export interface Filters {
   sortOrder?: SortOrder;
 }
 
-// Fix: Added missing types used by AuditHistory component
 export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
-export type EntityType = 'CRÉDITO' | 'EMPENHO' | 'RECOLHIMENTO' | 'ANULAÇÃO';
+export type EntityType = 'CRÉDITO' | 'EMPENHO' | 'RECOLHIMENTO' | 'ANULAÇÃO' | 'CONTRATO';
 
 export interface AuditLog {
   id: string;
