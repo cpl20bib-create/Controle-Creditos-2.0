@@ -1,10 +1,10 @@
 
 import React, { useMemo, useState } from 'react';
-import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, SortField } from '../types';
+import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, AuditLog } from '../types';
 import FilterBar from './FilterBar';
 import CreditForm from './CreditForm';
 import RefundForm from './RefundForm';
-import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, Receipt, ArrowRightLeft, TrendingDown, History, Info as InfoIcon, AlertCircle, Clock } from 'lucide-react';
+import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, ArrowRightLeft, TrendingDown, History, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout } from 'lucide-react';
 
 interface CreditListProps {
   credits: Credit[];
@@ -18,11 +18,12 @@ interface CreditListProps {
   onDeleteCredit: (id: string) => void;
   onAddRefund: (r: Refund) => void;
   userRole: UserRole;
+  auditLogs: AuditLog[];
 }
 
 const CreditList: React.FC<CreditListProps> = ({ 
   credits, commitments, refunds, cancellations, filters, setFilters, 
-  onAddCredit, onUpdateCredit, onDeleteCredit, onAddRefund, userRole 
+  onAddCredit, onUpdateCredit, onDeleteCredit, onAddRefund, userRole, auditLogs
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreditForm, setShowCreditForm] = useState(false);
@@ -36,14 +37,14 @@ const CreditList: React.FC<CreditListProps> = ({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
   const getIndividualNCBalance = (credit: Credit) => {
-    const totalSpent = commitments.reduce((acc, com) => {
+    const totalSpent = (commitments || []).reduce((acc, com) => {
       return acc + (com.creditId === credit.id ? Number(com.value) || 0 : 0);
     }, 0);
 
-    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + (Number(b.value) || 0), 0);
+    const totalRefunded = (refunds || []).filter(ref => ref.creditId === credit.id).reduce((a, b) => a + (Number(b.value) || 0), 0);
     
-    const totalCancelled = cancellations.reduce((acc, can) => {
-      const com = commitments.find(c => c.id === can.commitmentId);
+    const totalCancelled = (cancellations || []).reduce((acc, can) => {
+      const com = (commitments || []).find(c => c.id === can.commitmentId);
       if (!com || !Number(com.value) || com.creditId !== credit.id) return acc;
       
       return acc + (Number(can.value) || 0);
@@ -127,7 +128,7 @@ const CreditList: React.FC<CreditListProps> = ({
   }
 
   const selectedDetailCredit = Array.isArray(credits) ? credits.find(c => c.id === detailCreditId) : null;
-  const creditRefunds = selectedDetailCredit ? refunds.filter(r => r.creditId === selectedDetailCredit.id) : [];
+  const creditRefunds = selectedDetailCredit ? (refunds || []).filter(r => r.creditId === selectedDetailCredit.id) : [];
   
   const creditAllocations = selectedDetailCredit ? (commitments || []).flatMap(com => {
     return com.creditId === selectedDetailCredit.id ? [{ ne: com.ne, value: com.value, date: com.date, id: com.id }] : [];
@@ -220,77 +221,110 @@ const CreditList: React.FC<CreditListProps> = ({
         </table>
       </div>
 
+      {/* Modal de Detalhes - Ajustado para atender os requisitos */}
       {selectedDetailCredit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300 text-black">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
-            <div className="bg-emerald-900 p-6 text-white flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20"><Landmark size={24} /></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300 text-black">
+          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            <div className="bg-emerald-950 p-8 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-6">
+                <div className="p-4 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20"><Landmark size={28} /></div>
                 <div>
-                  <h3 className="text-xl font-black italic uppercase leading-none tracking-tight">{selectedDetailCredit.nc}</h3>
-                  <p className="text-emerald-400 text-[10px] font-black uppercase tracking-widest mt-1 italic">Extrato de Movimentação Individual</p>
+                  <h3 className="text-2xl font-black italic uppercase leading-none tracking-tight">{selectedDetailCredit.nc}</h3>
+                  <p className="text-emerald-400 text-[10px] font-black uppercase tracking-widest mt-2 italic">Ficha Técnica da Dotação Orçamentária</p>
                 </div>
               </div>
-              <button onClick={() => setDetailCreditId(null)} className="p-2 hover:bg-emerald-800 rounded-full transition-colors"><X size={24} /></button>
+              <button onClick={() => setDetailCreditId(null)} className="p-3 hover:bg-emerald-900 rounded-full transition-colors"><X size={28} /></button>
             </div>
 
-            <div className="p-8 overflow-y-auto space-y-8 font-sans">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-6 bg-slate-900 text-white rounded-3xl shadow-xl">
-                  <p className="text-[9px] font-black text-emerald-400 uppercase mb-1">Valor Original</p>
-                  <p className="text-2xl font-black">{formatCurrency(Number(selectedDetailCredit.valueReceived) || 0)}</p>
+            <div className="p-10 overflow-y-auto space-y-10 font-sans flex-1 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="p-2 bg-white rounded-lg shadow-sm text-emerald-600"><Building2 size={20} /></div>
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Órgão Descentralizador</p>
+                      <p className="text-xs font-black text-slate-900 uppercase">{selectedDetailCredit.organ}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="p-2 bg-white rounded-lg shadow-sm text-emerald-600"><Layout size={20} /></div>
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Seção Interessada</p>
+                      <p className="text-xs font-black text-slate-900 uppercase italic">{selectedDetailCredit.section}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-6 bg-red-50 rounded-3xl border border-red-100">
-                  <p className="text-[9px] font-black text-red-600 uppercase mb-1">Consumido por Empenhos</p>
-                  <p className="text-2xl font-black text-red-800">{formatCurrency((Number(selectedDetailCredit.valueReceived) || 0) - getIndividualNCBalance(selectedDetailCredit))}</p>
-                </div>
-                <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
-                  <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Saldo Livre Atual</p>
-                  <p className="text-2xl font-black text-emerald-800">{formatCurrency(getIndividualNCBalance(selectedDetailCredit))}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                       <Calendar size={12} className="text-emerald-500" /> Data Chegada
+                    </p>
+                    <p className="text-xs font-black text-slate-900">{new Date(selectedDetailCredit.created_at).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                       <Clock size={12} className="text-red-500" /> Prazo Empenho
+                    </p>
+                    <p className="text-xs font-black text-slate-900">{new Date(selectedDetailCredit.deadline).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <div className="col-span-2 p-5 bg-slate-900 rounded-2xl text-white shadow-xl">
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Valor Aportado Original</p>
+                    <p className="text-2xl font-black italic">{formatCurrency(selectedDetailCredit.valueReceived)}</p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2"><History size={14} className="text-emerald-600" /> Histórico de Alocações</h4>
-                <div className="relative pl-8 space-y-6 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-                   <div className="relative flex items-center gap-4">
-                      <div className="absolute -left-8 w-6 h-6 rounded-full bg-emerald-500 border-4 border-white shadow-sm"></div>
-                      <div className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
-                         <span className="text-[10px] font-black uppercase text-slate-500">Aporte de Crédito</span>
-                         <span className="text-xs font-black text-emerald-700">+{formatCurrency(Number(selectedDetailCredit.valueReceived) || 0)}</span>
-                      </div>
-                   </div>
-                   
-                   {creditAllocations.map(alloc => (
-                     <div key={alloc.id} className="relative flex items-center gap-4">
-                        <div className="absolute -left-8 w-6 h-6 rounded-full bg-red-400 border-4 border-white shadow-sm"></div>
-                        <div className="flex-1 bg-white p-3 rounded-xl border border-red-50 flex justify-between items-center">
+                 <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2">
+                   <InfoIcon size={14} className="text-emerald-600" /> Descrição Detalhada do Crédito
+                 </h4>
+                 <div className="bg-emerald-50/50 p-8 rounded-[2rem] border border-emerald-100 shadow-inner">
+                   <p className="text-[11px] font-medium text-slate-700 leading-relaxed italic border-l-4 border-emerald-500/30 pl-6">
+                     {selectedDetailCredit.description || "Nenhuma descrição técnica informada no lançamento."}
+                   </p>
+                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2"><History size={14} className="text-emerald-600" /> Movimentações Financeiras</h4>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                   <div className="space-y-3">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Empenhos e Fatias</p>
+                      {creditAllocations.length > 0 ? creditAllocations.map(alloc => (
+                        <div key={alloc.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-red-50 shadow-sm">
                            <div>
-                             <span className="text-[10px] font-black uppercase text-red-900 italic">NE {alloc.ne} (Fatia Alocada)</span>
-                             <p className="text-[8px] font-bold text-slate-400 mt-0.5 uppercase">{new Date(alloc.date).toLocaleDateString('pt-BR')}</p>
+                             <span className="text-[9px] font-black text-red-900 uppercase italic">NE {alloc.ne}</span>
+                             <p className="text-[7px] font-bold text-slate-400 uppercase">{new Date(alloc.date).toLocaleDateString('pt-BR')}</p>
                            </div>
                            <span className="text-xs font-black text-red-600">-{formatCurrency(alloc.value)}</span>
                         </div>
-                     </div>
-                   ))}
+                      )) : <p className="text-[9px] text-slate-400 italic font-medium px-2">Nenhuma saída de empenho registrada.</p>}
+                   </div>
 
-                   {creditRefunds.map(ref => (
-                     <div key={ref.id} className="relative flex items-center gap-4">
-                        <div className="absolute -left-8 w-6 h-6 rounded-full bg-amber-400 border-4 border-white shadow-sm"></div>
-                        <div className="flex-1 bg-amber-50 p-3 rounded-xl border border-amber-100 flex justify-between items-center">
+                   <div className="space-y-3">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Recolhimentos / Estornos</p>
+                      {creditRefunds.length > 0 ? creditRefunds.map(ref => (
+                        <div key={ref.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-amber-50 shadow-sm">
                            <div>
-                             <span className="text-[10px] font-black uppercase text-amber-800 italic">Recolhimento efetuado</span>
-                             <p className="text-[8px] font-bold text-slate-400 mt-0.5 uppercase">{new Date(ref.date).toLocaleDateString('pt-BR')}</p>
+                             <span className="text-[9px] font-black text-amber-800 uppercase italic">Recolhimento efetuado</span>
+                             <p className="text-[7px] font-bold text-slate-400 uppercase">{new Date(ref.date).toLocaleDateString('pt-BR')}</p>
                            </div>
                            <span className="text-xs font-black text-amber-600">-{formatCurrency(ref.value)}</span>
                         </div>
-                     </div>
-                   ))}
+                      )) : <p className="text-[9px] text-slate-400 italic font-medium px-2">Nenhum recolhimento registrado.</p>}
+                   </div>
                 </div>
               </div>
             </div>
-            <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end">
-               <button onClick={() => setDetailCreditId(null)} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Fechar Extrato</button>
+            
+            <div className="p-8 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
+               <div className="flex flex-col">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Atual Disponível</span>
+                  <span className="text-xl font-black text-emerald-600 italic leading-none">{formatCurrency(getIndividualNCBalance(selectedDetailCredit))}</span>
+               </div>
+               <button onClick={() => setDetailCreditId(null)} className="px-10 py-4 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl">Fechar Detalhes</button>
             </div>
           </div>
         </div>
