@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase } from 'lucide-react';
-import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract } from './types';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History } from 'lucide-react';
+import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract, AuditLog } from './types';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
 import CommitmentList from './components/CommitmentList';
@@ -10,11 +10,12 @@ import ContractList from './components/ContractList';
 import Reports from './components/Reports';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
+import AuditHistory from './components/AuditHistory';
 import { api } from './api';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'contracts' | 'reports' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'contracts' | 'reports' | 'users' | 'audit'>('dashboard');
   
   const [credits, setCredits] = useState<Credit[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
@@ -22,13 +23,13 @@ const App: React.FC = () => {
   const [cancellations, setCancellations] = useState<Cancellation[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [filters, setFilters] = useState<Filters>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   
-  // Ref para evitar loops infinitos e concorrência no sync
   const syncingLock = useRef(false);
 
   const syncWithServer = useCallback(async () => {
@@ -49,6 +50,7 @@ const App: React.FC = () => {
           setCancellations(state.cancellations);
           setUsers(state.users);
           setContracts(state.contracts || []);
+          setAuditLogs(state.auditLogs || []);
           
           localStorage.setItem('budget_credits', JSON.stringify(state.credits));
           localStorage.setItem('budget_commitments', JSON.stringify(state.commitments));
@@ -71,7 +73,7 @@ const App: React.FC = () => {
       setIsSyncing(false);
       syncingLock.current = false;
     }
-  }, []); // Identidade estável evita disparos desnecessários do useEffect
+  }, []);
 
   useEffect(() => {
     syncWithServer();
@@ -223,6 +225,7 @@ const App: React.FC = () => {
     { id: 'commitments', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'contracts', label: 'Contratos', icon: Briefcase, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'reports', label: 'Relatórios', icon: FilePieChart, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
+    { id: 'audit', label: 'Auditoria', icon: History, roles: ['ADMIN'] },
     { id: 'users', label: 'Usuários', icon: Users, roles: ['ADMIN'] },
   ] as const;
 
@@ -312,28 +315,12 @@ const App: React.FC = () => {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto w-full">
-          {isOnline && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between text-emerald-700 shadow-sm animate-in fade-in zoom-in-95 duration-700">
-               <div className="flex items-center gap-3">
-                 <CheckCircle size={20} className="text-emerald-500" />
-                 <span className="text-[10px] font-black uppercase tracking-widest">Sincronização com Supabase Real estabelecida com sucesso. Permissões ativas.</span>
-               </div>
-            </div>
-          )}
-          {!isOnline && !isSyncing && (
-             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-between text-red-700 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <AlertCircle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Atenção: Falha na conexão com o banco de dados Supabase. Verifique a URL e a Chave Anon.</span>
-                </div>
-                <button onClick={() => syncWithServer()} className="text-[9px] font-black bg-red-600 text-white px-4 py-2 rounded-xl uppercase hover:bg-red-700 transition-all shadow-lg">Reconectar</button>
-             </div>
-          )}
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
-          {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} />}
-          {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} />}
+          {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} auditLogs={auditLogs} />}
+          {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'contracts' && <ContractList contracts={contracts} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
           {activeTab === 'reports' && <Reports credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} />}
+          {activeTab === 'audit' && currentUser.role === 'ADMIN' && <AuditHistory logs={auditLogs} />}
           {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} />}
         </div>
       </main>
