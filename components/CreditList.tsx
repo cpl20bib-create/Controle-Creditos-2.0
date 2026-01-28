@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, AuditLog } from '../types';
 import FilterBar from './FilterBar';
@@ -221,10 +220,10 @@ const CreditList: React.FC<CreditListProps> = ({
         </table>
       </div>
 
-      {/* Modal de Detalhes - Ajustado para atender os requisitos */}
+      {/* Modal de Detalhes do Crédito - Global Standard */}
       {selectedDetailCredit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300 text-black">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300 text-black">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
             <div className="bg-emerald-950 p-8 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-6">
                 <div className="p-4 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20"><Landmark size={28} /></div>
@@ -237,17 +236,17 @@ const CreditList: React.FC<CreditListProps> = ({
             </div>
 
             <div className="p-10 overflow-y-auto space-y-10 font-sans flex-1 custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
-                  <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="p-2 bg-white rounded-lg shadow-sm text-emerald-600"><Building2 size={20} /></div>
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Órgão Descentralizador</p>
-                      <p className="text-xs font-black text-slate-900 uppercase">{selectedDetailCredit.organ}</p>
+                      <p className="text-xs font-black text-slate-900 uppercase truncate">{selectedDetailCredit.organ}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="p-2 bg-white rounded-lg shadow-sm text-emerald-600"><Layout size={20} /></div>
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Seção Interessada</p>
@@ -257,20 +256,20 @@ const CreditList: React.FC<CreditListProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="p-5 bg-white rounded-xl border border-slate-100 shadow-sm">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                       <Calendar size={12} className="text-emerald-500" /> Data Chegada
+                       <Calendar size={12} className="text-emerald-500" /> Cadastro
                     </p>
                     <p className="text-xs font-black text-slate-900">{new Date(selectedDetailCredit.created_at).toLocaleDateString('pt-BR')}</p>
                   </div>
-                  <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="p-5 bg-white rounded-xl border border-slate-100 shadow-sm">
                     <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                       <Clock size={12} className="text-red-500" /> Prazo Empenho
+                       <Clock size={12} className="text-red-500" /> Prazo
                     </p>
                     <p className="text-xs font-black text-slate-900">{new Date(selectedDetailCredit.deadline).toLocaleDateString('pt-BR')}</p>
                   </div>
-                  <div className="col-span-2 p-5 bg-slate-900 rounded-2xl text-white shadow-xl">
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Valor Aportado Original</p>
+                  <div className="col-span-2 p-5 bg-slate-900 rounded-xl text-white shadow-xl">
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Valor Total</p>
                     <p className="text-2xl font-black italic">{formatCurrency(selectedDetailCredit.valueReceived)}</p>
                   </div>
                 </div>
@@ -278,20 +277,20 @@ const CreditList: React.FC<CreditListProps> = ({
 
               <div className="space-y-4">
                  <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2">
-                   <InfoIcon size={14} className="text-emerald-600" /> Descrição Detalhada do Crédito
+                   <InfoIcon size={14} className="text-emerald-600" /> Descrição Detalhada
                  </h4>
-                 <div className="bg-emerald-50/50 p-8 rounded-[2rem] border border-emerald-100 shadow-inner">
+                 <div className="bg-emerald-50/50 p-6 rounded-xl border border-emerald-100 shadow-inner">
                    <p className="text-[11px] font-medium text-slate-700 leading-relaxed italic border-l-4 border-emerald-500/30 pl-6">
-                     {selectedDetailCredit.description || "Nenhuma descrição técnica informada no lançamento."}
+                     {selectedDetailCredit.description || "Nenhuma descrição informada."}
                    </p>
                  </div>
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2"><History size={14} className="text-emerald-600" /> Movimentações Financeiras</h4>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2"><History size={14} className="text-emerald-600" /> Movimentações</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-3">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Empenhos e Fatias</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Empenhos</p>
                       {creditAllocations.length > 0 ? creditAllocations.map(alloc => (
                         <div key={alloc.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-red-50 shadow-sm">
                            <div>
@@ -300,20 +299,20 @@ const CreditList: React.FC<CreditListProps> = ({
                            </div>
                            <span className="text-xs font-black text-red-600">-{formatCurrency(alloc.value)}</span>
                         </div>
-                      )) : <p className="text-[9px] text-slate-400 italic font-medium px-2">Nenhuma saída de empenho registrada.</p>}
+                      )) : <p className="text-[9px] text-slate-400 italic px-2">Nenhuma saída.</p>}
                    </div>
 
                    <div className="space-y-3">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Recolhimentos / Estornos</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Recolhimentos</p>
                       {creditRefunds.length > 0 ? creditRefunds.map(ref => (
                         <div key={ref.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-amber-50 shadow-sm">
                            <div>
-                             <span className="text-[9px] font-black text-amber-800 uppercase italic">Recolhimento efetuado</span>
+                             <span className="text-[9px] font-black text-amber-800 uppercase italic">Estorno</span>
                              <p className="text-[7px] font-bold text-slate-400 uppercase">{new Date(ref.date).toLocaleDateString('pt-BR')}</p>
                            </div>
                            <span className="text-xs font-black text-amber-600">-{formatCurrency(ref.value)}</span>
                         </div>
-                      )) : <p className="text-[9px] text-slate-400 italic font-medium px-2">Nenhum recolhimento registrado.</p>}
+                      )) : <p className="text-[9px] text-slate-400 italic px-2">Nenhum estorno.</p>}
                    </div>
                 </div>
               </div>
@@ -321,10 +320,10 @@ const CreditList: React.FC<CreditListProps> = ({
             
             <div className="p-8 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
                <div className="flex flex-col">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Atual Disponível</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Livre</span>
                   <span className="text-xl font-black text-emerald-600 italic leading-none">{formatCurrency(getIndividualNCBalance(selectedDetailCredit))}</span>
                </div>
-               <button onClick={() => setDetailCreditId(null)} className="px-10 py-4 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl">Fechar Detalhes</button>
+               <button onClick={() => setDetailCreditId(null)} className="px-10 py-4 bg-slate-950 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl">Fechar</button>
             </div>
           </div>
         </div>
