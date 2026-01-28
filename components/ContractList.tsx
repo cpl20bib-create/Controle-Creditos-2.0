@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Contract, UserRole } from '../types';
 import ContractForm from './ContractForm';
-import { Search, PlusCircle, Calendar, Briefcase, Building2, UserCircle, Clock, Info, X, Edit3, Trash2, AlertTriangle, Landmark } from 'lucide-react';
+import { Search, PlusCircle, Calendar, Briefcase, Building2, UserCircle, Clock, Info, X, Edit3, Trash2, AlertTriangle } from 'lucide-react';
 
 interface ContractListProps {
   contracts: Contract[];
@@ -181,10 +181,10 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, onAdd, onUpdate,
         )}
       </div>
 
-      {/* Modal de Detalhes do Contrato - Ajustado para altura máxima e rolagem */}
+      {/* Modal de Detalhes do Contrato - Global Standard */}
       {detailContract && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
             {/* Cabeçalho Fixo */}
             <div className="bg-slate-900 p-8 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-5">
@@ -199,39 +199,39 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, onAdd, onUpdate,
               <button 
                 onClick={() => setDetailContract(null)} 
                 className="p-3 hover:bg-slate-800 rounded-full transition-colors"
-                aria-label="Fechar Modal"
+                aria-label="Fechar Detalhes"
               >
                 <X size={28} />
               </button>
             </div>
 
-            {/* Corpo do Modal com Rolagem */}
+            {/* Corpo do Modal com Rolagem Interna */}
             <div className="p-10 space-y-8 font-sans overflow-y-auto flex-1 custom-scrollbar">
-              <div className="grid grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                  <div className="space-y-1">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Empresa Favorecida</p>
                     <p className="text-sm font-black text-slate-900 uppercase">{detailContract.companyName}</p>
                  </div>
-                 <div className="space-y-1 text-right">
+                 <div className="space-y-1 md:text-right">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Valor Global</p>
                     <p className="text-xl font-black text-emerald-600">{formatCurrency(detailContract.value)}</p>
                  </div>
               </div>
 
-              <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-inner">
+              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-inner">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Objeto do Contrato</p>
                 <p className="text-[11px] font-medium text-slate-700 leading-relaxed italic border-l-2 border-emerald-500/30 pl-5">{detailContract.object}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-5">
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
                    <Calendar size={18} className="text-emerald-500" />
                    <div>
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Vigência Início</p>
                       <p className="text-xs font-black text-slate-900">{new Date(detailContract.startDate).toLocaleDateString('pt-BR')}</p>
                    </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
                    <Clock size={18} className="text-red-500" />
                    <div>
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Vigência Término</p>
@@ -240,7 +240,7 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, onAdd, onUpdate,
                 </div>
               </div>
 
-              <div className="bg-slate-900 p-8 rounded-[2rem] text-white space-y-6">
+              <div className="bg-slate-900 p-8 rounded-2xl text-white space-y-6">
                 <div className="flex items-center gap-3 text-emerald-500 border-b border-slate-800 pb-3">
                   <UserCircle size={18} />
                   <span className="text-[10px] font-black uppercase tracking-[0.2em]">Equipe de Fiscalização e Publicidade</span>
@@ -266,7 +266,7 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, onAdd, onUpdate,
                 </div>
               </div>
               
-              <div className="flex justify-between items-center gap-4 pt-4 border-t border-slate-100">
+              <div className="flex justify-between items-center gap-4 shrink-0 pt-4 border-t border-slate-100">
                 {canEdit && (
                   <button 
                     onClick={() => {
@@ -277,7 +277,7 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, onAdd, onUpdate,
                     }}
                     className="flex items-center gap-2 text-[9px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors"
                   >
-                    <Trash2 size={14} /> Excluir Contrato Definitivamente
+                    <Trash2 size={14} /> Excluir Contrato
                   </button>
                 )}
                 <button 
