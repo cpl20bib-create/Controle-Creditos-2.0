@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Credit, Commitment, Refund, Cancellation, User, Contract } from './types';
+import { Credit, Commitment, Refund, Cancellation, User, Contract, AuditLog } from './types';
 
 const supabaseUrl = 'https://tdbpxsdvtogymvercpqc.supabase.co';
 const supabaseAnonKey = 'sb_publishable_uMAhraANc199PrH8EQD9-w_MW39GXUK';
@@ -135,6 +135,18 @@ const mappers = {
       role: row.role,
       name: row.name
     })
+  },
+  audit_logs: {
+    fromDB: (row: any): AuditLog => ({
+      id: row.id,
+      userId: row.userId,
+      userName: row.userName,
+      action: row.action,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      description: row.description,
+      timestamp: row.timestamp
+    })
   }
 };
 
@@ -150,13 +162,14 @@ export const api = {
 
   async getFullState() {
     try {
-      const [resC, resCom, resR, resCan, resU, resCon] = await Promise.all([
+      const [resC, resCom, resR, resCan, resU, resCon, resL] = await Promise.all([
         supabase.from('credits').select('*'),
         supabase.from('commitments').select('*'),
         supabase.from('refunds').select('*'),
         supabase.from('cancellations').select('*'),
         supabase.from('users').select('*'),
-        supabase.from('contracts').select('*')
+        supabase.from('contracts').select('*'),
+        supabase.from('audit_logs').select('*').order('timestamp', { ascending: false })
       ]);
 
       return {
@@ -165,7 +178,8 @@ export const api = {
         refunds: (resR.data || []).map(mappers.refunds.fromDB),
         cancellations: (resCan.data || []).map(mappers.cancellations.fromDB),
         users: (resU.data || []).map(mappers.users.fromDB),
-        contracts: (resCon.data || []).map(mappers.contracts.fromDB)
+        contracts: (resCon.data || []).map(mappers.contracts.fromDB),
+        auditLogs: (resL.data || []).map(mappers.audit_logs.fromDB)
       };
     } catch (err) {
       console.error('Erro ao buscar estado:', err);
@@ -175,7 +189,7 @@ export const api = {
 
   async upsert(table: string, data: any) {
     const mapper = (mappers as any)[table];
-    const payload = mapper ? mapper.toDB(data) : data;
+    const payload = mapper && mapper.toDB ? mapper.toDB(data) : data;
     const { error } = await supabase.from(table).upsert(payload);
     if (error) throw new Error(error.message);
     return true;
