@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
-import { Credit, Commitment, Refund, Cancellation, Filters, UserRole } from '../types';
+import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, AuditLog } from '../types';
 import FilterBar from './FilterBar';
 import CommitmentForm from './CommitmentForm';
 import CancellationForm from './CancellationForm';
-import { Search, Calendar, PlusCircle, Edit3, Trash2, FileText, TrendingDown, RefreshCcw, Info } from 'lucide-react';
+import { Search, Calendar, PlusCircle, Edit3, Trash2, FileText, TrendingDown, RefreshCcw, Info, X, Landmark, Receipt, UserCircle, History, Clock } from 'lucide-react';
 
 interface CommitmentListProps {
   credits: Credit[];
@@ -16,15 +16,17 @@ interface CommitmentListProps {
   onDelete: (id: string) => void;
   onAddCancellation: (can: Cancellation) => void;
   userRole: UserRole;
+  auditLogs: AuditLog[];
 }
 
 const CommitmentList: React.FC<CommitmentListProps> = ({ 
   credits, commitments, refunds, cancellations, 
-  onAdd, onUpdate, onDelete, onAddCancellation, userRole 
+  onAdd, onUpdate, onDelete, onAddCancellation, userRole, auditLogs
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'list' | 'add' | 'cancel'>('list');
   const [editingItem, setEditingItem] = useState<Commitment | null>(null);
+  const [detailItemId, setDetailItemId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({
     sortBy: 'date',
     sortOrder: 'desc'
@@ -47,7 +49,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
       
       return { ...item, currentBalance, firstCredit };
     }).filter(item => {
-      const linkedNC = safeCredits.find(c => c.id === item.creditId)?.nc || '';
+      const linkedNC = (credits || []).find(c => c.id === item.creditId)?.nc || '';
       
       const matchSearch = (item.description || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.ne.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -88,6 +90,14 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
     return result;
   }, [commitments, credits, searchTerm, filters, cancellations]);
 
+  const selectedDetailItem = useMemo(() => {
+    const item = (commitments || []).find(c => c.id === detailItemId);
+    if (!item) return null;
+    const credit = (credits || []).find(cr => cr.id === item.creditId);
+    const relatedLogs = (auditLogs || []).filter(log => log.entityId === item.id);
+    return { ...item, credit, logs: relatedLogs };
+  }, [detailItemId, commitments, credits, auditLogs]);
+
   if (activeView === 'add') {
     return (
       <CommitmentForm 
@@ -126,7 +136,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
   }
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 text-black">
+    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 text-black font-sans">
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         {canEdit ? (
           <div className="flex items-center gap-3">
@@ -181,6 +191,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                   <td className={`px-6 py-4 text-right font-black text-xs ${isZero ? 'text-slate-400' : 'text-red-700'}`}>{formatCurrency(item.currentBalance)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-1.5 transition-all">
+                      <button onClick={() => setDetailItemId(item.id)} className="p-1.5 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-700 rounded-lg transition-all" title="Ver Detalhes"><Info size={14} /></button>
                       {canEdit && (
                         <>
                           <button onClick={() => { setEditingItem(item); setActiveView('add'); }} className="p-1.5 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-700 rounded-lg transition-all" title="Editar"><Edit3 size={14} /></button>
@@ -197,6 +208,103 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Modal de Detalhes do Empenho */}
+      {selectedDetailItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300 text-black">
+          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            <div className="bg-red-950 p-8 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-6">
+                <div className="p-4 bg-red-600 rounded-2xl shadow-lg shadow-red-500/20"><Receipt size={28} /></div>
+                <div>
+                  <h3 className="text-2xl font-black italic uppercase leading-none tracking-tight">{selectedDetailItem.ne}</h3>
+                  <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mt-2 italic">Dossiê de Execução Orçamentária Individual</p>
+                </div>
+              </div>
+              <button onClick={() => setDetailItemId(null)} className="p-3 hover:bg-red-900 rounded-full transition-colors"><X size={28} /></button>
+            </div>
+
+            <div className="p-10 overflow-y-auto space-y-10 font-sans flex-1 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                 <div className="bg-slate-900 p-6 rounded-2xl text-white">
+                    <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Montante Empenhado</p>
+                    <p className="text-2xl font-black italic">{formatCurrency(selectedDetailItem.value)}</p>
+                 </div>
+                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data de Emissão</p>
+                    <p className="text-xl font-black text-slate-900">{new Date(selectedDetailItem.date).toLocaleDateString('pt-BR')}</p>
+                 </div>
+                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Saldo Líquido</p>
+                    <p className={`text-xl font-black ${selectedDetailItem.currentBalance < 0.01 ? 'text-slate-400 line-through' : 'text-emerald-600'}`}>{formatCurrency(selectedDetailItem.currentBalance)}</p>
+                 </div>
+              </div>
+
+              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 shadow-inner">
+                <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-4">
+                   <Landmark size={18} className="text-red-600" />
+                   <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Origem do Crédito e Classificação</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                   <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Nota de Crédito</p>
+                      <p className="text-[11px] font-black text-red-900 uppercase italic">{selectedDetailItem.credit?.nc || 'Não localizada'}</p>
+                   </div>
+                   <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Unidade Gestora</p>
+                      <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailItem.credit?.ug || '-'}</p>
+                   </div>
+                   <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Plano Interno</p>
+                      <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailItem.credit?.pi || '-'}</p>
+                   </div>
+                   <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Natureza Despesa</p>
+                      <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailItem.credit?.nd || '-'}</p>
+                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2">
+                   <FileText size={14} className="text-red-600" /> Descrição Completa do Empenho
+                </h4>
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm italic text-slate-700 text-[11px] leading-relaxed">
+                   {selectedDetailItem.description || "Sem descrição informada."}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                 <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2">
+                    <History size={14} className="text-red-600" /> Histórico de Alterações / Auditoria
+                 </h4>
+                 <div className="space-y-3">
+                    {selectedDetailItem.logs && selectedDetailItem.logs.length > 0 ? selectedDetailItem.logs.map(log => (
+                      <div key={log.id} className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                         <div className="p-2 bg-white rounded-lg shadow-sm text-slate-400"><Clock size={14} /></div>
+                         <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                               <span className="text-[9px] font-black text-slate-900 uppercase tracking-tighter">{log.action === 'CREATE' ? 'Criação' : log.action === 'UPDATE' ? 'Atualização' : 'Exclusão'} por {log.userName}</span>
+                               <span className="text-[8px] font-bold text-slate-400">{new Date(log.timestamp).toLocaleString('pt-BR')}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-600 font-medium italic">{log.description}</p>
+                         </div>
+                      </div>
+                    )) : (
+                      <div className="p-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nenhuma alteração registrada para este empenho.</p>
+                      </div>
+                    )}
+                 </div>
+              </div>
+            </div>
+
+            <div className="p-8 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+               <button onClick={() => setDetailItemId(null)} className="px-10 py-4 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">Fechar Dossiê</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
