@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Credit, UG } from '../types';
 import { UGS, SECTION_OPTIONS } from '../constants';
-import { Save, ArrowLeft, AlertCircle, Landmark } from 'lucide-react';
+import { Save, ArrowLeft, AlertCircle, Landmark, Tag } from 'lucide-react';
 
 interface CreditFormProps {
   onSave: (credit: Credit) => void;
@@ -16,6 +16,10 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
     ug: '160211',
     pi: '',
     nd: '',
+    fonte: '',
+    ptres: '',
+    esfera: '',
+    ugr: '',
     section: SECTION_OPTIONS[0],
     valueReceived: undefined,
     deadline: '',
@@ -49,6 +53,12 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
 
     if (!formData.nd || formData.nd.length !== 6) {
       setError('O campo ND deve conter exatamente 6 números (XXXXXX).');
+      return;
+    }
+
+    // Novos Campos Obrigatórios
+    if (!formData.fonte || !formData.ptres || !formData.esfera || !formData.ugr) {
+      setError('Os campos Fonte, PTRES, Esfera e UGR são obrigatórios.');
       return;
     }
 
@@ -204,6 +214,56 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
                   {SECTION_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+               <Tag size={18} className="text-emerald-600" />
+               <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Classificação Técnica Obrigatória</h3>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+               <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Fonte</label>
+                  <input 
+                    type="text" 
+                    placeholder="EX: 0100"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500" 
+                    value={formData.fonte} 
+                    onChange={e => setFormData({...formData, fonte: e.target.value.toUpperCase()})}
+                  />
+               </div>
+               <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">PTRES</label>
+                  <input 
+                    type="text" 
+                    placeholder="EX: 123456"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500" 
+                    value={formData.ptres} 
+                    onChange={e => setFormData({...formData, ptres: e.target.value.toUpperCase()})}
+                  />
+               </div>
+               <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Esfera</label>
+                  <input 
+                    type="text" 
+                    placeholder="EX: 10"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500" 
+                    value={formData.esfera} 
+                    onChange={e => setFormData({...formData, esfera: e.target.value.toUpperCase()})}
+                  />
+               </div>
+               <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">UGR</label>
+                  <input 
+                    type="text" 
+                    placeholder="EX: 160211"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500" 
+                    value={formData.ugr} 
+                    onChange={e => setFormData({...formData, ugr: e.target.value.toUpperCase()})}
+                  />
+               </div>
             </div>
           </div>
 
