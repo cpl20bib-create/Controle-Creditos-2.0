@@ -16,6 +16,10 @@ export interface Credit {
   pi: string;
   nc: string;
   nd: string;
+  fonte: string;
+  ptres: string;
+  esfera: string;
+  ugr: string;
   organ: string;
   section: string;
   valueReceived: number;
