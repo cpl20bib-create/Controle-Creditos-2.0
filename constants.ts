@@ -24,20 +24,17 @@ export const INITIAL_CREDITS: Credit[] = [
     pi: '12345678901',
     nc: '2026NC000001',
     nd: '339030',
-    // Added missing mandatory technical classification fields
-    fonte: '0100',
+    fonte: '0100000000',
     ptres: '123456',
-    esfera: '10',
+    esfera: '1',
     ugr: '160211',
-    organ: 'COMANDO MILITAR',
+    organ: 'COMANDO MILITAR DO SUL',
     section: 'SALC',
     valueReceived: 500000,
-    // Added missing properties valueAvailable and valueUsed
     valueAvailable: 500000,
     valueUsed: 0,
-    description: 'Crédito inicial para manutenção',
+    description: 'Crédito inicial para manutenção de viaturas blindadas e compra de suprimentos diversos.',
     deadline: '2026-12-31',
-    // Fixed: changed createdAt to created_at to match the Credit interface
     created_at: '2024-01-15'
   }
 ];
