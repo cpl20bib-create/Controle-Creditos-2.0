@@ -34,31 +34,41 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
     if (initialData) setFormData(initialData);
   }, [initialData]);
 
-  const handleNDChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Apenas números
-    if (value.length <= 6) {
-      setFormData({ ...formData, nd: value });
-    }
+  const handleOnlyNumbers = (value: string, maxLength: number) => {
+    const numeric = value.replace(/\D/g, '');
+    return numeric.slice(0, maxLength);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Validações Obrigatórias
+    // Validações Básicas
     if (!formData.organ || formData.organ.trim().length < 3) {
       setError('O campo Órgão Descentralizador é obrigatório.');
       return;
     }
 
     if (!formData.nd || formData.nd.length !== 6) {
-      setError('O campo ND deve conter exatamente 6 números (XXXXXX).');
+      setError('O campo ND deve conter exatamente 6 números.');
       return;
     }
 
-    // Novos Campos Obrigatórios
-    if (!formData.fonte || !formData.ptres || !formData.esfera || !formData.ugr) {
-      setError('Os campos Fonte, PTRES, Esfera e UGR são obrigatórios.');
+    // Validações dos Novos Campos Técnicos
+    if (!formData.fonte || formData.fonte.length !== 10) {
+      setError('O campo FONTE deve conter exatamente 10 números.');
+      return;
+    }
+    if (!formData.ptres || formData.ptres.length !== 6) {
+      setError('O campo PTRES deve conter exatamente 6 números.');
+      return;
+    }
+    if (!formData.esfera || formData.esfera.length !== 1) {
+      setError('O campo ESFERA deve conter exatamente 1 número.');
+      return;
+    }
+    if (!formData.ugr || formData.ugr.length !== 6) {
+      setError('O campo UGR deve conter exatamente 6 números.');
       return;
     }
 
@@ -121,7 +131,7 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Órgão Descentralizador (Obrigatório)</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Órgão Descentralizador</label>
                 <input 
                   type="text" 
                   placeholder="EX: COMANDO MILITAR DO SUL"
@@ -131,26 +141,27 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidade Gestora (UG)</label>
-                <select 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
-                  value={formData.ug} 
-                  onChange={e => setFormData({...formData, ug: e.target.value as UG})}
-                >
-                  {UGS.map(ug => <option key={ug} value={ug}>{ug}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Nota de Crédito (NC)</label>
-                <input 
-                  type="text" 
-                  placeholder="2026NC000XXX"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-black uppercase focus:ring-2 focus:ring-emerald-500 outline-none" 
-                  value={formData.nc} 
-                  onChange={e => setFormData({...formData, nc: e.target.value.toUpperCase()})} 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidade Gestora (UG)</label>
+                  <select 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
+                    value={formData.ug} 
+                    onChange={e => setFormData({...formData, ug: e.target.value as UG})}
+                  >
+                    {UGS.map(ug => <option key={ug} value={ug}>{ug}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Natureza (ND)</label>
+                  <input 
+                    type="text" 
+                    placeholder="339030"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-black focus:ring-2 focus:ring-emerald-500 outline-none" 
+                    value={formData.nd} 
+                    onChange={e => setFormData({...formData, nd: handleOnlyNumbers(e.target.value, 6)})} 
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -166,13 +177,13 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Natureza (ND - 6 Números)</label>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Nota de Crédito (NC)</label>
                   <input 
                     type="text" 
-                    placeholder="339030"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-black focus:ring-2 focus:ring-emerald-500 outline-none" 
-                    value={formData.nd} 
-                    onChange={handleNDChange} 
+                    placeholder="2026NC000XXX"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-black uppercase focus:ring-2 focus:ring-emerald-500 outline-none" 
+                    value={formData.nc} 
+                    onChange={e => setFormData({...formData, nc: e.target.value.toUpperCase()})} 
                   />
                 </div>
               </div>
@@ -194,74 +205,75 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Limite de Empenho (Prazo)</label>
-                <input 
-                  type="date" 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-black focus:ring-2 focus:ring-emerald-500 outline-none [color-scheme:light]" 
-                  value={formData.deadline} 
-                  onChange={e => setFormData({...formData, deadline: e.target.value})} 
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Seção Interessada / Destino</label>
-                <select 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
-                  value={formData.section} 
-                  onChange={e => setFormData({...formData, section: e.target.value})}
-                >
-                  {SECTION_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Prazo Empenho</label>
+                  <input 
+                    type="date" 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-black focus:ring-2 focus:ring-emerald-500 outline-none [color-scheme:light]" 
+                    value={formData.deadline} 
+                    onChange={e => setFormData({...formData, deadline: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Seção Destino</label>
+                  <select 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
+                    value={formData.section} 
+                    onChange={e => setFormData({...formData, section: e.target.value})}
+                  >
+                    {SECTION_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 space-y-6">
+          <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
                <Tag size={18} className="text-emerald-600" />
-               <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Classificação Técnica Obrigatória</h3>
+               <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Classificação Técnica de Orçamento</h3>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Fonte</label>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">FONTE (10)</label>
                   <input 
                     type="text" 
-                    placeholder="EX: 0100"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500" 
+                    placeholder="XXXXXXXXXX"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500" 
                     value={formData.fonte} 
-                    onChange={e => setFormData({...formData, fonte: e.target.value.toUpperCase()})}
+                    onChange={e => setFormData({...formData, fonte: handleOnlyNumbers(e.target.value, 10)})}
                   />
                </div>
                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">PTRES</label>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">PTRES (6)</label>
                   <input 
                     type="text" 
-                    placeholder="EX: 123456"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500" 
+                    placeholder="XXXXXX"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500" 
                     value={formData.ptres} 
-                    onChange={e => setFormData({...formData, ptres: e.target.value.toUpperCase()})}
+                    onChange={e => setFormData({...formData, ptres: handleOnlyNumbers(e.target.value, 6)})}
                   />
                </div>
                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Esfera</label>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">ESFERA (1)</label>
                   <input 
                     type="text" 
-                    placeholder="EX: 10"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500" 
+                    placeholder="X"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500" 
                     value={formData.esfera} 
-                    onChange={e => setFormData({...formData, esfera: e.target.value.toUpperCase()})}
+                    onChange={e => setFormData({...formData, esfera: handleOnlyNumbers(e.target.value, 1)})}
                   />
                </div>
                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">UGR</label>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">UGR (6)</label>
                   <input 
                     type="text" 
-                    placeholder="EX: 160211"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500" 
+                    placeholder="XXXXXX"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500" 
                     value={formData.ugr} 
-                    onChange={e => setFormData({...formData, ugr: e.target.value.toUpperCase()})}
+                    onChange={e => setFormData({...formData, ugr: handleOnlyNumbers(e.target.value, 6)})}
                   />
                </div>
             </div>
