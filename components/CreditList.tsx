@@ -4,7 +4,8 @@ import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, AuditLog }
 import FilterBar from './FilterBar';
 import CreditForm from './CreditForm';
 import RefundForm from './RefundForm';
-import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, ArrowRightLeft, TrendingDown, History, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout, Tag } from 'lucide-react';
+// Added History to the lucide-react imports to avoid conflict with global History interface
+import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout, Tag, ClipboardList, History } from 'lucide-react';
 
 interface CreditListProps {
   credits: Credit[];
@@ -230,20 +231,21 @@ const CreditList: React.FC<CreditListProps> = ({
                 <div className="p-4 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20"><Landmark size={28} /></div>
                 <div>
                   <h3 className="text-2xl font-black italic uppercase leading-none tracking-tight">{selectedDetailCredit.nc}</h3>
-                  <p className="text-emerald-400 text-[10px] font-black uppercase tracking-widest mt-2 italic">Ficha Técnica da Dotação Orçamentária</p>
+                  <p className="text-emerald-400 text-[10px] font-black uppercase tracking-widest mt-2 italic">Dossiê Técnico de Dotação Orçamentária</p>
                 </div>
               </div>
               <button onClick={() => setDetailCreditId(null)} className="p-3 hover:bg-emerald-900 rounded-full transition-colors"><X size={28} /></button>
             </div>
 
             <div className="p-10 overflow-y-auto space-y-10 font-sans flex-1 custom-scrollbar">
+              {/* Seção 1: Identificação e Órgão */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="p-2 bg-white rounded-lg shadow-sm text-emerald-600"><Building2 size={20} /></div>
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Órgão Descentralizador</p>
-                      <p className="text-xs font-black text-slate-900 uppercase truncate">{selectedDetailCredit.organ}</p>
+                      <p className="text-xs font-black text-slate-900 uppercase">{selectedDetailCredit.organ}</p>
                     </div>
                   </div>
 
@@ -265,92 +267,108 @@ const CreditList: React.FC<CreditListProps> = ({
                   </div>
                   <div className="p-5 bg-white rounded-xl border border-slate-100 shadow-sm">
                     <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                       <Clock size={12} className="text-red-500" /> Prazo
+                       <Clock size={12} className="text-red-500" /> Prazo Final
                     </p>
                     <p className="text-xs font-black text-slate-900">{new Date(selectedDetailCredit.deadline).toLocaleDateString('pt-BR')}</p>
                   </div>
                   <div className="col-span-2 p-5 bg-slate-900 rounded-xl text-white shadow-xl">
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Valor Total</p>
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Montante Total do Aporte</p>
                     <p className="text-2xl font-black italic">{formatCurrency(selectedDetailCredit.valueReceived)}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Nova Seção: Classificação Técnica */}
-              <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-inner">
-                 <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
-                    <Tag size={18} className="text-emerald-600" />
-                    <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Classificação Funcional Programática</h4>
+              {/* Seção 2: Classificação Técnica (Novos Campos) */}
+              <div className="bg-slate-950 p-8 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                 <div className="flex items-center gap-3 mb-8 border-b border-slate-800 pb-4">
+                    <Tag size={20} className="text-emerald-500" />
+                    <h4 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Classificação Funcional Programática</h4>
                  </div>
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div>
-                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Fonte</p>
-                       <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailCredit.fonte || '-'}</p>
+                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <div className="space-y-1">
+                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">FONTE</p>
+                       <p className="text-xs font-black text-white font-mono tracking-widest">{selectedDetailCredit.fonte || '----------'}</p>
                     </div>
-                    <div>
-                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">PTRES</p>
-                       <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailCredit.ptres || '-'}</p>
+                    <div className="space-y-1">
+                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">PTRES</p>
+                       <p className="text-xs font-black text-white font-mono tracking-widest">{selectedDetailCredit.ptres || '------'}</p>
                     </div>
-                    <div>
-                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Esfera</p>
-                       <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailCredit.esfera || '-'}</p>
+                    <div className="space-y-1 text-center">
+                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">ESFERA</p>
+                       <p className="text-xs font-black text-white font-mono">{selectedDetailCredit.esfera || '-'}</p>
                     </div>
-                    <div>
-                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">UGR</p>
-                       <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailCredit.ugr || '-'}</p>
+                    <div className="space-y-1 text-right">
+                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">UGR (UGE)</p>
+                       <p className="text-xs font-black text-white font-mono tracking-widest">{selectedDetailCredit.ugr || '------'}</p>
+                    </div>
+                 </div>
+                 <div className="mt-8 grid grid-cols-2 gap-8 border-t border-slate-800 pt-6">
+                    <div className="space-y-1">
+                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Plano Interno (PI)</p>
+                       <p className="text-xs font-black text-emerald-500 uppercase italic">{selectedDetailCredit.pi}</p>
+                    </div>
+                    <div className="space-y-1 text-right">
+                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Natureza (ND)</p>
+                       <p className="text-xs font-black text-emerald-500 uppercase italic">{selectedDetailCredit.nd}</p>
                     </div>
                  </div>
               </div>
 
+              {/* Seção 3: Descrição Detalhada */}
               <div className="space-y-4">
-                 <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2">
-                   <InfoIcon size={14} className="text-emerald-600" /> Descrição Detalhada
+                 <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
+                   <ClipboardList size={14} className="text-emerald-600" /> Descrição Detalhada e Finalidade
                  </h4>
-                 <div className="bg-emerald-50/50 p-6 rounded-xl border border-emerald-100 shadow-inner">
-                   <p className="text-[11px] font-medium text-slate-700 leading-relaxed italic border-l-4 border-emerald-500/30 pl-6">
-                     {selectedDetailCredit.description || "Nenhuma descrição informada."}
+                 <div className="bg-emerald-50/30 p-8 rounded-[2rem] border border-emerald-100/50 shadow-inner">
+                   <p className="text-[11px] font-medium text-slate-700 leading-relaxed italic border-l-4 border-emerald-500/30 pl-8">
+                     {selectedDetailCredit.description || "Nenhuma descrição técnica informada para este crédito."}
                    </p>
                  </div>
               </div>
 
+              {/* Seção 4: Histórico */}
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2"><History size={14} className="text-emerald-600" /> Movimentações</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-3">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Empenhos</p>
+                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
+                   <History size={14} className="text-emerald-600" /> Histórico de Movimentações
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="space-y-4">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Execução (Empenhos)</p>
                       {creditAllocations.length > 0 ? creditAllocations.map(alloc => (
-                        <div key={alloc.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-red-50 shadow-sm">
+                        <div key={alloc.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-red-50 shadow-sm group hover:border-red-200 transition-all">
                            <div>
-                             <span className="text-[9px] font-black text-red-900 uppercase italic">NE {alloc.ne}</span>
-                             <p className="text-[7px] font-bold text-slate-400 uppercase">{new Date(alloc.date).toLocaleDateString('pt-BR')}</p>
+                             <span className="text-[10px] font-black text-red-900 uppercase italic">NE {alloc.ne}</span>
+                             <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{new Date(alloc.date).toLocaleDateString('pt-BR')}</p>
                            </div>
                            <span className="text-xs font-black text-red-600">-{formatCurrency(alloc.value)}</span>
                         </div>
-                      )) : <p className="text-[9px] text-slate-400 italic px-2">Nenhuma saída.</p>}
+                      )) : <p className="text-[9px] text-slate-300 italic px-2">Nenhum empenho vinculado.</p>}
                    </div>
 
-                   <div className="space-y-3">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Recolhimentos</p>
+                   <div className="space-y-4">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Estornos (Recolhimentos)</p>
                       {creditRefunds.length > 0 ? creditRefunds.map(ref => (
-                        <div key={ref.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-amber-50 shadow-sm">
+                        <div key={ref.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-amber-50 shadow-sm group hover:border-amber-200 transition-all">
                            <div>
-                             <span className="text-[9px] font-black text-amber-800 uppercase italic">Estorno</span>
-                             <p className="text-[7px] font-bold text-slate-400 uppercase">{new Date(ref.date).toLocaleDateString('pt-BR')}</p>
+                             <span className="text-[10px] font-black text-amber-800 uppercase italic">Recolhimento</span>
+                             <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{new Date(ref.date).toLocaleDateString('pt-BR')}</p>
                            </div>
                            <span className="text-xs font-black text-amber-600">-{formatCurrency(ref.value)}</span>
                         </div>
-                      )) : <p className="text-[9px] text-slate-400 italic px-2">Nenhum estorno.</p>}
+                      )) : <p className="text-[9px] text-slate-300 italic px-2">Nenhum recolhimento efetuado.</p>}
                    </div>
                 </div>
               </div>
             </div>
             
+            {/* Rodapé Fixo */}
             <div className="p-8 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
                <div className="flex flex-col">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Livre</span>
-                  <span className="text-xl font-black text-emerald-600 italic leading-none">{formatCurrency(getIndividualNCBalance(selectedDetailCredit))}</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Livre para Empenho</span>
+                  <span className="text-2xl font-black text-emerald-600 italic leading-none">{formatCurrency(getIndividualNCBalance(selectedDetailCredit))}</span>
                </div>
-               <button onClick={() => setDetailCreditId(null)} className="px-10 py-4 bg-slate-950 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl">Fechar</button>
+               <button onClick={() => setDetailCreditId(null)} className="px-12 py-5 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl shadow-slate-900/20 active:scale-95">Fechar Dossiê</button>
             </div>
           </div>
         </div>
