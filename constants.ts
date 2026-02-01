@@ -24,6 +24,11 @@ export const INITIAL_CREDITS: Credit[] = [
     pi: '12345678901',
     nc: '2026NC000001',
     nd: '339030',
+    // Added missing mandatory technical classification fields
+    fonte: '0100',
+    ptres: '123456',
+    esfera: '10',
+    ugr: '160211',
     organ: 'COMANDO MILITAR',
     section: 'SALC',
     valueReceived: 500000,
