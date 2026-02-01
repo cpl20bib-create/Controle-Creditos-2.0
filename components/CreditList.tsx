@@ -1,9 +1,10 @@
+
 import React, { useMemo, useState } from 'react';
 import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, AuditLog } from '../types';
 import FilterBar from './FilterBar';
 import CreditForm from './CreditForm';
 import RefundForm from './RefundForm';
-import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, ArrowRightLeft, TrendingDown, History, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout } from 'lucide-react';
+import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, ArrowRightLeft, TrendingDown, History, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout, Tag } from 'lucide-react';
 
 interface CreditListProps {
   credits: Credit[];
@@ -222,7 +223,7 @@ const CreditList: React.FC<CreditListProps> = ({
 
       {/* Modal de Detalhes do Crédito - Global Standard */}
       {selectedDetailCredit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300 text-black">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 text-black">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
             <div className="bg-emerald-950 p-8 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-6">
@@ -273,6 +274,32 @@ const CreditList: React.FC<CreditListProps> = ({
                     <p className="text-2xl font-black italic">{formatCurrency(selectedDetailCredit.valueReceived)}</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Nova Seção: Classificação Técnica */}
+              <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-inner">
+                 <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
+                    <Tag size={18} className="text-emerald-600" />
+                    <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Classificação Funcional Programática</h4>
+                 </div>
+                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div>
+                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Fonte</p>
+                       <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailCredit.fonte || '-'}</p>
+                    </div>
+                    <div>
+                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">PTRES</p>
+                       <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailCredit.ptres || '-'}</p>
+                    </div>
+                    <div>
+                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Esfera</p>
+                       <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailCredit.esfera || '-'}</p>
+                    </div>
+                    <div>
+                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">UGR</p>
+                       <p className="text-[11px] font-black text-slate-900 uppercase">{selectedDetailCredit.ugr || '-'}</p>
+                    </div>
+                 </div>
               </div>
 
               <div className="space-y-4">
