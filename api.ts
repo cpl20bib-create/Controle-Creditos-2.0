@@ -109,6 +109,8 @@ const mappers = {
       start_date: c.startDate,
       end_date: c.endDate,
       status: c.status,
+      type: c.type,
+      pi: c.pi,
       main_fiscal: c.mainFiscal,
       substitute_fiscal: c.substituteFiscal,
       bi_number: c.biNumber
@@ -122,6 +124,8 @@ const mappers = {
       startDate: row.start_date,
       endDate: row.end_date,
       status: row.status,
+      type: row.type || 'DESPESA',
+      pi: row.pi || '',
       mainFiscal: row.main_fiscal,
       substituteFiscal: row.substitute_fiscal,
       biNumber: row.bi_number,
