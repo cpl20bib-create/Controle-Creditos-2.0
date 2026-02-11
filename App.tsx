@@ -318,7 +318,7 @@ const App: React.FC = () => {
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} auditLogs={auditLogs} />}
-          {activeTab === 'contracts' && <ContractList contracts={contracts} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
+          {activeTab === 'contracts' && <ContractList contracts={contracts} credits={credits} commitments={commitments} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
           {activeTab === 'reports' && <Reports credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} />}
           {activeTab === 'audit' && currentUser.role === 'ADMIN' && <AuditHistory logs={auditLogs} />}
           {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} />}
