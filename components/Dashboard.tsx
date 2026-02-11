@@ -185,13 +185,12 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       {/* Cartões de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Recebido (Líq)</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Recebido</p>
           <h3 className="text-xl font-black text-slate-900">{formatCurrency(dashboardData.summaryReceived)}</h3>
-          <div className="mt-2 text-[9px] font-bold text-slate-400 uppercase italic">Dotação - Recolhimentos</div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Empenhado (Líq)</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Empenhado</p>
           <h3 className="text-xl font-black text-red-600">{formatCurrency(dashboardData.summaryCommitted)}</h3>
           <div className="mt-2 space-y-1.5">
             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
