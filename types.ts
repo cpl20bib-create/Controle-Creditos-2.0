@@ -1,6 +1,7 @@
 
 export type UG = '160211' | '167211';
 export type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER';
+export type ContractType = 'RECEITA' | 'DESPESA';
 
 export interface User {
   id: string;
@@ -67,6 +68,8 @@ export interface Contract {
   startDate: string;
   endDate: string;
   status: ContractStatus;
+  type: ContractType;
+  pi: string;
   mainFiscal: string;
   substituteFiscal: string;
   biNumber: string;
