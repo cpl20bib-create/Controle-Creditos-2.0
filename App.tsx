@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { createRoot } from 'react-dom/client';
 import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract, AuditLog } from './types';
 import Dashboard from './components/Dashboard';
@@ -327,11 +326,5 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(React.createElement(App));
-}
 
 export default App;
