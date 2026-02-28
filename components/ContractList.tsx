@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Contract, UserRole, Credit, Commitment } from '../types';
 import ContractForm from './ContractForm';
-import { formatDateBR, parseLocalDate } from '../src/utils/dateUtils';
+import { formatDateBR, parseLocalDate } from '../utils/dateUtils';
 import { Search, PlusCircle, Calendar, Briefcase, Building2, UserCircle, Clock, Info, X, Edit3, Trash2, AlertTriangle, TrendingDown, Landmark, Tag, Target, DollarSign, ArrowUpRight, BarChart3, PieChart as PieChartIcon, Zap, CalendarDays, FileText, UserCheck, ShieldCheck } from 'lucide-react';
 
 interface ContractListProps {
