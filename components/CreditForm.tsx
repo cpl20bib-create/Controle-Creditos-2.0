@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Credit, UG } from '../types';
 import { UGS, SECTION_OPTIONS } from '../constants';
 import { Save, ArrowLeft, AlertCircle, Landmark, Tag } from 'lucide-react';
+import { toLocalDateString } from '../src/utils/dateUtils';
 
 interface CreditFormProps {
   onSave: (credit: Credit) => void;
@@ -95,7 +96,7 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
       valueReceived: val,
       valueAvailable: initialData ? (Number(formData.valueAvailable) || val) : val,
       valueUsed: initialData ? (Number(formData.valueUsed) || 0) : 0,
-      created_at: initialData?.created_at || new Date().toISOString(),
+      created_at: initialData?.created_at || toLocalDateString(new Date()),
     } as Credit;
 
     onSave(creditToSave);
