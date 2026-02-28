@@ -4,7 +4,7 @@ import { Credit, Commitment, Refund, Cancellation, UG } from '../types';
 import { Save, AlertCircle, RefreshCw, ArrowLeft, Landmark, PieChart } from 'lucide-react';
 import { UGS } from '../constants';
 
-import { toLocalDateString } from '../src/utils/dateUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 
 interface RefundFormProps {
   credits: Credit[];
