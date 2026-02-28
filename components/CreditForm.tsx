@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Credit, UG } from '../types';
 import { UGS, SECTION_OPTIONS } from '../constants';
 import { Save, ArrowLeft, AlertCircle, Landmark, Tag } from 'lucide-react';
-import { toLocalDateString } from '../src/utils/dateUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 
 interface CreditFormProps {
   onSave: (credit: Credit) => void;
