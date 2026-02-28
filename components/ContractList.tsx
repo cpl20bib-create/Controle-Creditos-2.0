@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Contract, UserRole, Credit, Commitment } from '../types';
 import ContractForm from './ContractForm';
+import { formatDateBR, parseLocalDate } from '../src/utils/dateUtils';
 import { Search, PlusCircle, Calendar, Briefcase, Building2, UserCircle, Clock, Info, X, Edit3, Trash2, AlertTriangle, TrendingDown, Landmark, Tag, Target, DollarSign, ArrowUpRight, BarChart3, PieChart as PieChartIcon, Zap, CalendarDays, FileText, UserCheck, ShieldCheck } from 'lucide-react';
 
 interface ContractListProps {
@@ -46,13 +47,13 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, credits, commitm
       c.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.object.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.pi && c.pi.toLowerCase().includes(searchTerm.toLowerCase()))
-    ).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+    ).sort((a, b) => parseLocalDate(a.endDate).getTime() - parseLocalDate(b.endDate).getTime());
   }, [contracts, searchTerm]);
 
   const getStatusInfo = (endDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
+    const end = parseLocalDate(endDate);
     end.setHours(0, 0, 0, 0);
     const diffTime = end.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -71,7 +72,7 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, credits, commitm
     // Lógica para Contrato de Despesa: Cálculos de PI
     const relatedCredits = (credits || [])
       .filter(c => c.pi === contract.pi)
-      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      .sort((a, b) => parseLocalDate(b.created_at || '').getTime() - parseLocalDate(a.created_at || '').getTime());
     
     const totalReceivedPi = relatedCredits.reduce((acc, curr) => acc + (Number(curr.valueReceived) || 0), 0);
     
@@ -305,11 +306,11 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, credits, commitm
                     <div className="p-6 grid grid-cols-2 gap-6">
                        <div className="space-y-1">
                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Início do Contrato</p>
-                          <p className="text-xs font-black text-slate-900 italic">{new Date(selectedDetailContract.startDate).toLocaleDateString('pt-BR')}</p>
+                          <p className="text-xs font-black text-slate-900 italic">{formatDateBR(selectedDetailContract.startDate)}</p>
                        </div>
                        <div className="space-y-1">
                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Término do Contrato</p>
-                          <p className="text-xs font-black text-red-600 italic">{new Date(selectedDetailContract.endDate).toLocaleDateString('pt-BR')}</p>
+                          <p className="text-xs font-black text-red-600 italic">{formatDateBR(selectedDetailContract.endDate)}</p>
                        </div>
                        <div className="col-span-2 space-y-1 pt-2 border-t border-slate-50">
                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Publicação em Boletim Interno (BI)</p>
@@ -429,7 +430,7 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, credits, commitm
                           </div>
                           <div className="text-right">
                             <p className="text-[10px] font-black text-orange-600">{formatCurrency(com.value)}</p>
-                            <p className="text-[8px] font-bold text-slate-300 uppercase">{new Date(com.date).toLocaleDateString('pt-BR')}</p>
+                            <p className="text-[8px] font-bold text-slate-300 uppercase">{formatDateBR(com.date)}</p>
                           </div>
                         </div>
                       )) : (
