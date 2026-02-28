@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Contract, ContractStatus, ContractType } from '../types';
+import { toLocalDateString } from '../src/utils/dateUtils';
 import { Save, ArrowLeft, Briefcase, Building2, Landmark, Target, Calendar, UserCheck, FileText, AlertCircle, Clock, Tag, DollarSign, TrendingUp } from 'lucide-react';
 
 interface ContractFormProps {
@@ -64,7 +65,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ onSave, onCancel, initialDa
     const contractToSave: Contract = {
       ...formData,
       id: initialData?.id || Math.random().toString(36).substr(2, 9),
-      created_at: initialData?.created_at || new Date().toISOString(),
+      created_at: initialData?.created_at || toLocalDateString(new Date()),
       pi: formData.type === 'RECEITA' ? '' : (formData.pi || '')
     } as Contract;
 
