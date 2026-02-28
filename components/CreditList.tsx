@@ -6,7 +6,7 @@ import CreditForm from './CreditForm';
 import RefundForm from './RefundForm';
 // Added History to the lucide-react imports to avoid conflict with global History interface
 import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout, Tag, ClipboardList, History } from 'lucide-react';
-import { formatDateBR, parseLocalDate } from '../src/utils/dateUtils';
+import { formatDateBR, parseLocalDate } from '../utils/dateUtils';
 
 interface CreditListProps {
   credits: Credit[];
