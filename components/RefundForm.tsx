@@ -4,6 +4,8 @@ import { Credit, Commitment, Refund, Cancellation, UG } from '../types';
 import { Save, AlertCircle, RefreshCw, ArrowLeft, Landmark, PieChart } from 'lucide-react';
 import { UGS } from '../constants';
 
+import { toLocalDateString } from '../src/utils/dateUtils';
+
 interface RefundFormProps {
   credits: Credit[];
   commitments: Commitment[];
@@ -20,7 +22,7 @@ const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, 
     creditId: '',
     value: 0,
     description: '',
-    date: new Date().toISOString().split('T')[0]
+    date: toLocalDateString(new Date())
   });
 
   const [error, setError] = useState<string | null>(null);
