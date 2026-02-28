@@ -4,6 +4,8 @@ import { Credit, Commitment, Cancellation, UG } from '../types';
 import { Save, AlertCircle, RefreshCw, ArrowLeft, Landmark, PieChart, FileText, ClipboardList } from 'lucide-react';
 import { UGS } from '../constants';
 
+import { toLocalDateString } from '../src/utils/dateUtils';
+
 interface CancellationFormProps {
   credits: Credit[];
   commitments: Commitment[];
@@ -19,7 +21,7 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
     commitmentId: '',
     value: 0,
     ro: '2026RO',
-    date: new Date().toISOString().split('T')[0],
+    date: toLocalDateString(new Date()),
     bi: 'BI nº XX, de DD/MM/AAAA'
   });
 
