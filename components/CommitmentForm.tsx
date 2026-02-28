@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Credit, Commitment, Refund, Cancellation, UG } from '../types';
 import { Save, ArrowLeft, Landmark, Zap, AlertCircle, Calendar, FileText, CheckCircle2, Layers, Tag } from 'lucide-react';
 import { UGS } from '../constants';
-import { toLocalDateString, parseLocalDate } from '../src/utils/dateUtils';
+import { toLocalDateString, parseLocalDate } from '../utils/dateUtils';
 
 interface CommitmentFormProps {
   credits: Credit[];
