@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Credit, Commitment, Refund, Cancellation, Filters } from '../types';
+import { formatDateBR, parseLocalDate } from '../src/utils/dateUtils';
 import { Landmark, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt, Zap, Layers, Calendar, Target } from 'lucide-react';
 import FilterBar from './FilterBar';
 
@@ -49,7 +50,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
       const balanceValue = (Number(credit.valueReceived) || 0) - (cCommsBruto - cCansTotal) - cRefsTotal;
       const usedValue = cCommsBruto - cCansTotal;
-      const daysToDeadline = Math.ceil((new Date(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      const daysToDeadline = Math.ceil((parseLocalDate(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
 
       return { 
         ...credit, 
@@ -446,7 +447,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                                             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
                                               <p className="text-[7px] font-black text-slate-500 uppercase mb-1">Data Lançamento</p>
                                               <p className="text-[9px] font-black text-slate-300 flex items-center gap-1.5">
-                                                <Calendar size={10} className="text-emerald-500/40" /> {new Date(nc.created_at).toLocaleDateString('pt-BR')}
+                                                <Calendar size={10} className="text-emerald-500/40" /> {formatDateBR(nc.created_at)}
                                               </p>
                                             </div>
                                             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
@@ -519,7 +520,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                      <div className="flex justify-between items-center bg-slate-950 p-5 rounded-[1.5rem] border border-slate-800 text-[9px] font-black text-slate-500 uppercase tracking-widest">
                         <span className="text-slate-400">PI: {nc.pi} | ND: {nc.nd} | UG: {nc.ug}</span>
                         <span className={`flex items-center gap-2 ${nc.daysToDeadline <= 5 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>
-                          <Clock size={12} /> Prazo: {new Date(nc.deadline).toLocaleDateString('pt-BR')}
+                          <Clock size={12} /> Prazo: {formatDateBR(nc.deadline)}
                         </span>
                      </div>
                   </div>
