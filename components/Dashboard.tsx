@@ -48,8 +48,8 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       const cRefs = safeRefunds.filter(ref => ref.creditId === credit.id);
       const cRefsTotal = cRefs.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
 
-      const balanceValue = (Number(credit.valueReceived) || 0) - (cCommsBruto - cCansTotal) - cRefsTotal;
-      const usedValue = cCommsBruto - cCansTotal;
+      const balanceValue = Number(((Number(credit.valueReceived) || 0) - (cCommsBruto - cCansTotal) - cRefsTotal).toFixed(2));
+      const usedValue = Number((cCommsBruto - cCansTotal).toFixed(2));
       const daysToDeadline = Math.ceil((parseLocalDate(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
 
       return { 
@@ -98,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const executionPercentage = summaryReceived > 0 ? (summaryCommitted / summaryReceived) * 100 : 0;
 
     const attentionNCs = localFiltered.filter(c => 
-      c.balanceValue > 0 && c.daysToDeadline <= 20
+      c.balanceValue >= 0.01 && c.daysToDeadline <= 20
     );
 
     const sectionMap: Record<string, { totalAvailable: number, pis: Record<string, number> }> = {};
