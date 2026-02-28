@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, AuditLog } from '../types';
-import { formatDateBR, parseLocalDate } from '../src/utils/dateUtils';
+import { formatDateBR, parseLocalDate } from '../utils/dateUtils';
 import FilterBar from './FilterBar';
 import CommitmentForm from './CommitmentForm';
 import CancellationForm from './CancellationForm';
