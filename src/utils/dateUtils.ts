@@ -1,25 +1,11 @@
-{
-  "name": "gestor-de-créditos-orçamentários",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "recharts": "^3.6.0",
-    "react-dom": "^19.2.3",
-    "lucide-react": "^0.562.0",
-    "react": "^19.2.3",
-    "@supabase/supabase-js": "2.45.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
-  }
-}
+export const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return "";
+  
+  // Se a data vier com o T00:00:00 ou espaço, pegamos apenas a parte YYYY-MM-DD
+  const pureDate = dateString.split('T')[0].split(' ')[0];
+  const [year, month, day] = pureDate.split('-');
+  
+  if (!year || !month || !day) return dateString;
+  
+  return `${day}/${month}/${year}`;
+};
