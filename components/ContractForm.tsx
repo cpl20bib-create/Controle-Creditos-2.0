@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Contract, ContractStatus, ContractType } from '../types';
-import { toLocalDateString } from '../src/utils/dateUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 import { Save, ArrowLeft, Briefcase, Building2, Landmark, Target, Calendar, UserCheck, FileText, AlertCircle, Clock, Tag, DollarSign, TrendingUp } from 'lucide-react';
 
 interface ContractFormProps {
