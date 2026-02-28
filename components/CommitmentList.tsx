@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Credit, Commitment, Refund, Cancellation, Filters, UserRole, AuditLog } from '../types';
+import { formatDateBR, parseLocalDate } from '../src/utils/dateUtils';
 import FilterBar from './FilterBar';
 import CommitmentForm from './CommitmentForm';
 import CancellationForm from './CancellationForm';
@@ -119,7 +120,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
         return (a.totalValue - b.totalValue) * order;
       }
       if (sortBy === 'date' || (sortBy as string) === 'created_at') {
-        return (new Date(a.date).getTime() - new Date(b.date).getTime()) * order;
+        return (parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()) * order;
       }
       return 0;
     });
@@ -240,7 +241,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
               return (
                 <tr key={group.ne} className={`transition-colors group ${isZero ? 'bg-slate-50/50 opacity-60 italic' : 'hover:bg-slate-50'}`}>
                   <td className="px-6 py-4">
-                    <div className="text-[10px] font-bold text-slate-400 mb-1">{new Date(group.date).toLocaleDateString('pt-BR')}</div>
+                    <div className="text-[10px] font-bold text-slate-400 mb-1">{formatDateBR(group.date)}</div>
                     <div className="font-black text-red-900 text-xs italic flex items-center gap-2">
                       {group.ne}
                       {isZero && <span className="text-[7px] bg-slate-200 text-slate-500 px-1 rounded not-italic tracking-widest font-black uppercase">Liquidado/Anulado</span>}
@@ -377,7 +378,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                  </div>
                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data Emissão</p>
-                    <p className="text-xl font-black text-slate-900">{new Date(selectedDetailItem.date).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xl font-black text-slate-900">{formatDateBR(selectedDetailItem.date)}</p>
                  </div>
                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 md:col-span-2">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo Líquido Remanescente</p>
