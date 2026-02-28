@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Credit, Commitment, Refund, Cancellation, Filters } from '../types';
-import { formatDateBR, parseLocalDate } from '../src/utils/dateUtils';
+import { formatDateBR, parseLocalDate } from '../utils/dateUtils';
 import { Landmark, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt, Zap, Layers, Calendar, Target } from 'lucide-react';
 import FilterBar from './FilterBar';
 
