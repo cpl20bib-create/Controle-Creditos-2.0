@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Credit, Commitment, Refund, Cancellation, UG } from '../types';
 import { Save, ArrowLeft, Landmark, Zap, AlertCircle, Calendar, FileText, CheckCircle2, Layers, Tag } from 'lucide-react';
 import { UGS } from '../constants';
+import { toLocalDateString, parseLocalDate } from '../src/utils/dateUtils';
 
 interface CommitmentFormProps {
   credits: Credit[];
@@ -35,7 +36,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     ne: initialData?.ne || '2026NE',
     totalValue: initialData?.value || 0,
     description: initialData?.description || '',
-    date: initialData?.date || new Date().toISOString().split('T')[0]
+    date: initialData?.date || toLocalDateString(new Date())
   });
 
   const [allocations, setAllocations] = useState<Record<string, number>>({});
@@ -85,7 +86,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
 
     // Ordenar créditos de cada célula por data (FIFO)
     Object.values(cellsMap).forEach(cell => {
-      cell.constituentCredits.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      cell.constituentCredits.sort((a, b) => parseLocalDate(a.created_at).getTime() - parseLocalDate(b.created_at).getTime());
     });
 
     return Object.values(cellsMap).sort((a, b) => a.pi.localeCompare(b.pi));
