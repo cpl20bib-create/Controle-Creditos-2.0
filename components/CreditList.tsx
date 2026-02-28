@@ -6,6 +6,7 @@ import CreditForm from './CreditForm';
 import RefundForm from './RefundForm';
 // Added History to the lucide-react imports to avoid conflict with global History interface
 import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout, Tag, ClipboardList, History } from 'lucide-react';
+import { formatDateBR, parseLocalDate } from '../src/utils/dateUtils';
 
 interface CreditListProps {
   credits: Credit[];
@@ -59,7 +60,7 @@ const CreditList: React.FC<CreditListProps> = ({
     const spent = (Number(credit.valueReceived) || 0) - balance;
     const total = Number(credit.valueReceived) || 1;
     const percentage = (spent / total) * 100;
-    const daysLeft = Math.ceil((new Date(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    const daysLeft = Math.ceil((parseLocalDate(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     
     return { percentage, daysLeft, balance };
   };
@@ -99,10 +100,10 @@ const CreditList: React.FC<CreditListProps> = ({
         return (Number(a.valueReceived) - Number(b.valueReceived)) * order;
       }
       if (sortBy === 'deadline') {
-        return (new Date(a.deadline).getTime() - new Date(b.deadline).getTime()) * order;
+        return (parseLocalDate(a.deadline).getTime() - parseLocalDate(b.deadline).getTime()) * order;
       }
       if (sortBy === 'created_at') {
-        return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * order;
+        return (parseLocalDate(a.created_at).getTime() - parseLocalDate(b.created_at).getTime()) * order;
       }
       return 0;
     });
@@ -263,13 +264,13 @@ const CreditList: React.FC<CreditListProps> = ({
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                        <Calendar size={12} className="text-emerald-500" /> Cadastro
                     </p>
-                    <p className="text-xs font-black text-slate-900">{new Date(selectedDetailCredit.created_at).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xs font-black text-slate-900">{formatDateBR(selectedDetailCredit.created_at)}</p>
                   </div>
                   <div className="p-5 bg-white rounded-xl border border-slate-100 shadow-sm">
                     <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                        <Clock size={12} className="text-red-500" /> Prazo Final
                     </p>
-                    <p className="text-xs font-black text-slate-900">{new Date(selectedDetailCredit.deadline).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xs font-black text-slate-900">{formatDateBR(selectedDetailCredit.deadline)}</p>
                   </div>
                   <div className="col-span-2 p-5 bg-slate-900 rounded-xl text-white shadow-xl">
                     <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Montante Total do Aporte</p>
@@ -339,7 +340,7 @@ const CreditList: React.FC<CreditListProps> = ({
                         <div key={alloc.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-red-50 shadow-sm group hover:border-red-200 transition-all">
                            <div>
                              <span className="text-[10px] font-black text-red-900 uppercase italic">NE {alloc.ne}</span>
-                             <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{new Date(alloc.date).toLocaleDateString('pt-BR')}</p>
+                             <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{formatDateBR(alloc.date)}</p>
                            </div>
                            <span className="text-xs font-black text-red-600">-{formatCurrency(alloc.value)}</span>
                         </div>
@@ -352,7 +353,7 @@ const CreditList: React.FC<CreditListProps> = ({
                         <div key={ref.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-amber-50 shadow-sm group hover:border-amber-200 transition-all">
                            <div>
                              <span className="text-[10px] font-black text-amber-800 uppercase italic">Recolhimento</span>
-                             <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{new Date(ref.date).toLocaleDateString('pt-BR')}</p>
+                             <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{formatDateBR(ref.date)}</p>
                            </div>
                            <span className="text-xs font-black text-amber-600">-{formatCurrency(ref.value)}</span>
                         </div>
