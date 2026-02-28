@@ -1,11 +1,13 @@
-export const formatDate = (dateString: string | null | undefined) => {
+export const formatDateBR = (dateString: string | null | undefined) => {
   if (!dateString) return "";
-  
-  // Se a data vier com o T00:00:00 ou espaço, pegamos apenas a parte YYYY-MM-DD
   const pureDate = dateString.split('T')[0].split(' ')[0];
   const [year, month, day] = pureDate.split('-');
-  
-  if (!year || !month || !day) return dateString;
-  
-  return `${day}/${month}/${year}`;
+  return (year && month && day) ? `${day}/${month}/${year}` : dateString;
+};
+
+export const parseLocalDate = (dateString: string | null | undefined) => {
+  if (!dateString) return null;
+  const parts = dateString.split('T')[0].split(' ')[0].split('-');
+  const [year, month, day] = parts.map(Number);
+  return new Date(year, month - 1, day);
 };
