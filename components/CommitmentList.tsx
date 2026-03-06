@@ -39,15 +39,20 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
-  // Agrupamento por NE para suportar visualização de múltiplas NCs por empenho
+  // Agrupamento por UG e NE para suportar visualização de múltiplas NCs por empenho sem misturar UGs
   const groupedCommitments = useMemo(() => {
     const safeCommitments = Array.isArray(commitments) ? commitments : [];
     const groups: Record<string, any> = {};
 
     safeCommitments.forEach(item => {
-      if (!groups[item.ne]) {
-        groups[item.ne] = {
+      const credit = (credits || []).find(c => c.id === item.creditId);
+      const ug = credit?.ug || '---';
+      const groupKey = `${ug}-${item.ne}`;
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
           ne: item.ne,
+          ug: ug,
           date: item.date,
           description: item.description,
           totalValue: 0,
@@ -55,11 +60,10 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
           allocations: []
         };
       }
-      groups[item.ne].totalValue += (Number(item.value) || 0);
-      groups[item.ne].ids.push(item.id);
+      groups[groupKey].totalValue += (Number(item.value) || 0);
+      groups[groupKey].ids.push(item.id);
       
-      const credit = (credits || []).find(c => c.id === item.creditId);
-      groups[item.ne].allocations.push({
+      groups[groupKey].allocations.push({
         id: item.id,
         creditId: item.creditId,
         nc: credit?.nc || '---',
@@ -83,7 +87,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
       
       const currentBalance = group.totalValue - cancelledValue;
       
-      // Pegamos o primeiro crédito para filtros básicos
+      // Pegamos o primeiro crédito para filtros básicos (UG já está no grupo agora)
       const firstAllocation = group.allocations[0];
       const firstCredit = safeCredits.find(c => c.id === firstAllocation?.creditId) || null;
       
@@ -93,9 +97,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                           group.ne.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           group.allocations.some((a: any) => a.nc.toLowerCase().includes(searchTerm.toLowerCase()));
       
-      if (!group.firstCredit && filters.ug) return false;
-
-      const matchUg = !filters.ug || group.firstCredit?.ug === filters.ug;
+      const matchUg = !filters.ug || group.ug === filters.ug;
       const matchPi = !filters.pi || group.firstCredit?.pi === filters.pi;
       const matchNd = !filters.nd || group.firstCredit?.nd === filters.nd;
       const matchSection = !filters.section || group.firstCredit?.section === filters.section;
@@ -129,8 +131,8 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
   }, [groupedCommitments, credits, searchTerm, filters, cancellations]);
 
   const selectedDetailItem = useMemo(() => {
-    // Para o detalhe, buscamos pelo primeiro ID do grupo se o ID clicado for um NE
-    const group = groupedCommitments.find(g => g.ids.includes(detailItemId) || g.ne === detailItemId);
+    // Para o detalhe, buscamos pelo grupo que contém o ID ou a chave UG-NE
+    const group = groupedCommitments.find(g => g.ids.includes(detailItemId) || `${g.ug}-${g.ne}` === detailItemId);
     if (!group) return null;
     
     const firstId = group.ids[0];
@@ -239,10 +241,11 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
             {filteredAndSortedItems.length > 0 ? filteredAndSortedItems.map((group) => {
               const isZero = group.currentBalance < 0.01;
               return (
-                <tr key={group.ne} className={`transition-colors group ${isZero ? 'bg-slate-50/50 opacity-60 italic' : 'hover:bg-slate-50'}`}>
+                <tr key={`${group.ug}-${group.ne}`} className={`transition-colors group ${isZero ? 'bg-slate-50/50 opacity-60 italic' : 'hover:bg-slate-50'}`}>
                   <td className="px-6 py-4">
                     <div className="text-[10px] font-bold text-slate-400 mb-1">{formatDateBR(group.date)}</div>
-                    <div className="font-black text-red-900 text-xs italic flex items-center gap-2">
+                    <div className="font-black text-red-900 text-xs italic flex items-center gap-2 flex-wrap">
+                      <span className="bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded not-italic font-black uppercase tracking-tighter">UG {group.ug}</span>
                       {group.ne}
                       {isZero && <span className="text-[7px] bg-slate-200 text-slate-500 px-1 rounded not-italic tracking-widest font-black uppercase">Liquidado/Anulado</span>}
                     </div>
@@ -267,7 +270,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                   <td className={`px-6 py-4 text-right font-black text-xs ${isZero ? 'text-slate-400' : 'text-red-700'}`}>{formatCurrency(group.currentBalance)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-1.5 transition-all">
-                      <button onClick={() => setDetailItemId(group.ne)} className="p-1.5 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-700 rounded-lg transition-all" title="Ver Detalhes"><Info size={14} /></button>
+                      <button onClick={() => setDetailItemId(`${group.ug}-${group.ne}`)} className="p-1.5 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-700 rounded-lg transition-all" title="Ver Detalhes"><Info size={14} /></button>
                       {canEdit && (
                         <>
                           <button onClick={() => { 
