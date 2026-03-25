@@ -40,6 +40,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
   });
 
   const [allocations, setAllocations] = useState<Record<string, number>>({});
+  const [selectedNcIds, setSelectedNcIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Helper para cálculo de saldo individual de uma NC
@@ -107,17 +108,20 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     if (selectedCell && formData.totalValue > 0) {
       let remaining = formData.totalValue;
       const newAllocations: Record<string, number> = {};
+      const newSelectedIds: string[] = [];
 
       for (const nc of selectedCell.constituentCredits) {
         if (remaining <= 0) break;
         const toTake = Math.min(nc.realBalance, remaining);
         if (toTake > 0) {
           newAllocations[nc.id] = parseFloat(toTake.toFixed(2));
+          newSelectedIds.push(nc.id);
           remaining -= toTake;
         }
       }
       
       setAllocations(newAllocations);
+      setSelectedNcIds(newSelectedIds);
       
       if (remaining > 0.01) {
         setError(`Saldo insuficiente na célula. Faltam R$ ${remaining.toLocaleString('pt-BR')}`);
@@ -126,8 +130,49 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
       }
     } else {
       setAllocations({});
+      setSelectedNcIds([]);
     }
   }, [formData.totalValue, selectedCell]);
+
+  const selectedNotesBalance = useMemo(() => {
+    if (!selectedCell) return 0;
+    return selectedCell.constituentCredits
+      .filter(nc => selectedNcIds.includes(nc.id))
+      .reduce((acc, nc) => acc + nc.realBalance, 0);
+  }, [selectedCell, selectedNcIds]);
+
+  const isBalanceInsufficient = selectedCell && formData.totalValue > 0 && selectedNotesBalance < formData.totalValue;
+
+  const handleToggleNc = (ncId: string) => {
+    setSelectedNcIds(prev => {
+      if (prev.includes(ncId)) {
+        setAllocations(curr => {
+          const next = { ...curr };
+          delete next[ncId];
+          return next;
+        });
+        return prev.filter(id => id !== ncId);
+      } else {
+        return [...prev, ncId];
+      }
+    });
+  };
+
+  const handleManualAllocation = (ncId: string, value: number) => {
+    const nc = selectedCell?.constituentCredits.find(c => c.id === ncId);
+    if (!nc) return;
+
+    const safeValue = Math.max(0, Math.min(nc.realBalance, value));
+    
+    setAllocations(prev => ({
+      ...prev,
+      [ncId]: parseFloat(safeValue.toFixed(2))
+    }));
+
+    if (safeValue > 0 && !selectedNcIds.includes(ncId)) {
+      setSelectedNcIds(prev => [...prev, ncId]);
+    }
+  };
 
   // Fix: Explicitly cast Object.values to number[] to resolve unknown type errors in reduce and subsequent arithmetic operations
   const currentAllocatedSum = (Object.values(allocations) as number[]).reduce((a, b) => a + b, 0);
@@ -141,8 +186,13 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
       return;
     }
 
+    if (isBalanceInsufficient) {
+      setError("Saldo insuficiente nas notas selecionadas.");
+      return;
+    }
+
     if (Math.abs(currentAllocatedSum - formData.totalValue) > 0.01) {
-      setError("A distribuição do saldo está incompleta ou excede o disponível.");
+      setError("A distribuição do saldo está incompleta ou excede o valor total do empenho.");
       return;
     }
 
@@ -190,10 +240,10 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-10">
-          {error && (
+          {(error || isBalanceInsufficient) && (
             <div className="p-5 bg-red-50 text-red-700 rounded-2xl border border-red-100 font-black text-[11px] uppercase flex items-center gap-4 animate-shake shadow-sm">
               <AlertCircle size={24} />
-              {error}
+              {isBalanceInsufficient ? "Saldo insuficiente nas notas selecionadas para cobrir o valor total." : error}
             </div>
           )}
 
@@ -286,35 +336,64 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
                 <div className="flex items-center justify-between mb-8 border-b border-slate-200 pb-4">
                    <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
-                      Execução FIFO (Distribuição Automática)
+                      Distribuição de Saldo (FIFO ou Manual)
                    </h3>
-                   {selectedCell && <span className="text-[10px] font-black text-slate-400 uppercase bg-white px-3 py-1 rounded-full border border-slate-100">{selectedCell.constituentCredits.length} Notas</span>}
+                   {selectedCell && (
+                     <div className="flex items-center gap-4">
+                        <span className="text-[10px] font-black text-slate-400 uppercase bg-white px-3 py-1 rounded-full border border-slate-100">{selectedNcIds.length} Selecionadas</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase bg-white px-3 py-1 rounded-full border border-slate-100">{selectedCell.constituentCredits.length} Disponíveis</span>
+                     </div>
+                   )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-4 pr-3 custom-scrollbar">
-                   {selectedCell ? selectedCell.constituentCredits.map((nc, idx) => (
-                     <div key={nc.id} className={`bg-white p-5 rounded-2xl border transition-all ${allocations[nc.id] ? 'border-emerald-500 shadow-lg' : 'border-slate-100 opacity-60'}`}>
-                        <div className="flex justify-between items-start mb-3">
-                           <div>
-                              <div className="flex items-center gap-2">
-                                 <p className="text-[11px] font-black text-slate-900 uppercase italic leading-none">{nc.nc}</p>
-                                 <span className="text-[7px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-black uppercase">Fila {idx + 1}</span>
-                              </div>
-                              <p className="text-[8px] font-bold text-slate-400 mt-2 uppercase">Saldo: {formatCurrency(nc.realBalance)}</p>
-                           </div>
-                           <div className="text-right">
-                              <p className="text-[9px] font-black text-emerald-600 uppercase">Consumo</p>
-                              <p className="text-sm font-black text-emerald-700">{formatCurrency(allocations[nc.id] || 0)}</p>
-                           </div>
-                        </div>
-                        <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                           <div 
-                              className="h-full bg-emerald-500 transition-all duration-700" 
-                              style={{ width: `${Math.min(100, ((allocations[nc.id] || 0) / nc.realBalance) * 100)}%` }}
-                           ></div>
-                        </div>
-                     </div>
-                   )) : (
+                   {selectedCell ? selectedCell.constituentCredits.map((nc, idx) => {
+                     const isSelected = selectedNcIds.includes(nc.id);
+                     const allocatedValue = allocations[nc.id] || 0;
+                     
+                     return (
+                       <div key={nc.id} className={`bg-white p-5 rounded-2xl border transition-all ${isSelected ? 'border-emerald-500 shadow-lg' : 'border-slate-100 opacity-60'}`}>
+                          <div className="flex justify-between items-start mb-3">
+                             <div className="flex items-start gap-3">
+                                <input 
+                                  type="checkbox"
+                                  className="mt-1 w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                  checked={isSelected}
+                                  onChange={() => handleToggleNc(nc.id)}
+                                />
+                                <div>
+                                   <div className="flex items-center gap-2">
+                                      <p className="text-[11px] font-black text-slate-900 uppercase italic leading-none">{nc.nc}</p>
+                                      <span className="text-[7px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-black uppercase">Fila {idx + 1}</span>
+                                   </div>
+                                   <p className="text-[8px] font-bold text-slate-400 mt-2 uppercase">Saldo: {formatCurrency(nc.realBalance)}</p>
+                                </div>
+                             </div>
+                             <div className="text-right">
+                                <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Consumo</p>
+                                <div className="relative">
+                                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">R$</span>
+                                   <input 
+                                     type="number"
+                                     step="0.01"
+                                     className="w-28 bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2 py-1 text-xs font-black text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                     value={allocatedValue || ''}
+                                     onChange={(e) => handleManualAllocation(nc.id, parseFloat(e.target.value) || 0)}
+                                     placeholder="0,00"
+                                     disabled={!isSelected}
+                                   />
+                                </div>
+                             </div>
+                          </div>
+                          <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                             <div 
+                                className="h-full bg-emerald-500 transition-all duration-700" 
+                                style={{ width: `${Math.min(100, (allocatedValue / nc.realBalance) * 100)}%` }}
+                             ></div>
+                          </div>
+                       </div>
+                     );
+                   }) : (
                      <div className="h-full flex flex-col items-center justify-center opacity-20 text-center px-12">
                         <Tag size={64} className="mb-6 text-slate-400" />
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">
@@ -354,7 +433,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
           <button 
             type="submit" 
             className="w-full py-7 bg-red-700 hover:bg-red-800 text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] shadow-2xl flex items-center justify-center gap-4 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={formData.totalValue <= 0 || Math.abs(currentAllocatedSum - formData.totalValue) > 0.01}
+            disabled={formData.totalValue <= 0 || Math.abs(currentAllocatedSum - formData.totalValue) > 0.01 || isBalanceInsufficient}
           >
             <Save size={24} /> Efetivar Empenho Consolidado
           </button>
