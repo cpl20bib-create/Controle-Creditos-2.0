@@ -65,6 +65,12 @@ const CreditList: React.FC<CreditListProps> = ({
     return { percentage, daysLeft, balance };
   };
 
+  const handleSort = (field: any) => {
+    const isSameField = filters.sortBy === field;
+    const newOrder = isSameField && filters.sortOrder === 'asc' ? 'desc' : 'asc';
+    setFilters({ ...filters, sortBy: field, sortOrder: newOrder });
+  };
+
   const filteredAndSortedCredits = useMemo(() => {
     const safeCredits = Array.isArray(credits) ? credits : [];
     
@@ -104,6 +110,12 @@ const CreditList: React.FC<CreditListProps> = ({
       }
       if (sortBy === 'created_at') {
         return (parseLocalDate(a.created_at).getTime() - parseLocalDate(b.created_at).getTime()) * order;
+      }
+      if (sortBy === 'nc') {
+        return a.nc.localeCompare(b.nc) * order;
+      }
+      if (sortBy === 'balance') {
+        return (a.info.balance - b.info.balance) * order;
       }
       return 0;
     });
@@ -161,10 +173,35 @@ const CreditList: React.FC<CreditListProps> = ({
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Status / Nota de Crédito</th>
+              <th 
+                className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-emerald-600 transition-colors"
+                onClick={() => handleSort('nc')}
+              >
+                <div className="flex items-center gap-1">
+                  Status / Nota de Crédito
+                  {filters.sortBy === 'nc' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Descrição</th>
               <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Valor Original</th>
-              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Execução</th>
-              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo da NC</th>
+              <th 
+                className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-emerald-600 transition-colors"
+                onClick={() => handleSort('deadline')}
+              >
+                <div className="flex items-center gap-1">
+                  Execução / Prazo
+                  {filters.sortBy === 'deadline' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-emerald-600 transition-colors text-right"
+                onClick={() => handleSort('balance')}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Saldo da NC
+                  {filters.sortBy === 'balance' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
               <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase text-center">Ações</th>
             </tr>
           </thead>
@@ -191,6 +228,11 @@ const CreditList: React.FC<CreditListProps> = ({
                         </div>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-[10px] font-medium text-slate-600 line-clamp-2 max-w-[200px]" title={credit.description}>
+                      {credit.description || <span className="text-slate-300 italic">Sem descrição</span>}
+                    </p>
                   </td>
                   <td className="px-6 py-4 text-right text-xs font-bold text-slate-400">{formatCurrency(credit.valueReceived)}</td>
                   <td className="px-6 py-4 min-w-[140px]">
