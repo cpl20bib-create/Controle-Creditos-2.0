@@ -76,7 +76,7 @@ export interface Contract {
   created_at?: string;
 }
 
-export type SortField = 'valueReceived' | 'value' | 'date' | 'deadline' | 'created_at';
+export type SortField = 'valueReceived' | 'value' | 'date' | 'deadline' | 'created_at' | 'nc' | 'ne' | 'balance';
 export type SortOrder = 'asc' | 'desc';
 
 export interface Filters {
