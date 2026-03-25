@@ -216,6 +216,7 @@ const CreditList: React.FC<CreditListProps> = ({
                       <div className={`w-1.5 h-10 rounded-full ${isZero ? 'bg-slate-300' : info.daysLeft < 0 ? 'bg-red-500' : info.daysLeft < 10 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
                       <div>
                         <div className={`font-black text-xs italic flex items-center gap-2 ${isZero ? 'text-slate-400' : 'text-emerald-800'}`}>
+                          <span className="bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded not-italic font-black uppercase tracking-tighter w-fit">UG {credit.ug}</span>
                           {credit.nc}
                           {!isZero && info.daysLeft <= 15 && info.daysLeft >= 0 && <Clock size={12} className="text-amber-500 animate-pulse" />}
                           {!isZero && info.daysLeft < 0 && <AlertCircle size={12} className="text-red-500" />}
