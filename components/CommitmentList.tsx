@@ -30,9 +30,15 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
   const [detailCreditId, setDetailCreditId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({
-    sortBy: 'date',
-    sortOrder: 'desc'
+    sortBy: 'ne',
+    sortOrder: 'asc'
   });
+
+  const handleSort = (field: any) => {
+    const isSameField = filters.sortBy === field;
+    const newOrder = isSameField && filters.sortOrder === 'asc' ? 'desc' : 'asc';
+    setFilters({ ...filters, sortBy: field, sortOrder: newOrder });
+  };
 
   const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR';
 
@@ -123,6 +129,9 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
       }
       if (sortBy === 'date' || (sortBy as string) === 'created_at') {
         return (parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()) * order;
+      }
+      if (sortBy === 'ne') {
+        return a.ne.localeCompare(b.ne) * order;
       }
       return 0;
     });
@@ -230,9 +239,34 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Data / NE</th>
-              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Dotação (NCs Utilizadas)</th>
-              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Valor Total NE</th>
+              <th 
+                className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-red-700 transition-colors"
+                onClick={() => handleSort('date')}
+              >
+                <div className="flex items-center gap-1">
+                  UG / Data
+                  {filters.sortBy === 'date' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-red-700 transition-colors"
+                onClick={() => handleSort('ne')}
+              >
+                <div className="flex items-center gap-1">
+                  Número (NE)
+                  {filters.sortBy === 'ne' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Dotação (NCs)</th>
+              <th 
+                className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right cursor-pointer hover:text-red-700 transition-colors"
+                onClick={() => handleSort('value')}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Valor Total
+                  {filters.sortBy === 'value' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
               <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo Líquido</th>
               <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
             </tr>
@@ -243,9 +277,13 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
               return (
                 <tr key={`${group.ug}-${group.ne}`} className={`transition-colors group ${isZero ? 'bg-slate-50/50 opacity-60 italic' : 'hover:bg-slate-50'}`}>
                   <td className="px-6 py-4">
-                    <div className="text-[10px] font-bold text-slate-400 mb-1">{formatDateBR(group.date)}</div>
+                    <div className="flex flex-col gap-1">
+                      <span className="bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded not-italic font-black uppercase tracking-tighter w-fit">UG {group.ug}</span>
+                      <div className="text-[10px] font-bold text-slate-400">{formatDateBR(group.date)}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
                     <div className="font-black text-red-900 text-xs italic flex items-center gap-2 flex-wrap">
-                      <span className="bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded not-italic font-black uppercase tracking-tighter">UG {group.ug}</span>
                       {group.ne}
                       {isZero && <span className="text-[7px] bg-slate-200 text-slate-500 px-1 rounded not-italic tracking-widest font-black uppercase">Liquidado/Anulado</span>}
                     </div>
