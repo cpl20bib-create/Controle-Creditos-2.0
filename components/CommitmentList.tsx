@@ -236,7 +236,8 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
       <FilterBar filters={filters} setFilters={setFilters} credits={credits} />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[900px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th 
@@ -327,6 +328,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Modal de Detalhes da NC (Aberto via cliques na listagem de empenhos) */}
