@@ -190,6 +190,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
           setActiveView('list');
           setEditingItem(null);
         }}
+        onDelete={onDelete}
         onCancel={() => {
           setActiveView('list');
           setEditingItem(null);
