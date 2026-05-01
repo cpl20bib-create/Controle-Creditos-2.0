@@ -10,6 +10,7 @@ interface CommitmentFormProps {
   refunds: Refund[];
   cancellations: Cancellation[];
   onSave: (commitment: Commitment) => void;
+  onDelete?: (id: string) => void;
   onCancel: () => void;
   initialData?: Commitment;
 }
@@ -28,24 +29,28 @@ interface BudgetCell {
 }
 
 const CommitmentForm: React.FC<CommitmentFormProps> = ({ 
-  credits, commitments, refunds, cancellations, onSave, onCancel, initialData 
+  credits, commitments, refunds, cancellations, onSave, onDelete, onCancel, initialData 
 }) => {
   const [formData, setFormData] = useState({
     ug: '' as UG | '',
     cellId: '', // ID da célula selecionada
     ne: initialData?.ne || '2026NE',
-    totalValue: initialData?.value || 0,
+    totalValue: 0, // Será inicializado no useEffect
     description: initialData?.description || '',
     date: initialData?.date || toLocalDateString(new Date())
   });
 
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [selectedNcIds, setSelectedNcIds] = useState<string[]>([]);
+  const [originalCommitments, setOriginalCommitments] = useState<Commitment[]>([]);
+  const [skipAutoDist, setSkipAutoDist] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Helper para cálculo de saldo individual de uma NC
-  const getNCBalance = useCallback((credit: Credit) => {
-    const totalSpent = commitments.filter(com => com.creditId === credit.id).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+  const getNCBalance = useCallback((credit: Credit, excludeCommitmentIds: string[] = []) => {
+    const totalSpent = commitments
+      .filter(com => com.creditId === credit.id && !excludeCommitmentIds.includes(com.id))
+      .reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
     const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
     const totalCancelled = cancellations.reduce((acc, can) => {
       const com = commitments.find(c => c.id === can.commitmentId);
@@ -54,17 +59,62 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     return Number(credit.valueReceived) - totalSpent - totalRefunded + totalCancelled;
   }, [commitments, refunds, cancellations]);
 
+  // Inicialização em caso de Edição
+  useEffect(() => {
+    if (initialData && credits.length > 0) {
+      const credit = credits.find(c => c.id === initialData.creditId);
+      if (credit) {
+        setSkipAutoDist(true);
+        // Encontra todos os empenhos da mesma NE e mesma UG/Célula
+        const related = commitments.filter(c => {
+          const cCredit = credits.find(cr => cr.id === c.creditId);
+          return c.ne === initialData.ne && cCredit?.ug === credit.ug;
+        });
+
+        const totalValueValue = related.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+        const cellKey = `${credit.pi}-${credit.nd}-${credit.fonte}-${credit.ptres}-${credit.esfera}-${credit.ugr}`;
+        
+        const initialAllocations: Record<string, number> = {};
+        const initialSelectedNcIds: string[] = [];
+        related.forEach(r => {
+          initialAllocations[r.creditId] = Number(r.value) || 0;
+          initialSelectedNcIds.push(r.creditId);
+        });
+
+        setFormData({
+          ug: credit.ug as UG,
+          cellId: cellKey,
+          ne: initialData.ne,
+          totalValue: totalValueValue,
+          description: initialData.description || '',
+          date: initialData.date || toLocalDateString(new Date())
+        });
+        setOriginalCommitments(related);
+        setAllocations(initialAllocations);
+        setSelectedNcIds(initialSelectedNcIds);
+      }
+    } else if (!initialData) {
+      // Setup padrão para novo
+      setSkipAutoDist(false);
+      setFormData(prev => ({ ...prev, totalValue: 0 }));
+      setAllocations({});
+      setSelectedNcIds([]);
+      setOriginalCommitments([]);
+    }
+  }, [initialData, credits, commitments]);
+
   // Agrupamento por Células Orçamentárias
   const budgetCells = useMemo(() => {
     if (!formData.ug) return [];
 
     const cellsMap: Record<string, BudgetCell> = {};
+    const excludeIds = originalCommitments.map(c => c.id);
 
     credits.filter(c => c.ug === formData.ug).forEach(credit => {
-      const realBalance = getNCBalance(credit);
+      // Ao editar, o saldo disponível deve INCLUIR o valor já empenhado pelos registros que estamos editando
+      const realBalance = getNCBalance(credit, excludeIds);
       if (realBalance <= 0.01) return;
 
-      // Chave Única da Célula (PI + ND + FONTE + PTRES + ESFERA + UGR)
       const cellKey = `${credit.pi}-${credit.nd}-${credit.fonte}-${credit.ptres}-${credit.esfera}-${credit.ugr}`;
 
       if (!cellsMap[cellKey]) {
@@ -105,6 +155,11 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
 
   // Auto-distribuição FIFO baseada no valor total
   useEffect(() => {
+    if (skipAutoDist) {
+      setSkipAutoDist(false);
+      return;
+    }
+
     if (selectedCell && formData.totalValue > 0) {
       let remaining = formData.totalValue;
       const newAllocations: Record<string, number> = {};
@@ -202,11 +257,26 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     }
 
     // Persistência: Cria um registro para cada NC consumida (mesma NE)
-    // Fix: Explicitly cast Object.entries to resolve unknown type error on 'value'
-    (Object.entries(allocations) as [string, number][]).forEach(([ncId, value]) => {
+    const newAllocEntries = Object.entries(allocations) as [string, number][];
+    const newAllocatedNcIds = newAllocEntries.filter(([_, value]) => value > 0).map(([ncId]) => ncId);
+
+    // 1. Deleta os que não existem mais nesta nova configuração
+    if (onDelete) {
+      originalCommitments.forEach(oldCom => {
+        if (!newAllocatedNcIds.includes(oldCom.creditId)) {
+          onDelete(oldCom.id);
+        }
+      });
+    }
+
+    // 2. Salva (Cria ou Atualiza) conforme a nova configuração
+    newAllocEntries.forEach(([ncId, value]) => {
       if (value > 0) {
+        // Busca se já existia um empenho para esta NC nesta NE
+        const existing = originalCommitments.find(c => c.creditId === ncId);
+        
         onSave({
-          id: Math.random().toString(36).substr(2, 9),
+          id: existing ? existing.id : Math.random().toString(36).substr(2, 9),
           ne: formData.ne.toUpperCase(),
           creditId: ncId,
           value: value,
