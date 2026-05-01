@@ -141,17 +141,25 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     });
 
     return Object.values(cellsMap).sort((a, b) => a.pi.localeCompare(b.pi));
-  }, [credits, formData.ug, getNCBalance]);
+  }, [credits, formData.ug, getNCBalance, originalCommitments]);
 
   const selectedCell = useMemo(() => 
     budgetCells.find(c => c.id === formData.cellId), [budgetCells, formData.cellId]
   );
 
-  // Resetar seleções ao mudar UG
-  useEffect(() => {
-    setFormData(prev => ({ ...prev, cellId: '', totalValue: 0 }));
-    setAllocations({});
-  }, [formData.ug]);
+  // Resetar seleções ao mudar UG manualmente
+  const handleUgChange = (newUg: UG | '') => {
+    setFormData(prev => ({ 
+      ...prev, 
+      ug: newUg, 
+      cellId: '', 
+      totalValue: prev.ug === newUg ? prev.totalValue : 0 
+    }));
+    if (formData.ug !== newUg) {
+      setAllocations({});
+      setSelectedNcIds([]);
+    }
+  };
 
   // Auto-distribuição FIFO baseada no valor total
   useEffect(() => {
@@ -323,7 +331,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
                 <select 
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-xs font-bold focus:ring-2 focus:ring-red-500 outline-none transition-all" 
                   value={formData.ug} 
-                  onChange={e => setFormData({...formData, ug: e.target.value as UG})}
+                  onChange={e => handleUgChange(e.target.value as UG)}
                 >
                   <option value="">Selecione a UG</option>
                   {UGS.map(ug => <option key={ug} value={ug}>{ug}</option>)}
