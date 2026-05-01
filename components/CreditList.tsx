@@ -5,7 +5,7 @@ import FilterBar from './FilterBar';
 import CreditForm from './CreditForm';
 import RefundForm from './RefundForm';
 // Added History to the lucide-react imports to avoid conflict with global History interface
-import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout, Tag, ClipboardList, History } from 'lucide-react';
+import { Search, Calendar, PlusCircle, MinusCircle, Edit3, Trash2, Info, X, Landmark, Info as InfoIcon, AlertCircle, Clock, Building2, UserCircle, Layout, Tag, ClipboardList, History, FileSpreadsheet } from 'lucide-react';
 import { formatDateBR, parseLocalDate } from '../utils/dateUtils';
 
 interface CreditListProps {
@@ -129,6 +129,89 @@ const CreditList: React.FC<CreditListProps> = ({
     setShowCreditForm(true);
   };
 
+  const exportToCSV = () => {
+    // 1. Group by PI and ND
+    const groups: Record<string, {
+      pi: string;
+      nd: string;
+      section: string;
+      totalReceived: number;
+      totalBalance: number;
+      items: Credit[];
+    }> = {};
+
+    filteredAndSortedCredits.forEach(credit => {
+      const key = `${credit.pi}-${credit.nd}`;
+      if (!groups[key]) {
+        groups[key] = {
+          pi: credit.pi,
+          nd: credit.nd,
+          section: credit.section,
+          totalReceived: 0,
+          totalBalance: 0,
+          items: []
+        };
+      }
+      
+      const info = getExecutionInfo(credit);
+      groups[key].totalReceived += Number(credit.valueReceived) || 0;
+      groups[key].totalBalance += info.balance;
+      groups[key].items.push(credit);
+    });
+
+    // 2. Format data for export
+    const exportData = Object.values(groups).map(group => {
+      const status = group.totalBalance >= (group.totalReceived * 0.9) ? "Em Tela" : "Saldo Residual";
+      
+      // Get longest (latest) deadline
+      const longestDeadline = group.items.reduce((latest, current) => {
+        return parseLocalDate(current.deadline) > parseLocalDate(latest.deadline) ? current : latest;
+      }).deadline;
+
+      // Description of the "last received" credit (latest created_at)
+      const lastCredit = group.items.reduce((latest, current) => {
+        const dateLatest = parseLocalDate(latest.created_at);
+        const dateCurrent = parseLocalDate(current.created_at);
+        return dateCurrent > dateLatest ? current : latest;
+      });
+      const finalidade = lastCredit.description || "Não informada";
+
+      return {
+        Saldo: group.totalBalance.toFixed(2),
+        Seção: group.section,
+        Status: status,
+        Prazo: formatDateBR(longestDeadline),
+        Finalidade: finalidade.replace(/\n/g, ' ').replace(/;/g, ',')
+      };
+    });
+
+    // 3. Create CSV content
+    const headers = ["Saldo", "Seção", "Status", "Prazo", "Finalidade"];
+    const csvRows = [
+      headers.join(";"),
+      ...exportData.map(row => [
+        row.Saldo.replace('.', ','),
+        `"${row.Seção.replace(/"/g, '""')}"`,
+        row.Status,
+        row.Prazo,
+        `"${row.Finalidade.replace(/"/g, '""')}"`
+      ].join(";"))
+    ];
+    
+    const csvString = csvRows.join("\n");
+
+    // 4. Trigger download
+    const blob = new Blob(["\uFEFF" + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Export_Geral_Creditos_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (showCreditForm) {
     return (
       <CreditForm onSave={(c) => { if (editingCredit) onUpdateCredit(c); else onAddCredit(c); setShowCreditForm(false); setEditingCredit(null); }} existingCredits={credits} onCancel={() => { setShowCreditForm(false); setEditingCredit(null); }} initialData={editingCredit || undefined} />
@@ -155,6 +238,7 @@ const CreditList: React.FC<CreditListProps> = ({
           <div className="flex items-center gap-3">
             <button onClick={() => { setEditingCredit(null); setShowCreditForm(true); }} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg transition-all tracking-widest"><PlusCircle size={16} /> Novo Crédito</button>
             <button onClick={() => setShowRefundForm(true)} className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg transition-all tracking-widest"><MinusCircle size={16} /> Novo Recolhimento</button>
+            <button onClick={exportToCSV} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg transition-all tracking-widest"><FileSpreadsheet size={16} /> Exportar Tabela</button>
           </div>
         ) : (
           <div className="flex items-center gap-3 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200">
