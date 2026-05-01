@@ -160,37 +160,49 @@ const CreditList: React.FC<CreditListProps> = ({
     });
 
     // 2. Format data for export
-    const exportData = Object.values(groups).map(group => {
-      const status = group.totalBalance >= (group.totalReceived * 0.9) ? "Em Tela" : "Saldo Residual";
-      
-      // Get longest (latest) deadline
-      const longestDeadline = group.items.reduce((latest, current) => {
-        return parseLocalDate(current.deadline) > parseLocalDate(latest.deadline) ? current : latest;
-      }).deadline;
+    const exportData = Object.values(groups)
+      .filter(group => group.totalBalance >= 0.01)
+      .map(group => {
+        const status = group.totalBalance >= (group.totalReceived * 0.9) ? "Em Tela" : "Saldo Residual";
+        
+        // Get longest (latest) deadline
+        const longestDeadline = group.items.reduce((latest, current) => {
+          const dl = parseLocalDate(current.deadline);
+          const ll = parseLocalDate(latest.deadline);
+          if (!dl) return latest;
+          if (!ll) return current;
+          return dl > ll ? current : latest;
+        }).deadline;
 
-      // Description of the "last received" credit (latest created_at)
-      const lastCredit = group.items.reduce((latest, current) => {
-        const dateLatest = parseLocalDate(latest.created_at);
-        const dateCurrent = parseLocalDate(current.created_at);
-        return dateCurrent > dateLatest ? current : latest;
+        // Description of the "last received" credit (latest created_at)
+        const lastCredit = group.items.reduce((latest, current) => {
+          const dl = parseLocalDate(latest.created_at);
+          const cl = parseLocalDate(current.created_at);
+          if (!cl) return latest;
+          if (!dl) return current;
+          return cl > dl ? current : latest;
+        });
+        const finalidade = lastCredit.description || "Não informada";
+
+        // Format Deadline to DD/MM
+        const deadlineParts = longestDeadline.split('T')[0].split(' ')[0].split('-');
+        const formattedDeadline = deadlineParts.length === 3 ? `${deadlineParts[2]}/${deadlineParts[1]}` : "";
+
+        return {
+          Saldo: formatCurrency(group.totalBalance),
+          Seção: group.section,
+          Status: status,
+          Prazo: formattedDeadline,
+          Finalidade: finalidade.replace(/\n/g, ' ').replace(/;/g, ',')
+        };
       });
-      const finalidade = lastCredit.description || "Não informada";
-
-      return {
-        Saldo: group.totalBalance.toFixed(2),
-        Seção: group.section,
-        Status: status,
-        Prazo: formatDateBR(longestDeadline),
-        Finalidade: finalidade.replace(/\n/g, ' ').replace(/;/g, ',')
-      };
-    });
 
     // 3. Create CSV content
     const headers = ["Saldo", "Seção", "Status", "Prazo", "Finalidade"];
     const csvRows = [
       headers.join(";"),
       ...exportData.map(row => [
-        row.Saldo.replace('.', ','),
+        `"${row.Saldo}"`,
         `"${row.Seção.replace(/"/g, '""')}"`,
         row.Status,
         row.Prazo,
