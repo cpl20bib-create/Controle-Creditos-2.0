@@ -130,83 +130,105 @@ const CreditList: React.FC<CreditListProps> = ({
   };
 
   const exportToCSV = () => {
-    // 1. Group by PI and ND
+    // 1. Group by Section and PI (only credits with balance > 0)
     const groups: Record<string, {
-      pi: string;
-      nd: string;
       section: string;
+      pi: string;
       totalReceived: number;
+      totalUsed: number;
       totalBalance: number;
       items: Credit[];
     }> = {};
 
     filteredAndSortedCredits.forEach(credit => {
-      const key = `${credit.pi}-${credit.nd}`;
+      const info = getExecutionInfo(credit);
+      
+      // Filter out credits with 0 or negative balance
+      if (info.balance < 0.01) return;
+
+      const key = `${credit.section}-${credit.pi}`;
       if (!groups[key]) {
         groups[key] = {
-          pi: credit.pi,
-          nd: credit.nd,
           section: credit.section,
+          pi: credit.pi,
           totalReceived: 0,
+          totalUsed: 0,
           totalBalance: 0,
           items: []
         };
       }
       
-      const info = getExecutionInfo(credit);
-      groups[key].totalReceived += Number(credit.valueReceived) || 0;
+      const received = Number(credit.valueReceived) || 0;
+      groups[key].totalReceived += received;
+      groups[key].totalUsed += (received - info.balance);
       groups[key].totalBalance += info.balance;
       groups[key].items.push(credit);
     });
 
     // 2. Format data for export
-    const exportData = Object.values(groups)
-      .filter(group => group.totalBalance >= 0.01)
-      .map(group => {
-        const status = group.totalBalance >= (group.totalReceived * 0.9) ? "Em Tela" : "Saldo Residual";
-        
-        // Get longest (latest) deadline
-        const longestDeadline = group.items.reduce((latest, current) => {
-          const dl = parseLocalDate(current.deadline);
-          const ll = parseLocalDate(latest.deadline);
-          if (!dl) return latest;
-          if (!ll) return current;
-          return dl > ll ? current : latest;
-        }).deadline;
+    const exportData = Object.values(groups).map(group => {
+      // Get longest (latest) deadline
+      const longestDeadline = group.items.reduce((latest, current) => {
+        const dl = parseLocalDate(current.deadline);
+        const ll = parseLocalDate(latest.deadline);
+        if (!dl) return latest;
+        if (!ll) return current;
+        return dl > ll ? current : latest;
+      }).deadline;
 
-        // Description of the "last received" credit (latest created_at)
-        const lastCredit = group.items.reduce((latest, current) => {
-          const dl = parseLocalDate(latest.created_at);
-          const cl = parseLocalDate(current.created_at);
-          if (!cl) return latest;
-          if (!dl) return current;
-          return cl > dl ? current : latest;
-        });
-        const finalidade = lastCredit.description || "Não informada";
+      // Get latest arrival date
+      const latestArrival = group.items.reduce((latest, current) => {
+        const cl = parseLocalDate(current.created_at);
+        const dl = parseLocalDate(latest.created_at);
+        if (!cl) return latest;
+        if (!dl) return current;
+        return cl > dl ? current : latest;
+      });
+      
+      const arrivalDate = latestArrival.created_at;
 
         // Format Deadline to DD/MM
-        const deadlineParts = longestDeadline.split('T')[0].split(' ')[0].split('-');
-        const formattedDeadline = deadlineParts.length === 3 ? `${deadlineParts[2]}/${deadlineParts[1]}` : "";
+        const deadlineParts = longestDeadline ? longestDeadline.split('T')[0].split(' ')[0].split('-') : [];
+        const formattedDeadline = deadlineParts.length === 3 ? `${deadlineParts[2]}/${deadlineParts[1]}` : formatDateBR(longestDeadline);
 
-        return {
-          Saldo: formatCurrency(group.totalBalance),
-          Seção: group.section,
-          Status: status,
-          Prazo: formattedDeadline,
-          Finalidade: finalidade.replace(/\n/g, ' ').replace(/;/g, ',')
-        };
-      });
+      return {
+        "Seção": group.section,
+        "PI": group.pi,
+        "Valor Total": formatCurrency(group.totalReceived),
+        "Valor já Empenhado": formatCurrency(group.totalUsed),
+        "Valor em Tela": formatCurrency(group.totalBalance),
+        "Data de Chegada da NC": formatDateBR(arrivalDate),
+        "Prazo para Empenho": formattedDeadline
+      };
+    });
+
+    // Sort by section then PI
+    exportData.sort((a, b) => {
+       const secComp = a["Seção"].localeCompare(b["Seção"]);
+       if (secComp !== 0) return secComp;
+       return a.PI.localeCompare(b.PI);
+    });
 
     // 3. Create CSV content
-    const headers = ["Saldo", "Seção", "Status", "Prazo", "Finalidade"];
+    const headers = [
+      "Seção", 
+      "PI", 
+      "Valor Total (recebido nas NCs em tela)", 
+      "Valor já Empenhado (nas NCs em tela)", 
+      "Valor em Tela (nas NCs)", 
+      "Data de Chegada da NC", 
+      "Prazo para Empenho"
+    ];
     const csvRows = [
       headers.join(";"),
       ...exportData.map(row => [
-        `"${row.Saldo}"`,
-        `"${row.Seção.replace(/"/g, '""')}"`,
-        row.Status,
-        row.Prazo,
-        `"${row.Finalidade.replace(/"/g, '""')}"`
+        `"${row["Seção"].replace(/"/g, '""')}"`,
+        `"${row.PI.replace(/"/g, '""')}"`,
+        `"${row["Valor Total"]}"`,
+        `"${row["Valor já Empenhado"]}"`,
+        `"${row["Valor em Tela"]}"`,
+        row["Data de Chegada da NC"],
+        row["Prazo para Empenho"]
       ].join(";"))
     ];
     
@@ -217,7 +239,7 @@ const CreditList: React.FC<CreditListProps> = ({
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Export_Geral_Creditos_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
+    link.setAttribute("download", `Export_Em_Tela_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
