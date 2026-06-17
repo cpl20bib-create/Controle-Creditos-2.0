@@ -25,7 +25,7 @@ const App: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [filters, setFilters] = useState<Filters>({});
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -100,122 +100,178 @@ const App: React.FC = () => {
   };
 
   const handleAddCredit = async (newCredit: Credit) => {
-    try {
-      await api.upsert('credits', newCredit);
-      syncWithServer();
-    } catch (e: any) {
-      alert(e.message);
+    const nextCredits = [...credits, newCredit];
+    setCredits(nextCredits);
+    localStorage.setItem('budget_credits', JSON.stringify(nextCredits));
+    if (isOnline) {
+      try {
+        await api.upsert('credits', newCredit);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn(e.message);
+      }
     }
   };
 
   const handleUpdateCredit = async (updated: Credit) => {
-    try {
-      await api.upsert('credits', updated);
-      syncWithServer();
-    } catch (e: any) {
-      alert(e.message);
+    const nextCredits = credits.map(c => c.id === updated.id ? updated : c);
+    setCredits(nextCredits);
+    localStorage.setItem('budget_credits', JSON.stringify(nextCredits));
+    if (isOnline) {
+      try {
+        await api.upsert('credits', updated);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn(e.message);
+      }
     }
   };
 
   const handleDeleteCredit = async (id: string) => {
     const credit = credits.find(c => c.id === id);
     if (credit && window.confirm('Excluir este crédito definitivamente?')) {
-      try {
-        await api.delete('credits', id);
-        syncWithServer();
-      } catch (e: any) {
-        alert(e.message);
+      const nextCredits = credits.filter(c => c.id !== id);
+      setCredits(nextCredits);
+      localStorage.setItem('budget_credits', JSON.stringify(nextCredits));
+      if (isOnline) {
+        try {
+          await api.delete('credits', id);
+          syncWithServer();
+        } catch (e: any) {
+          console.warn(e.message);
+        }
       }
     }
   };
 
   const handleAddCommitment = async (newCom: Commitment) => {
-    try {
-      await api.upsert('commitments', newCom);
-      syncWithServer();
-    } catch (e: any) {
-      alert(e.message);
+    const nextComs = [...commitments, newCom];
+    setCommitments(nextComs);
+    localStorage.setItem('budget_commitments', JSON.stringify(nextComs));
+    if (isOnline) {
+      try {
+        await api.upsert('commitments', newCom);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn(e.message);
+      }
     }
   };
 
   const handleUpdateCommitment = async (updated: Commitment) => {
-    try {
-      await api.upsert('commitments', updated);
-      syncWithServer();
-    } catch (e: any) {
-      alert(e.message);
+    const nextComs = commitments.map(c => c.id === updated.id ? updated : c);
+    setCommitments(nextComs);
+    localStorage.setItem('budget_commitments', JSON.stringify(nextComs));
+    if (isOnline) {
+      try {
+        await api.upsert('commitments', updated);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn(e.message);
+      }
     }
   };
 
   const handleDeleteCommitment = async (id: string) => {
     const com = commitments.find(c => c.id === id);
     if (com && window.confirm('Excluir este empenho definitivamente?')) {
-      try {
-        await api.delete('commitments', id);
-        syncWithServer();
-      } catch (e: any) {
-        alert(e.message);
+      const nextComs = commitments.filter(c => c.id !== id);
+      setCommitments(nextComs);
+      localStorage.setItem('budget_commitments', JSON.stringify(nextComs));
+      if (isOnline) {
+        try {
+          await api.delete('commitments', id);
+          syncWithServer();
+        } catch (e: any) {
+          console.warn(e.message);
+        }
       }
     }
   };
 
   const handleAddContract = async (newCon: Contract) => {
-    try {
-      await api.upsert('contracts', newCon);
-      syncWithServer();
-    } catch (e: any) {
-      alert(e.message);
+    const nextContracts = [...contracts, newCon];
+    setContracts(nextContracts);
+    localStorage.setItem('budget_contracts', JSON.stringify(nextContracts));
+    if (isOnline) {
+      try {
+        await api.upsert('contracts', newCon);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn(e.message);
+      }
     }
   };
 
   const handleUpdateContract = async (updated: Contract) => {
-    try {
-      await api.upsert('contracts', updated);
-      syncWithServer();
-    } catch (e: any) {
-      alert(e.message);
+    const nextContracts = contracts.map(c => c.id === updated.id ? updated : c);
+    setContracts(nextContracts);
+    localStorage.setItem('budget_contracts', JSON.stringify(nextContracts));
+    if (isOnline) {
+      try {
+        await api.upsert('contracts', updated);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn(e.message);
+      }
     }
   };
 
   const handleDeleteContract = async (id: string) => {
     if (window.confirm('Excluir este contrato definitivamente?')) {
-      try {
-        await api.delete('contracts', id);
-        syncWithServer();
-      } catch (e: any) {
-        alert(e.message);
+      const nextContracts = contracts.filter(c => c.id !== id);
+      setContracts(nextContracts);
+      localStorage.setItem('budget_contracts', JSON.stringify(nextContracts));
+      if (isOnline) {
+        try {
+          await api.delete('contracts', id);
+          syncWithServer();
+        } catch (e: any) {
+          console.warn(e.message);
+        }
       }
     }
   };
 
   const handleAddRefund = async (newRefund: Refund) => {
-    try {
-      await api.upsert('refunds', newRefund);
-      syncWithServer();
-    } catch (e: any) {
-      alert(e.message);
+    const nextR = [...refunds, newRefund];
+    setRefunds(nextR);
+    if (isOnline) {
+      try {
+        await api.upsert('refunds', newRefund);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn(e.message);
+      }
     }
   };
 
   const handleAddCancellation = async (newCan: Cancellation) => {
-    try {
-      await api.upsert('cancellations', newCan);
-      syncWithServer();
-    } catch (e: any) {
-      alert(e.message);
+    const nextC = [...cancellations, newCan];
+    setCancellations(nextC);
+    if (isOnline) {
+      try {
+        await api.upsert('cancellations', newCan);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn(e.message);
+      }
     }
   };
 
   const handleUpdateUsers = async (nextUsers: User[]) => {
     setUsers(nextUsers);
-    for (const user of nextUsers) {
-      try {
-        await api.upsert('users', user);
-      } catch (e: any) {
-        console.error('Falha ao sincronizar usuário:', user.username, e.message);
+    localStorage.setItem('budget_users', JSON.stringify(nextUsers));
+    if (isOnline) {
+      for (const user of nextUsers) {
+        try {
+          await api.upsert('users', user);
+        } catch (e: any) {
+          console.warn('Falha ao sincronizar usuário:', user.username, e.message);
+        }
       }
+      syncWithServer();
     }
-    syncWithServer();
   };
 
   const menuItems = [
@@ -235,13 +291,25 @@ const App: React.FC = () => {
   const filteredMenuItems = menuItems.filter(item => (item.roles as readonly string[]).includes(currentUser.role));
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-black">
-      <aside className={`${isSidebarOpen ? 'w-80' : 'w-20'} bg-emerald-950 text-white transition-all duration-300 flex flex-col shrink-0 border-r border-emerald-900 shadow-2xl`}>
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-black relative">
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden animate-in fade-in duration-300"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 bg-emerald-950 text-white transition-all duration-300 flex flex-col shrink-0 border-r border-emerald-900 shadow-2xl
+        ${isSidebarOpen ? 'translate-x-0 w-80' : '-translate-x-full md:translate-x-0 md:w-20'}
+        md:relative
+      `}>
         <div className="p-6 flex items-center gap-4 border-b border-emerald-900/50">
           <div className="bg-emerald-500 p-2.5 rounded-xl shrink-0 shadow-lg shadow-emerald-500/20">
             <Landmark size={24} />
           </div>
-          {isSidebarOpen && (
+          {(isSidebarOpen || window.innerWidth < 768) && (
             <span className="font-black text-[10px] leading-tight tracking-tight uppercase">
               Controle Orçamentário<br/>
               <span className="text-emerald-400 text-xs">20º Batalhão de Infantaria Blindado</span>
@@ -253,7 +321,10 @@ const App: React.FC = () => {
           {filteredMenuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id as any)}
+              onClick={() => {
+                setActiveTab(item.id as any);
+                if (window.innerWidth < 768) setIsSidebarOpen(false);
+              }}
               className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all ${
                 activeTab === item.id 
                   ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/50 scale-[1.02]' 
@@ -261,13 +332,13 @@ const App: React.FC = () => {
               }`}
             >
               <item.icon size={20} className={activeTab === item.id ? 'text-white' : 'text-emerald-500'} />
-              {isSidebarOpen && <span className="font-black text-[10px] uppercase tracking-widest">{item.label}</span>}
+              {(isSidebarOpen || window.innerWidth < 768) && <span className="font-black text-[10px] uppercase tracking-widest">{item.label}</span>}
             </button>
           ))}
         </nav>
 
         <div className="p-4 border-t border-emerald-900/50 space-y-2">
-          {isSidebarOpen && (
+          {(isSidebarOpen || window.innerWidth < 768) && (
             <div className="bg-emerald-900/30 rounded-2xl p-4 mb-2 border border-emerald-800/50">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center font-black text-xs">
@@ -282,19 +353,25 @@ const App: React.FC = () => {
           )}
           <button onClick={handleLogout} className="flex items-center gap-4 text-red-400 hover:text-red-300 hover:bg-red-500/10 w-full px-4 py-3 rounded-xl transition-colors">
             <LogOut size={20} />
-            {isSidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Sair</span>}
+            {(isSidebarOpen || window.innerWidth < 768) && <span className="text-[10px] font-black uppercase tracking-widest">Sair</span>}
           </button>
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="flex items-center gap-4 text-emerald-100/30 hover:text-white w-full px-4 py-3 transition-colors">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hidden md:flex items-center gap-4 text-emerald-100/30 hover:text-white w-full px-4 py-3 transition-colors">
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            {isSidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>}
+            <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto flex flex-col">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto flex flex-col">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10 shrink-0">
           <div className="flex items-center gap-4">
-            <h1 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Menu size={24} />
+            </button>
+            <h1 className="text-[10px] md:text-sm font-black text-slate-900 uppercase tracking-widest truncate max-w-[120px] md:max-w-none">
               {menuItems.find(i => i.id === activeTab)?.label}
             </h1>
             <button 
@@ -302,18 +379,18 @@ const App: React.FC = () => {
               className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100 animate-pulse'}`}
             >
               {isSyncing ? <RefreshCw size={10} className="animate-spin" /> : isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
-              {isSyncing ? 'Conectando...' : isOnline ? 'Online' : 'Desconectado'}
+              <span className="hidden sm:inline">{isSyncing ? 'Conectando...' : isOnline ? 'Online' : 'Desconectado'}</span>
             </button>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right">
-              <p className="text-[10px] font-black text-slate-900 uppercase">{currentUser.name}</p>
-              <p className="text-[9px] text-emerald-600 font-bold uppercase italic tracking-widest">BIB 20 - Conexão Direta</p>
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="text-right hidden xs:block">
+              <p className="text-[9px] md:text-[10px] font-black text-slate-900 uppercase">{currentUser.name}</p>
+              <p className="text-[7px] md:text-[9px] text-emerald-600 font-bold uppercase italic tracking-widest">BIB 20</p>
             </div>
           </div>
         </header>
 
-        <div className="p-8 max-w-7xl mx-auto w-full">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} auditLogs={auditLogs} />}
