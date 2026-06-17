@@ -187,10 +187,6 @@ const CreditList: React.FC<CreditListProps> = ({
       
       const arrivalDate = latestArrival.created_at;
 
-        // Format Deadline to DD/MM
-        const deadlineParts = longestDeadline ? longestDeadline.split('T')[0].split(' ')[0].split('-') : [];
-        const formattedDeadline = deadlineParts.length === 3 ? `${deadlineParts[2]}/${deadlineParts[1]}` : formatDateBR(longestDeadline);
-
       return {
         "Seção": group.section,
         "PI": group.pi,
@@ -198,7 +194,7 @@ const CreditList: React.FC<CreditListProps> = ({
         "Valor já Empenhado": formatCurrency(group.totalUsed),
         "Valor em Tela": formatCurrency(group.totalBalance),
         "Data de Chegada da NC": formatDateBR(arrivalDate),
-        "Prazo para Empenho": formattedDeadline
+        "Prazo para Empenho": formatDateBR(longestDeadline)
       };
     });
 
