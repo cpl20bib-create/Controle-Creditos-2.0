@@ -50,7 +50,8 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
       const balanceValue = Number(((Number(credit.valueReceived) || 0) - (cCommsBruto - cCansTotal) - cRefsTotal).toFixed(2));
       const usedValue = Number((cCommsBruto - cCansTotal).toFixed(2));
-      const daysToDeadline = Math.ceil((parseLocalDate(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      const parsedDeadline = parseLocalDate(credit.deadline);
+      const daysToDeadline = parsedDeadline ? Math.ceil((parsedDeadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
       return { 
         ...credit, 
