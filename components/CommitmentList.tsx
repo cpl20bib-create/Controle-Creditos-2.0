@@ -128,7 +128,9 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
         return (a.totalValue - b.totalValue) * order;
       }
       if (sortBy === 'date' || (sortBy as string) === 'created_at') {
-        return (parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()) * order;
+        const ad = parseLocalDate(a.date)?.getTime() || 0;
+        const bd = parseLocalDate(b.date)?.getTime() || 0;
+        return (ad - bd) * order;
       }
       if (sortBy === 'ne') {
         return a.ne.localeCompare(b.ne) * order;
