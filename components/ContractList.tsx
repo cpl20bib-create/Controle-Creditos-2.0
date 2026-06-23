@@ -47,13 +47,18 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, credits, commitm
       c.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.object.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.pi && c.pi.toLowerCase().includes(searchTerm.toLowerCase()))
-    ).sort((a, b) => parseLocalDate(a.endDate).getTime() - parseLocalDate(b.endDate).getTime());
+    ).sort((a, b) => {
+      const ad = parseLocalDate(a.endDate)?.getTime() || 0;
+      const bd = parseLocalDate(b.endDate)?.getTime() || 0;
+      return ad - bd;
+    });
   }, [contracts, searchTerm]);
 
   const getStatusInfo = (endDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const end = parseLocalDate(endDate);
+    if (!end) return { label: 'Sem prazo', color: 'bg-slate-300', border: 'border-slate-300', text: 'text-slate-500' };
     end.setHours(0, 0, 0, 0);
     const diffTime = end.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -72,7 +77,11 @@ const ContractList: React.FC<ContractListProps> = ({ contracts, credits, commitm
     // Lógica para Contrato de Despesa: Cálculos de PI
     const relatedCredits = (credits || [])
       .filter(c => c.pi === contract.pi)
-      .sort((a, b) => parseLocalDate(b.created_at || '').getTime() - parseLocalDate(a.created_at || '').getTime());
+      .sort((a, b) => {
+        const ad = parseLocalDate(b.created_at || '')?.getTime() || 0;
+        const bd = parseLocalDate(a.created_at || '')?.getTime() || 0;
+        return ad - bd;
+      });
     
     const totalReceivedPi = relatedCredits.reduce((acc, curr) => acc + (Number(curr.valueReceived) || 0), 0);
     
