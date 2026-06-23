@@ -60,7 +60,8 @@ const CreditList: React.FC<CreditListProps> = ({
     const spent = (Number(credit.valueReceived) || 0) - balance;
     const total = Number(credit.valueReceived) || 1;
     const percentage = (spent / total) * 100;
-    const daysLeft = Math.ceil((parseLocalDate(credit.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    const parsedDeadline = parseLocalDate(credit.deadline);
+    const daysLeft = parsedDeadline ? Math.ceil((parsedDeadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
     
     return { percentage, daysLeft, balance };
   };
@@ -106,10 +107,14 @@ const CreditList: React.FC<CreditListProps> = ({
         return (Number(a.valueReceived) - Number(b.valueReceived)) * order;
       }
       if (sortBy === 'deadline') {
-        return (parseLocalDate(a.deadline).getTime() - parseLocalDate(b.deadline).getTime()) * order;
+        const ad = parseLocalDate(a.deadline)?.getTime() || 0;
+        const bd = parseLocalDate(b.deadline)?.getTime() || 0;
+        return (ad - bd) * order;
       }
       if (sortBy === 'created_at') {
-        return (parseLocalDate(a.created_at).getTime() - parseLocalDate(b.created_at).getTime()) * order;
+        const ac = parseLocalDate(a.created_at)?.getTime() || 0;
+        const bc = parseLocalDate(b.created_at)?.getTime() || 0;
+        return (ac - bc) * order;
       }
       if (sortBy === 'nc') {
         return a.nc.localeCompare(b.nc) * order;
