@@ -137,7 +137,11 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
 
     // Ordenar créditos de cada célula por data (FIFO)
     Object.values(cellsMap).forEach(cell => {
-      cell.constituentCredits.sort((a, b) => parseLocalDate(a.created_at).getTime() - parseLocalDate(b.created_at).getTime());
+      cell.constituentCredits.sort((a, b) => {
+        const ad = parseLocalDate(a.created_at)?.getTime() || 0;
+        const bd = parseLocalDate(b.created_at)?.getTime() || 0;
+        return ad - bd;
+      });
     });
 
     return Object.values(cellsMap).sort((a, b) => a.pi.localeCompare(b.pi));
