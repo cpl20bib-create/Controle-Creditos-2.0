@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History, PackageSearch } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract, AuditLog } from './types';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
@@ -10,11 +10,12 @@ import Reports from './components/Reports';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import AuditHistory from './components/AuditHistory';
+import DeliveryTracking from './components/DeliveryTracking';
 import { api } from './api';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'contracts' | 'reports' | 'users' | 'audit'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'contracts' | 'reports' | 'users' | 'audit' | 'tracking'>('dashboard');
   
   const [credits, setCredits] = useState<Credit[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
@@ -86,11 +87,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const savedSession = localStorage.getItem('budget_session');
-    if (savedSession) setCurrentUser(JSON.parse(savedSession));
+    if (savedSession) {
+      const parsedUser = JSON.parse(savedSession);
+      setCurrentUser(parsedUser);
+      if (parsedUser.role === 'ALMOXARIFADO') setActiveTab('tracking');
+    }
   }, []);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
+    if (user.role === 'ALMOXARIFADO') setActiveTab('tracking');
+    else setActiveTab('dashboard');
     localStorage.setItem('budget_session', JSON.stringify(user));
   };
 
@@ -276,6 +283,7 @@ const App: React.FC = () => {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
+    { id: 'tracking', label: 'Acompanhamento', icon: PackageSearch, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO'] },
     { id: 'credits', label: 'Créditos', icon: ReceiptText, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'commitments', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'contracts', label: 'Contratos', icon: Briefcase, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
@@ -392,6 +400,7 @@ const App: React.FC = () => {
 
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
+          {activeTab === 'tracking' && <DeliveryTracking credits={credits} commitments={commitments} onUpdateCommitment={handleUpdateCommitment} userRole={currentUser.role} userSection={currentUser.assignedSection} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'contracts' && <ContractList contracts={contracts} credits={credits} commitments={commitments} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
