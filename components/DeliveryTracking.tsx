@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Credit, Commitment, UserRole, CommitmentContact } from '../types';
-import { Search, Filter, Calendar, MessageSquare, Truck, CheckCircle2, ChevronDown, ChevronUp, Plus, Clock, Info, PackageSearch, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Filter, Calendar, MessageSquare, Truck, CheckCircle2, ChevronDown, ChevronUp, Plus, Clock, Info, PackageSearch, ArrowUp, ArrowDown, Trash2, Edit3, Save, X } from 'lucide-react';
 import { parseLocalDate, formatDateBR } from '../utils/dateUtils';
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -26,6 +26,11 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   const [newContactDate, setNewContactDate] = useState('');
   const [newContactNotes, setNewContactNotes] = useState('');
   const [newContactExpectedDelivery, setNewContactExpectedDelivery] = useState('');
+
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [editContactDate, setEditContactDate] = useState('');
+  const [editContactNotes, setEditContactNotes] = useState('');
+  const [editContactExpectedDelivery, setEditContactExpectedDelivery] = useState('');
 
   // Map commitments to include credit info
   const mappedCommitments = useMemo(() => {
@@ -112,6 +117,46 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     setNewContactDate('');
     setNewContactNotes('');
     setNewContactExpectedDelivery('');
+  };
+
+  const startEditingContact = (contact: CommitmentContact) => {
+    setEditingContactId(contact.id);
+    setEditContactDate(contact.date);
+    setEditContactNotes(contact.notes);
+    setEditContactExpectedDelivery(contact.expectedDeliveryDate || '');
+  };
+
+  const handleSaveEditContact = (e: React.MouseEvent, com: Commitment) => {
+    e.preventDefault();
+    if (!editContactDate || !editContactNotes) {
+      alert("Preencha a data e os detalhes do contato.");
+      return;
+    }
+
+    const updatedContacts = (com.contacts || []).map(c => 
+      c.id === editingContactId 
+        ? { ...c, date: editContactDate, notes: editContactNotes, expectedDeliveryDate: editContactExpectedDelivery || undefined }
+        : c
+    );
+
+    const updatedCom = {
+      ...com,
+      contacts: updatedContacts
+    };
+
+    onUpdateCommitment(updatedCom);
+    setEditingContactId(null);
+  };
+
+  const handleDeleteContact = (com: Commitment, contactId: string) => {
+    if (window.confirm("Deseja realmente excluir este contato?")) {
+      const updatedContacts = (com.contacts || []).filter(c => c.id !== contactId);
+      const updatedCom = {
+        ...com,
+        contacts: updatedContacts
+      };
+      onUpdateCommitment(updatedCom);
+    }
   };
 
   const handleToggleMaterialArrived = (com: Commitment) => {
@@ -305,19 +350,89 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                     <div className="space-y-3">
                       {com.contacts && com.contacts.length > 0 ? (
                         [...com.contacts].reverse().map(contact => (
-                          <div key={contact.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                          <div key={contact.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group">
                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-400"></div>
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">
-                                {formatDateBR(contact.date)}
-                              </span>
-                              {contact.expectedDeliveryDate && (
-                                <span className="text-[11px] font-black text-emerald-700 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-md flex items-center gap-1 border border-emerald-100">
-                                  <Calendar size={12} /> Prev: {formatDateBR(contact.expectedDeliveryDate)}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm font-medium text-slate-700 mt-2 leading-relaxed">{contact.notes}</p>
+                            
+                            {editingContactId === contact.id ? (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Data</label>
+                                    <input 
+                                      type="date" 
+                                      value={editContactDate}
+                                      onChange={(e) => setEditContactDate(e.target.value)}
+                                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-medium"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Previsão</label>
+                                    <input 
+                                      type="date" 
+                                      value={editContactExpectedDelivery}
+                                      onChange={(e) => setEditContactExpectedDelivery(e.target.value)}
+                                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-medium"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Detalhes</label>
+                                  <textarea 
+                                    value={editContactNotes}
+                                    onChange={(e) => setEditContactNotes(e.target.value)}
+                                    rows={3}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-medium resize-none"
+                                  />
+                                </div>
+                                <div className="flex gap-2 justify-end mt-2">
+                                  <button
+                                    onClick={() => setEditingContactId(null)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-colors flex items-center gap-1"
+                                  >
+                                    <X size={14} /> Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleSaveEditContact(e, com)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center gap-1"
+                                  >
+                                    <Save size={14} /> Salvar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">
+                                      {formatDateBR(contact.date)}
+                                    </span>
+                                    {contact.expectedDeliveryDate && (
+                                      <span className="text-[11px] font-black text-emerald-700 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-md flex items-center gap-1 border border-emerald-100">
+                                        <Calendar size={12} /> Prev: {formatDateBR(contact.expectedDeliveryDate)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="hidden group-hover:flex items-center gap-1">
+                                    <button
+                                      onClick={() => startEditingContact(contact)}
+                                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                      title="Editar"
+                                    >
+                                      <Edit3 size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteContact(com, contact.id)}
+                                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="Excluir"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                                <p className="text-sm font-medium text-slate-700 mt-2 leading-relaxed whitespace-pre-wrap">{contact.notes}</p>
+                              </>
+                            )}
                           </div>
                         ))
                       ) : (
