@@ -177,7 +177,7 @@ const App: React.FC = () => {
           .from('commitments')
           .update({
             contacts: updated.contacts,
-            material_arrived_date: updated.materialArrivedDate
+            material_arrived_date: updated.materialArrivedDate || null
           })
           .eq('id', updated.id);
 
