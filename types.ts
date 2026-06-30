@@ -1,6 +1,6 @@
 
 export type UG = '160211' | '167211';
-export type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER';
+export type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER' | 'ALMOXARIFADO';
 export type ContractType = 'RECEITA' | 'DESPESA';
 
 export interface User {
@@ -9,6 +9,7 @@ export interface User {
   password?: string;
   role: UserRole;
   name: string;
+  assignedSection?: string;
 }
 
 export interface Credit {
@@ -31,6 +32,13 @@ export interface Credit {
   created_at: string;
 }
 
+export interface CommitmentContact {
+  id: string;
+  date: string;
+  notes: string;
+  expectedDeliveryDate?: string;
+}
+
 export interface Commitment {
   id: string;
   ne: string;
@@ -38,6 +46,8 @@ export interface Commitment {
   value: number;
   date: string;
   description: string;
+  contacts?: CommitmentContact[];
+  materialArrivedDate?: string;
 }
 
 export interface Cancellation {
