@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { UserPlus, Trash2, Shield, Edit3, X, Save, ShieldAlert, ShieldCheck, User as UserIcon, Eye, EyeOff } from 'lucide-react';
+import { SECTION_OPTIONS } from '../constants';
 
 interface UserManagementProps {
   users: User[];
@@ -17,12 +18,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
     username: '',
     name: '',
     role: 'VIEWER',
-    password: ''
+    password: '',
+    assignedSection: ''
   });
 
   const handleOpenAdd = () => {
     setEditingId(null);
-    setFormData({ username: '', name: '', role: 'VIEWER', password: '' });
+    setFormData({ username: '', name: '', role: 'VIEWER', password: '', assignedSection: '' });
     setShowPasswordInForm(false);
     setShowForm(true);
   };
@@ -33,7 +35,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
       username: user.username,
       name: user.name,
       role: user.role,
-      password: user.password
+      password: user.password,
+      assignedSection: user.assignedSection || ''
     });
     setShowPasswordInForm(false);
     setShowForm(true);
@@ -56,7 +59,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
         username: (formData.username || '').toLowerCase(),
         name: formData.name || '',
         role: (formData.role as UserRole) || 'VIEWER',
-        password: formData.password || ''
+        password: formData.password || '',
+        assignedSection: formData.assignedSection || undefined
       } : u));
     } else {
       const newUser: User = {
@@ -64,13 +68,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
         username: (formData.username || '').toLowerCase(),
         name: formData.name || '',
         role: (formData.role as UserRole) || 'VIEWER',
-        password: formData.password || ''
+        password: formData.password || '',
+        assignedSection: formData.assignedSection || undefined
       };
       setUsers([...users, newUser]);
     }
     
     setShowForm(false);
-    setFormData({ username: '', name: '', role: 'VIEWER', password: '' });
+    setFormData({ username: '', name: '', role: 'VIEWER', password: '', assignedSection: '' });
   };
 
   const handleDelete = (id: string) => {
@@ -87,6 +92,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
     switch (role) {
       case 'ADMIN': return <ShieldAlert className="text-red-500" size={14} />;
       case 'EDITOR': return <ShieldCheck className="text-emerald-500" size={14} />;
+      case 'ALMOXARIFADO': return <UserIcon className="text-blue-500" size={14} />;
       default: return <UserIcon className="text-slate-400" size={14} />;
     }
   };
@@ -95,6 +101,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
     switch (role) {
       case 'ADMIN': return 'Administrador';
       case 'EDITOR': return 'Editor';
+      case 'ALMOXARIFADO': return 'Almoxarifado';
       default: return 'Visualizador';
     }
   };
@@ -123,14 +130,20 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
               <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center font-black text-lg group-hover:bg-emerald-500 group-hover:text-white transition-all">
                 {user.name.charAt(0)}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border flex items-center gap-1.5 ${
                   user.role === 'ADMIN' ? 'bg-red-50 text-red-700 border-red-100' : 
                   user.role === 'EDITOR' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                  user.role === 'ALMOXARIFADO' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
                   'bg-slate-50 text-slate-500 border-slate-100'
                 }`}>
                   {getRoleIcon(user.role)} {getRoleLabel(user.role)}
                 </span>
+                {user.role === 'ALMOXARIFADO' && (
+                  <span className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    Seção: {user.assignedSection || 'Todas'}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -209,6 +222,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
                   >
                     <option value="VIEWER">Visualizador</option>
                     <option value="EDITOR">Editor</option>
+                    <option value="ALMOXARIFADO">Almoxarifado</option>
                     <option value="ADMIN">Administrador</option>
                   </select>
                 </div>
@@ -245,6 +259,22 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
                   </div>
                 </div>
               </div>
+
+              {formData.role === 'ALMOXARIFADO' && (
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Seção Designada</label>
+                  <select 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-emerald-500 text-black"
+                    value={formData.assignedSection || ''}
+                    onChange={e => setFormData({...formData, assignedSection: e.target.value})}
+                  >
+                    <option value="">Todas as Seções (Liberado)</option>
+                    {SECTION_OPTIONS.map(sec => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <button 
                 type="submit" 
