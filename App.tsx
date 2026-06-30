@@ -166,9 +166,12 @@ const App: React.FC = () => {
   };
 
   const handleUpdateCommitment = async (updated: Commitment) => {
-    const nextComs = commitments.map(c => c.id === updated.id ? updated : c);
-    setCommitments(nextComs);
-    localStorage.setItem('budget_commitments', JSON.stringify(nextComs));
+    setCommitments(prev => {
+      const nextComs = prev.map(c => c.id === updated.id ? updated : c);
+      localStorage.setItem('budget_commitments', JSON.stringify(nextComs));
+      return nextComs;
+    });
+
     if (isOnline) {
       try {
         await api.upsert('commitments', updated);
