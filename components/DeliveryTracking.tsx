@@ -89,7 +89,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     });
   }, [mappedCommitments, searchTerm, sectionFilter, ugFilter, showOnlyPending, sortBy, sortOrder]);
 
-  const handleAddContact = (com: Commitment) => {
+  const handleAddContact = (e: React.MouseEvent, com: Commitment) => {
+    e.preventDefault();
     if (!newContactDate || !newContactNotes) {
       alert("Preencha a data e os detalhes do contato.");
       return;
@@ -366,7 +367,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                             />
                           </div>
                           <button 
-                            onClick={() => handleAddContact(com)}
+                            type="button"
+                            onClick={(e) => handleAddContact(e, com)}
                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
                           >
                             <Plus size={16} /> Salvar Contato
