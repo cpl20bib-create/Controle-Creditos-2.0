@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Credit, Commitment, UserRole, CommitmentContact } from '../types';
+import { Credit, Commitment, UserRole, CommitmentContact, Cancellation } from '../types';
 import { Search, Filter, Calendar, MessageSquare, Truck, CheckCircle2, ChevronDown, ChevronUp, Plus, Clock, Info, PackageSearch, ArrowUp, ArrowDown, Trash2, Edit3, Save, X } from 'lucide-react';
 import { parseLocalDate, formatDateBR } from '../utils/dateUtils';
 
@@ -9,12 +9,13 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 interface DeliveryTrackingProps {
   credits: Credit[];
   commitments: Commitment[];
+  cancellations: Cancellation[];
   onUpdateCommitment: (updated: Commitment) => void;
   userRole: UserRole;
   userSection?: string;
 }
 
-const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitments, onUpdateCommitment, userRole, userSection }) => {
+const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitments, cancellations, onUpdateCommitment, userRole, userSection }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sectionFilter, setSectionFilter] = useState(userSection || '');
   const [ugFilter, setUgFilter] = useState('');
@@ -34,7 +35,15 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
   // Map commitments to include credit info
   const mappedCommitments = useMemo(() => {
-    return commitments.map(com => {
+    return commitments
+      .filter(com => {
+        const totalCancellations = cancellations
+          .filter(c => c.commitmentId === com.id)
+          .reduce((sum, c) => sum + c.value, 0);
+        const balance = com.value - totalCancellations;
+        return balance > 0;
+      })
+      .map(com => {
       const credit = credits.find(c => c.id === com.creditId);
       
       let daysPassed = 0;
@@ -57,7 +66,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
         daysPassed: daysPassed >= 0 ? daysPassed : 0
       };
     });
-  }, [commitments, credits]);
+  }, [commitments, credits, cancellations]);
 
   const sections = useMemo(() => {
     return Array.from(new Set(mappedCommitments.map(c => c.section))).sort();
