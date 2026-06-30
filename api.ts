@@ -62,7 +62,9 @@ const mappers = {
       creditId: row.creditId,
       value: Number(row.value) || 0,
       date: row.date,
-      description: row.description || ''
+      description: row.description || '',
+      contacts: row.contacts || [],
+      materialArrivedDate: row.material_arrived_date || undefined
     })
   },
   cancellations: {
