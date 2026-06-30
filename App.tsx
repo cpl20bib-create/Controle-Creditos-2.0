@@ -11,7 +11,7 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import AuditHistory from './components/AuditHistory';
 import DeliveryTracking from './components/DeliveryTracking';
-import { api } from './api';
+import { api, supabase } from './api';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -172,6 +172,15 @@ const App: React.FC = () => {
     if (isOnline) {
       try {
         await api.upsert('commitments', updated);
+        
+        await supabase
+          .from('commitments')
+          .update({
+            contacts: updated.contacts,
+            material_arrived_date: updated.materialArrivedDate
+          })
+          .eq('id', updated.id);
+
         syncWithServer();
       } catch (e: any) {
         console.warn(e.message);
