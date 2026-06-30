@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Credit, Commitment, UserRole, CommitmentContact } from '../types';
-import { Search, Filter, Calendar, MessageSquare, Truck, CheckCircle2, ChevronDown, ChevronUp, Plus, Clock, Info, PackageSearch } from 'lucide-react';
+import { Search, Filter, Calendar, MessageSquare, Truck, CheckCircle2, ChevronDown, ChevronUp, Plus, Clock, Info, PackageSearch, ArrowUp, ArrowDown } from 'lucide-react';
 import { parseLocalDate, formatDateBR } from '../utils/dateUtils';
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -17,7 +17,10 @@ interface DeliveryTrackingProps {
 const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitments, onUpdateCommitment, userRole, userSection }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sectionFilter, setSectionFilter] = useState(userSection || '');
+  const [ugFilter, setUgFilter] = useState('');
   const [showOnlyPending, setShowOnlyPending] = useState(false);
+  const [sortBy, setSortBy] = useState<'daysPassed' | 'value'>('daysPassed');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [newContactDate, setNewContactDate] = useState('');
@@ -44,6 +47,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
         ...com,
         section: credit?.section || 'Desconhecida',
         pi: credit?.pi || 'N/A',
+        ug: credit?.ug || 'N/A',
         creditDescription: credit?.description || 'Sem descrição',
         daysPassed: daysPassed >= 0 ? daysPassed : 0
       };
@@ -54,6 +58,10 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     return Array.from(new Set(mappedCommitments.map(c => c.section))).sort();
   }, [mappedCommitments]);
 
+  const ugs = useMemo(() => {
+    return Array.from(new Set(mappedCommitments.map(c => c.ug))).sort();
+  }, [mappedCommitments]);
+
   const filteredCommitments = useMemo(() => {
     return mappedCommitments.filter(com => {
       const matchesSearch = 
@@ -61,15 +69,23 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
         com.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         com.pi.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesSection = sectionFilter ? com.section === sectionFilter : true;
+      const matchesUg = ugFilter ? com.ug === ugFilter : true;
       const matchesPending = showOnlyPending ? !com.materialArrivedDate : true;
-      return matchesSearch && matchesSection && matchesPending;
+      return matchesSearch && matchesSection && matchesUg && matchesPending;
     }).sort((a, b) => {
-      // Sort by unresolved first, then by days passed (oldest first)
+      // Sort by unresolved first
       if (a.materialArrivedDate && !b.materialArrivedDate) return 1;
       if (!a.materialArrivedDate && b.materialArrivedDate) return -1;
-      return b.daysPassed - a.daysPassed;
+      
+      let comparison = 0;
+      if (sortBy === 'daysPassed') {
+        comparison = a.daysPassed - b.daysPassed;
+      } else if (sortBy === 'value') {
+        comparison = (a.value || 0) - (b.value || 0);
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [mappedCommitments, searchTerm, sectionFilter, showOnlyPending]);
+  }, [mappedCommitments, searchTerm, sectionFilter, ugFilter, showOnlyPending, sortBy, sortOrder]);
 
   const handleAddContact = (com: Commitment) => {
     if (!newContactDate || !newContactNotes) {
@@ -145,18 +161,72 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
             ))}
           </select>
         </div>
-        <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap px-2">
-          <input 
-            type="checkbox" 
-            checked={showOnlyPending}
-            onChange={(e) => setShowOnlyPending(e.target.checked)}
-            className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
-          />
-          <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Apenas Não Recebidos</span>
-        </label>
+        <div className="md:w-48 relative w-full">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <select
+            value={ugFilter}
+            onChange={(e) => setUgFilter(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all appearance-none font-medium text-slate-700 bg-white"
+          >
+            <option value="">Todas as UGs</option>
+            {ugs.map(u => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 px-2 md:px-0">
+          <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+            <input 
+              type="checkbox" 
+              checked={showOnlyPending}
+              onChange={(e) => setShowOnlyPending(e.target.checked)}
+              className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+            />
+            <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Apenas Não Recebidos</span>
+          </label>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
+        {/* Desktop Headers */}
+        {filteredCommitments.length > 0 && (
+          <div className="hidden md:flex items-center px-5 py-2">
+            <div className="flex-1">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Detalhes do Empenho</span>
+            </div>
+            <div className="flex items-center gap-6 shrink-0 pr-10">
+              <div className="w-24 text-right">
+                <button 
+                  onClick={() => {
+                    if (sortBy === 'daysPassed') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    else { setSortBy('daysPassed'); setSortOrder('desc'); }
+                  }}
+                  className="inline-flex items-center justify-end gap-1 text-[10px] font-black uppercase tracking-widest hover:text-emerald-600 transition-colors group"
+                >
+                  <span className={sortBy === 'daysPassed' ? 'text-emerald-600' : 'text-slate-400'}>Emitido há</span>
+                  <span className={sortBy === 'daysPassed' ? 'text-emerald-600' : 'text-transparent group-hover:text-slate-300'}>
+                    {sortBy === 'daysPassed' && sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                  </span>
+                </button>
+              </div>
+              <div className="w-24 text-right">
+                <button 
+                  onClick={() => {
+                    if (sortBy === 'value') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    else { setSortBy('value'); setSortOrder('desc'); }
+                  }}
+                  className="inline-flex items-center justify-end gap-1 text-[10px] font-black uppercase tracking-widest hover:text-emerald-600 transition-colors group"
+                >
+                  <span className={sortBy === 'value' ? 'text-emerald-600' : 'text-slate-400'}>Valor</span>
+                  <span className={sortBy === 'value' ? 'text-emerald-600' : 'text-transparent group-hover:text-slate-300'}>
+                    {sortBy === 'value' && sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {filteredCommitments.map(com => (
           <div key={com.id} className={`rounded-2xl border transition-all shadow-sm ${com.materialArrivedDate ? 'bg-slate-50/50 border-slate-200 opacity-60 grayscale-[0.3]' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
             {/* Header / Summary */}
@@ -177,6 +247,9 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                     <span className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-slate-200">
                       PI: {com.pi}
                     </span>
+                    <span className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-slate-200">
+                      UG: {com.ug}
+                    </span>
                     <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-emerald-200">
                       {com.section}
                     </span>
@@ -187,14 +260,38 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
               <div className="flex items-center gap-6 shrink-0 w-full md:w-auto">
                 <div className="text-left md:text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Emitido há</p>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (sortBy === 'daysPassed') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                      else { setSortBy('daysPassed'); setSortOrder('desc'); }
+                    }}
+                    className="flex items-center justify-start md:justify-end gap-1 w-full text-[10px] font-black uppercase tracking-widest mb-1 hover:text-emerald-600 transition-colors group"
+                  >
+                    <span className={sortBy === 'daysPassed' ? 'text-emerald-600' : 'text-slate-400'}>Emitido há</span>
+                    <span className={sortBy === 'daysPassed' ? 'text-emerald-600' : 'text-transparent group-hover:text-slate-300'}>
+                      {sortBy === 'daysPassed' && sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                    </span>
+                  </button>
                   <p className={`font-black text-xl flex items-center gap-1.5 ${com.materialArrivedDate ? 'text-slate-400' : com.daysPassed > 30 ? 'text-red-500' : 'text-slate-700'}`}>
                     <Clock size={16} className={com.materialArrivedDate ? 'text-slate-300' : com.daysPassed > 30 ? 'text-red-400' : 'text-slate-400'} />
                     {com.daysPassed} {com.daysPassed === 1 ? 'dia' : 'dias'}
                   </p>
                 </div>
                 <div className="text-left md:text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor</p>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (sortBy === 'value') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                      else { setSortBy('value'); setSortOrder('desc'); }
+                    }}
+                    className="flex items-center justify-start md:justify-end gap-1 w-full text-[10px] font-black uppercase tracking-widest mb-1 hover:text-emerald-600 transition-colors group"
+                  >
+                    <span className={sortBy === 'value' ? 'text-emerald-600' : 'text-slate-400'}>Valor</span>
+                    <span className={sortBy === 'value' ? 'text-emerald-600' : 'text-transparent group-hover:text-slate-300'}>
+                      {sortBy === 'value' && sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                    </span>
+                  </button>
                   <p className="font-black text-slate-700">{formatCurrency(com.value)}</p>
                 </div>
                 <div className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors hidden md:block">
