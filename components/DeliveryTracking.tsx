@@ -19,8 +19,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   const [sectionFilter, setSectionFilter] = useState(userSection || '');
   const [ugFilter, setUgFilter] = useState('');
   const [showOnlyPending, setShowOnlyPending] = useState(false);
-  const [sortBy, setSortBy] = useState<'daysPassed' | 'value'>('daysPassed');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState<'daysPassed' | 'value' | 'ne'>('ne');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [newContactDate, setNewContactDate] = useState('');
@@ -82,6 +82,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
         comparison = a.daysPassed - b.daysPassed;
       } else if (sortBy === 'value') {
         comparison = (a.value || 0) - (b.value || 0);
+      } else if (sortBy === 'ne') {
+        comparison = a.ne.localeCompare(b.ne);
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
@@ -191,8 +193,19 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
         {/* Desktop Headers */}
         {filteredCommitments.length > 0 && (
           <div className="hidden md:flex items-center px-5 py-2">
-            <div className="flex-1">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Detalhes do Empenho</span>
+            <div className="flex-1 pl-[68px]">
+              <button 
+                onClick={() => {
+                  if (sortBy === 'ne') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  else { setSortBy('ne'); setSortOrder('asc'); }
+                }}
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:text-emerald-600 transition-colors group"
+              >
+                <span className={sortBy === 'ne' ? 'text-emerald-600' : 'text-slate-400'}>Detalhes do Empenho</span>
+                <span className={sortBy === 'ne' ? 'text-emerald-600' : 'text-transparent group-hover:text-slate-300'}>
+                  {sortBy === 'ne' && sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                </span>
+              </button>
             </div>
             <div className="flex items-center gap-6 shrink-0 pr-10">
               <div className="w-24 text-right">
@@ -260,38 +273,14 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
               <div className="flex items-center gap-6 shrink-0 w-full md:w-auto">
                 <div className="text-left md:text-right">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (sortBy === 'daysPassed') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                      else { setSortBy('daysPassed'); setSortOrder('desc'); }
-                    }}
-                    className="flex items-center justify-start md:justify-end gap-1 w-full text-[10px] font-black uppercase tracking-widest mb-1 hover:text-emerald-600 transition-colors group"
-                  >
-                    <span className={sortBy === 'daysPassed' ? 'text-emerald-600' : 'text-slate-400'}>Emitido há</span>
-                    <span className={sortBy === 'daysPassed' ? 'text-emerald-600' : 'text-transparent group-hover:text-slate-300'}>
-                      {sortBy === 'daysPassed' && sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
-                    </span>
-                  </button>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:hidden">Emitido há</p>
                   <p className={`font-black text-xl flex items-center gap-1.5 ${com.materialArrivedDate ? 'text-slate-400' : com.daysPassed > 30 ? 'text-red-500' : 'text-slate-700'}`}>
                     <Clock size={16} className={com.materialArrivedDate ? 'text-slate-300' : com.daysPassed > 30 ? 'text-red-400' : 'text-slate-400'} />
                     {com.daysPassed} {com.daysPassed === 1 ? 'dia' : 'dias'}
                   </p>
                 </div>
                 <div className="text-left md:text-right">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (sortBy === 'value') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                      else { setSortBy('value'); setSortOrder('desc'); }
-                    }}
-                    className="flex items-center justify-start md:justify-end gap-1 w-full text-[10px] font-black uppercase tracking-widest mb-1 hover:text-emerald-600 transition-colors group"
-                  >
-                    <span className={sortBy === 'value' ? 'text-emerald-600' : 'text-slate-400'}>Valor</span>
-                    <span className={sortBy === 'value' ? 'text-emerald-600' : 'text-transparent group-hover:text-slate-300'}>
-                      {sortBy === 'value' && sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
-                    </span>
-                  </button>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:hidden">Valor</p>
                   <p className="font-black text-slate-700">{formatCurrency(com.value)}</p>
                 </div>
                 <div className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors hidden md:block">
