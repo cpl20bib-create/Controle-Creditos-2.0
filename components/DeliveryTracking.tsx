@@ -68,16 +68,57 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     });
   }, [commitments, credits, cancellations]);
 
-  const sections = useMemo(() => {
-    return Array.from(new Set(mappedCommitments.map(c => c.section))).sort();
+  const groupedCommitments = useMemo(() => {
+    const groups: Record<string, any> = {};
+    mappedCommitments.forEach(com => {
+      const key = `${com.ne}_${com.ug}`;
+      if (!groups[key]) {
+        groups[key] = {
+          ...com,
+          id: key, // Use composite key for iteration
+          originalCommitments: [com],
+          value: com.value,
+          description: com.description,
+          pi: com.pi,
+        };
+      } else {
+        groups[key].value += com.value;
+        groups[key].originalCommitments.push(com);
+        
+        // Merge descriptions
+        if (com.description && !groups[key].description.includes(com.description)) {
+           groups[key].description += ` / ${com.description}`;
+        }
+        
+        // Merge PIs
+        if (com.pi && !groups[key].pi.includes(com.pi)) {
+           groups[key].pi += `, ${com.pi}`;
+        }
+
+        // Maintain logic for material arrival (if any part is missing, the whole group is missing)
+        if (!com.materialArrivedDate) {
+          groups[key].materialArrivedDate = undefined;
+        }
+
+        // Inherit contacts if one has more up-to-date contacts
+        if (com.contacts && com.contacts.length > (groups[key].contacts?.length || 0)) {
+           groups[key].contacts = com.contacts;
+        }
+      }
+    });
+    return Object.values(groups);
   }, [mappedCommitments]);
+
+  const sections = useMemo(() => {
+    return Array.from(new Set(groupedCommitments.map(c => c.section))).sort();
+  }, [groupedCommitments]);
 
   const ugs = useMemo(() => {
-    return Array.from(new Set(mappedCommitments.map(c => c.ug))).sort();
-  }, [mappedCommitments]);
+    return Array.from(new Set(groupedCommitments.map(c => c.ug))).sort();
+  }, [groupedCommitments]);
 
   const filteredCommitments = useMemo(() => {
-    return mappedCommitments.filter(com => {
+    return groupedCommitments.filter(com => {
       const matchesSearch = 
         com.ne.toLowerCase().includes(searchTerm.toLowerCase()) || 
         com.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -101,9 +142,9 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [mappedCommitments, searchTerm, sectionFilter, ugFilter, showOnlyPending, sortBy, sortOrder]);
+  }, [groupedCommitments, searchTerm, sectionFilter, ugFilter, showOnlyPending, sortBy, sortOrder]);
 
-  const handleAddContact = (e: React.MouseEvent, com: Commitment) => {
+  const handleAddContact = (e: React.MouseEvent, com: any) => {
     e.preventDefault();
     if (!newContactDate || !newContactNotes) {
       alert("Preencha a data e os detalhes do contato.");
@@ -117,12 +158,14 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       expectedDeliveryDate: newContactExpectedDelivery || undefined,
     };
 
-    const updatedCom = {
-      ...com,
-      contacts: [...(com.contacts || []), newContact]
-    };
+    com.originalCommitments.forEach((origCom: Commitment) => {
+      const updatedCom = {
+        ...origCom,
+        contacts: [...(origCom.contacts || []), newContact]
+      };
+      onUpdateCommitment(updatedCom);
+    });
 
-    onUpdateCommitment(updatedCom);
     setNewContactDate('');
     setNewContactNotes('');
     setNewContactExpectedDelivery('');
@@ -135,52 +178,61 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     setEditContactExpectedDelivery(contact.expectedDeliveryDate || '');
   };
 
-  const handleSaveEditContact = (e: React.MouseEvent, com: Commitment) => {
+  const handleSaveEditContact = (e: React.MouseEvent, com: any) => {
     e.preventDefault();
     if (!editContactDate || !editContactNotes) {
       alert("Preencha a data e os detalhes do contato.");
       return;
     }
 
-    const updatedContacts = (com.contacts || []).map(c => 
-      c.id === editingContactId 
-        ? { ...c, date: editContactDate, notes: editContactNotes, expectedDeliveryDate: editContactExpectedDelivery || undefined }
-        : c
-    );
+    com.originalCommitments.forEach((origCom: Commitment) => {
+      const updatedContacts = (origCom.contacts || []).map(c => 
+        c.id === editingContactId 
+          ? { ...c, date: editContactDate, notes: editContactNotes, expectedDeliveryDate: editContactExpectedDelivery || undefined }
+          : c
+      );
+  
+      const updatedCom = {
+        ...origCom,
+        contacts: updatedContacts
+      };
+  
+      onUpdateCommitment(updatedCom);
+    });
 
-    const updatedCom = {
-      ...com,
-      contacts: updatedContacts
-    };
-
-    onUpdateCommitment(updatedCom);
     setEditingContactId(null);
   };
 
-  const handleDeleteContact = (com: Commitment, contactId: string) => {
+  const handleDeleteContact = (com: any, contactId: string) => {
     if (window.confirm("Deseja realmente excluir este contato?")) {
-      const updatedContacts = (com.contacts || []).filter(c => c.id !== contactId);
-      const updatedCom = {
-        ...com,
-        contacts: updatedContacts
-      };
-      onUpdateCommitment(updatedCom);
+      com.originalCommitments.forEach((origCom: Commitment) => {
+        const updatedContacts = (origCom.contacts || []).filter(c => c.id !== contactId);
+        const updatedCom = {
+          ...origCom,
+          contacts: updatedContacts
+        };
+        onUpdateCommitment(updatedCom);
+      });
     }
   };
 
-  const handleToggleMaterialArrived = (com: Commitment) => {
+  const handleToggleMaterialArrived = (com: any) => {
     const isArrived = !!com.materialArrivedDate;
     
     if (isArrived) {
        // mark as not arrived
-       const updatedCom = { ...com };
-       delete updatedCom.materialArrivedDate;
-       onUpdateCommitment(updatedCom);
+       com.originalCommitments.forEach((origCom: Commitment) => {
+         const updatedCom = { ...origCom };
+         delete updatedCom.materialArrivedDate;
+         onUpdateCommitment(updatedCom);
+       });
     } else {
        // mark as arrived today
        const today = new Date().toISOString().split('T')[0];
-       const updatedCom = { ...com, materialArrivedDate: today };
-       onUpdateCommitment(updatedCom);
+       com.originalCommitments.forEach((origCom: Commitment) => {
+         const updatedCom = { ...origCom, materialArrivedDate: today };
+         onUpdateCommitment(updatedCom);
+       });
     }
   };
 
