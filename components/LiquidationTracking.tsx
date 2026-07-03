@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Commitment, Cancellation } from '../types';
+import { Commitment, Cancellation, Credit } from '../types';
 import { Search, Plus, Calendar, FileText, CheckSquare, Square, X, CheckCircle2, Tag, Filter, ArrowUp, ArrowDown, Building2 } from 'lucide-react';
 import { formatDateBR } from '../utils/dateUtils';
 
@@ -8,10 +8,11 @@ const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 
 interface LiquidationTrackingProps {
   commitments: Commitment[];
   cancellations: Cancellation[];
+  credits: Credit[];
   onUpdateCommitment: (updated: Commitment) => void;
 }
 
-const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, onUpdateCommitment }) => {
+const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, credits, onUpdateCommitment }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -53,9 +54,19 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
         
         const daysSinceIssue = Math.floor((new Date().getTime() - new Date(com.date).getTime()) / (1000 * 3600 * 24));
         
-        return { ...com, activeValue: com.value - totalCancellations - totalLiquidated, daysSinceIssue };
+        const credit = credits.find(c => c.id === com.creditId);
+        
+        return { 
+          ...com, 
+          activeValue: com.value - totalCancellations - totalLiquidated, 
+          daysSinceIssue,
+          section: credit?.section || '',
+          pi: credit?.pi || '',
+          nd: credit?.nd || '',
+          ug: credit?.ug || ''
+        };
       });
-  }, [commitments, cancellations]);
+  }, [commitments, cancellations, credits]);
 
   const sections = useMemo(() => Array.from(new Set(eligibleCommitments.map(c => c.section).filter(Boolean))).sort(), [eligibleCommitments]);
   const pis = useMemo(() => Array.from(new Set(eligibleCommitments.map(c => c.pi).filter(Boolean))).sort(), [eligibleCommitments]);
@@ -289,9 +300,17 @@ const NewLiquidationModal = ({ commitments, cancellations, onClose, onSave }: an
       const totalLiquidated = isGlobal 
         ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
         : (com.liquidationNs ? com.value - totalCancellations : 0);
-      return { ...com, activeValue: com.value - totalCancellations - totalLiquidated };
+      const credit = credits.find(c => c.id === com.creditId);
+      return { 
+        ...com, 
+        activeValue: com.value - totalCancellations - totalLiquidated,
+        pi: credit?.pi || '',
+        nd: credit?.nd || '',
+        ug: credit?.ug || '',
+        section: credit?.section || ''
+      };
     }).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [commitments, cancellations]);
+  }, [commitments, cancellations, credits]);
 
   const allowedPi = selectedIds.length > 0 ? pendingCommitments.find((c: any) => c.id === selectedIds[0])?.pi : null;
   const allowedNd = selectedIds.length > 0 ? pendingCommitments.find((c: any) => c.id === selectedIds[0])?.nd : null;
