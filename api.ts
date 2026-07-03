@@ -48,24 +48,64 @@ const mappers = {
     })
   },
   commitments: {
-    toDB: (c: Commitment) => ({
-      id: c.id,
-      ne: c.ne,
-      creditId: c.creditId,
-      value: Number(c.value) || 0,
-      date: c.date,
-      description: c.description || ''
-    }),
-    fromDB: (row: any): Commitment => ({
-      id: row.id,
-      ne: row.ne,
-      creditId: row.creditId,
-      value: Number(row.value) || 0,
-      date: row.date,
-      description: row.description || '',
-      contacts: row.contacts || [],
-      materialArrivedDate: row.material_arrived_date || undefined
-    })
+    toDB: (c: Commitment) => {
+      const contacts = [...(c.contacts || [])];
+      const metaIndex = contacts.findIndex((c: any) => c._meta);
+      const metaObj = {
+        _meta: true,
+        type: c.type || 'Ordinário',
+        materialArrivals: c.materialArrivals || [],
+        liquidations: c.liquidations || [],
+        diexRemessa: c.diexRemessa || null,
+        sentToConfDocDate: c.sentToConfDocDate || null,
+        sentToFinanceDate: c.sentToFinanceDate || null
+      };
+      if (metaIndex >= 0) contacts[metaIndex] = metaObj as any;
+      else contacts.push(metaObj as any);
+
+      return {
+        id: c.id,
+        ne: c.ne,
+        creditId: c.creditId,
+        value: Number(c.value) || 0,
+        date: c.date,
+        description: c.description || '',
+        contacts: contacts,
+        material_arrived_date: c.materialArrivedDate || null,
+        invoice: c.invoice || null,
+        sent_to_company_date: c.sentToCompanyDate || null,
+        received_from_company_date: c.receivedFromCompanyDate || null,
+        liquidation_ns: c.liquidationNs || null,
+        liquidation_date: c.liquidationDate || null
+      };
+    },
+    fromDB: (row: any): Commitment => {
+      const rawContacts = row.contacts || [];
+      const metaObj = rawContacts.find((c: any) => c._meta);
+      const contacts = rawContacts.filter((c: any) => !c._meta);
+
+      return {
+        id: row.id,
+        ne: row.ne,
+        creditId: row.creditId,
+        value: Number(row.value) || 0,
+        date: row.date,
+        description: row.description || '',
+        contacts: contacts,
+        materialArrivedDate: row.material_arrived_date || undefined,
+        invoice: row.invoice || undefined,
+        sentToCompanyDate: row.sent_to_company_date || undefined,
+        receivedFromCompanyDate: row.received_from_company_date || undefined,
+        liquidationNs: row.liquidation_ns || undefined,
+        liquidationDate: row.liquidation_date || undefined,
+        type: metaObj?.type || 'Ordinário',
+        materialArrivals: metaObj?.materialArrivals || [],
+        liquidations: metaObj?.liquidations || [],
+        diexRemessa: metaObj?.diexRemessa || undefined,
+        sentToConfDocDate: metaObj?.sentToConfDocDate || undefined,
+        sentToFinanceDate: metaObj?.sentToFinanceDate || undefined
+      };
+    }
   },
   cancellations: {
     toDB: (c: Cancellation) => ({
