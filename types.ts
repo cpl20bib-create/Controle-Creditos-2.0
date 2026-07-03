@@ -1,6 +1,6 @@
 
 export type UG = '160211' | '167211';
-export type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER' | 'ALMOXARIFADO';
+export type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER' | 'ALMOXARIFADO' | 'CONFORMADOR';
 export type ContractType = 'RECEITA' | 'DESPESA';
 
 export interface User {
@@ -39,6 +39,25 @@ export interface CommitmentContact {
   expectedDeliveryDate?: string;
 }
 
+export interface MaterialArrival {
+  id: string;
+  date: string;
+  value: number;
+  invoice?: string;
+  diexRemessa?: string;
+  sentToConfDocDate?: string;
+  sentToFinanceDate?: string;
+}
+
+export interface Liquidation {
+  id: string;
+  ns: string;
+  date: string;
+  value: number;
+}
+
+export type CommitmentType = 'Ordinário' | 'Global' | 'Estimativo';
+
 export interface Commitment {
   id: string;
   ne: string;
@@ -47,7 +66,22 @@ export interface Commitment {
   date: string;
   description: string;
   contacts?: CommitmentContact[];
+  
+  // Legacy fields (keep for compatibility if needed, but prefer arrays)
   materialArrivedDate?: string;
+  invoice?: string;
+  diexRemessa?: string;
+  sentToConfDocDate?: string;
+  sentToFinanceDate?: string;
+  sentToCompanyDate?: string;
+  receivedFromCompanyDate?: string;
+  liquidationNs?: string;
+  liquidationDate?: string;
+
+  // New fields
+  type?: CommitmentType;
+  materialArrivals?: MaterialArrival[];
+  liquidations?: Liquidation[];
 }
 
 export interface Cancellation {
