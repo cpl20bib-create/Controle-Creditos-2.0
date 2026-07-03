@@ -262,6 +262,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
         <NewLiquidationModal 
           commitments={commitments} 
           cancellations={cancellations}
+          credits={credits}
           onClose={() => setIsModalOpen(false)} 
           onSave={onUpdateCommitment} 
         />
@@ -270,7 +271,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
   );
 };
 
-const NewLiquidationModal = ({ commitments, cancellations, onClose, onSave }: any) => {
+const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onSave }: any) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [liquidationDate, setLiquidationDate] = useState('');
   const [liquidationNs, setLiquidationNs] = useState('');
