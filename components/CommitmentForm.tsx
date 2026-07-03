@@ -37,7 +37,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     ne: initialData?.ne || '2026NE',
     totalValue: 0, // Será inicializado no useEffect
     description: initialData?.description || '',
-    date: initialData?.date || toLocalDateString(new Date())
+    date: initialData?.date || toLocalDateString(new Date()),
+    type: initialData?.type || 'Ordinário' as any
   });
 
   const [allocations, setAllocations] = useState<Record<string, number>>({});
@@ -87,7 +88,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
           ne: initialData.ne,
           totalValue: totalValueValue,
           description: initialData.description || '',
-          date: initialData.date || toLocalDateString(new Date())
+          date: initialData.date || toLocalDateString(new Date()),
+          type: initialData.type || 'Ordinário'
         });
         setOriginalCommitments(related);
         setAllocations(initialAllocations);
@@ -293,7 +295,10 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
           creditId: ncId,
           value: value,
           date: formData.date,
-          description: formData.description
+          description: formData.description,
+          type: formData.type as any,
+          materialArrivals: existing ? existing.materialArrivals : [],
+          liquidations: existing ? existing.liquidations : []
         });
       }
     });
@@ -385,10 +390,10 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-2">
                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                         <FileText size={14} className="text-red-500"/> Nota de Empenho (NE)
+                         <FileText size={14} className="text-red-500"/> Nota de Empenho
                       </label>
                       <input 
                         type="text" 
@@ -401,7 +406,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
                    </div>
                    <div className="space-y-2">
                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                         <Calendar size={14} className="text-red-500"/> Data do Documento
+                         <Calendar size={14} className="text-red-500"/> Data Emissão
                       </label>
                       <input 
                         type="date" 
@@ -410,6 +415,20 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
                         value={formData.date} 
                         onChange={e => setFormData({...formData, date: e.target.value})} 
                       />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                         <Tag size={14} className="text-red-500"/> Tipo de Empenho
+                      </label>
+                      <select 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:ring-2 focus:ring-red-500 shadow-sm"
+                        value={formData.type}
+                        onChange={e => setFormData({...formData, type: e.target.value as any})}
+                      >
+                        <option value="Ordinário">Ordinário</option>
+                        <option value="Global">Global</option>
+                        <option value="Estimativo">Estimativo</option>
+                      </select>
                    </div>
                 </div>
              </div>
