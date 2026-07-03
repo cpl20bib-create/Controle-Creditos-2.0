@@ -11,11 +11,12 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import AuditHistory from './components/AuditHistory';
 import DeliveryTracking from './components/DeliveryTracking';
+import LiquidationTracking from './components/LiquidationTracking';
 import { api, supabase } from './api';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'contracts' | 'reports' | 'users' | 'audit' | 'tracking'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'credits' | 'commitments' | 'contracts' | 'reports' | 'users' | 'audit' | 'tracking' | 'liquidations'>('dashboard');
   
   const [credits, setCredits] = useState<Credit[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
@@ -180,7 +181,9 @@ const App: React.FC = () => {
           .from('commitments')
           .update({
             contacts: updated.contacts,
-            material_arrived_date: updated.materialArrivedDate || null
+            material_arrived_date: updated.materialArrivedDate || null,
+            sent_to_company_date: updated.sentToCompanyDate || null,
+            received_from_company_date: updated.receivedFromCompanyDate || null
           })
           .eq('id', updated.id);
 
@@ -296,6 +299,7 @@ const App: React.FC = () => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'tracking', label: 'Acompanhamento', icon: PackageSearch, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO'] },
+    { id: 'liquidations', label: 'Liquidação', icon: CheckCircle, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'credits', label: 'Créditos', icon: ReceiptText, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'commitments', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
     { id: 'contracts', label: 'Contratos', icon: Briefcase, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
@@ -413,6 +417,7 @@ const App: React.FC = () => {
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
           {activeTab === 'tracking' && <DeliveryTracking credits={credits} commitments={commitments} cancellations={cancellations} onUpdateCommitment={handleUpdateCommitment} userRole={currentUser.role} userSection={currentUser.assignedSection} />}
+          {activeTab === 'liquidations' && <LiquidationTracking commitments={commitments} cancellations={cancellations} onUpdateCommitment={handleUpdateCommitment} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'contracts' && <ContractList contracts={contracts} credits={credits} commitments={commitments} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
