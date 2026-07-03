@@ -800,7 +800,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       )}
       {showMetricsModal && (
         <ProcessMetricsModal 
-          commitments={commitments} 
+          commitments={commitments}
+          credits={credits} 
           onClose={() => setShowMetricsModal(false)}
         />
       )}
