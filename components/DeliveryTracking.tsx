@@ -13,13 +13,14 @@ interface DeliveryTrackingProps {
   commitments: Commitment[];
   cancellations: Cancellation[];
   onUpdateCommitment: (updated: Commitment) => void;
+  onNotify?: (role: string, title: string, msg: string) => void;
   userRole: UserRole;
-  userSection?: string;
+  userSections?: string[];
 }
 
-const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitments, cancellations, onUpdateCommitment, userRole, userSection }) => {
+const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitments, cancellations, onUpdateCommitment, onNotify, userRole, userSections }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sectionFilter, setSectionFilter] = useState(userSection || '');
+  const [sectionFilter, setSectionFilter] = useState('');
   const [ugFilter, setUgFilter] = useState('');
   const [showOnlyPending, setShowOnlyPending] = useState(false);
   const [sortBy, setSortBy] = useState<'daysPassed' | 'value' | 'ne'>('ne');
@@ -38,6 +39,15 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   const [showConfDocModal, setShowConfDocModal] = useState(false);
   const [showFinanceModal, setShowFinanceModal] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
+
+  const canEditItem = (itemSection: string) => {
+    if (userRole === 'ADMIN' || userRole === 'EDITOR') return true;
+    if (userRole === 'ALMOXARIFADO') {
+      if (!userSections || userSections.length === 0) return true;
+      return userSections.includes(itemSection);
+    }
+    return false;
+  };
 
   // Map commitments to include credit info
   const mappedCommitments = useMemo(() => {
@@ -328,7 +338,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
           <select
             value={sectionFilter}
             onChange={(e) => setSectionFilter(e.target.value)}
-            disabled={!!userSection}
+            // disabled={!!userSections?.length}
             className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all appearance-none font-medium text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
           >
             <option value="">Todas as Seções</option>
@@ -548,6 +558,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                                     )}
                                   </div>
                                   <div className="hidden group-hover:flex items-center gap-1">
+                                    {canEditItem(com.section) && (
                                     <button
                                       onClick={() => startEditingContact(contact)}
                                       className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
@@ -555,6 +566,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                                     >
                                       <Edit3 size={14} />
                                     </button>
+                                    )}
+                                    {canEditItem(com.section) && (
                                     <button
                                       onClick={() => handleDeleteContact(com, contact.id)}
                                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -562,6 +575,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                                     >
                                       <Trash2 size={14} />
                                     </button>
+                                    )}
                                   </div>
                                 </div>
                                 <p className="text-sm font-medium text-slate-700 mt-2 leading-relaxed whitespace-pre-wrap">{contact.notes}</p>
@@ -581,7 +595,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                   {/* Right: Actions */}
                   <div className="space-y-6">
                     {/* Add new contact form */}
-                    {(!com.materialArrivedDate || userRole === 'ADMIN') && (
+                    {(!com.materialArrivedDate || userRole === 'ADMIN') && canEditItem(com.section) && (
                       <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm">
                         <h4 className="text-xs font-black text-emerald-900 uppercase tracking-widest mb-4">Registrar Novo Contato</h4>
                         <div className="space-y-4">
@@ -636,7 +650,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                             type="date"
                             value={com.sentToCompanyDate || ''}
                             onChange={(e) => handleUpdateSentDate(com, e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-medium"
+                            disabled={!canEditItem(com.section)}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-medium disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                           />
                         </div>
                         <div>
@@ -645,7 +660,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                             type="date"
                             value={com.receivedFromCompanyDate || ''}
                             onChange={(e) => handleUpdateReceivedDate(com, e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-medium"
+                            disabled={!canEditItem(com.section)}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-medium disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                           />
                         </div>
                       </div>
@@ -665,9 +681,11 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                                 </p>
                                 <p className="text-sm font-black text-emerald-600">{formatCurrency(arrival.value)}</p>
                               </div>
+                              {canEditItem(com.section) && (
                               <button onClick={() => handleRemoveMaterialArrival(com, arrival.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors">
                                 <Trash2 size={16} />
                               </button>
+                              )}
                             </div>
                           ))}
                           {(com.materialArrivals?.length || 0) === 0 && (
@@ -704,6 +722,10 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                               const dt = (document.getElementById(`date-${com.id}`) as HTMLInputElement).value;
                               const vl = parseFloat((document.getElementById(`val-${com.id}`) as HTMLInputElement).value);
                               const inv = (document.getElementById(`invoice-global-${com.id}`) as HTMLInputElement).value;
+                              if (!inv || !inv.trim()) {
+                                alert('A Nota Fiscal é obrigatória para o recebimento.');
+                                return;
+                              }
                               handleAddMaterialArrival(com, dt, vl, inv);
                               (document.getElementById(`date-${com.id}`) as HTMLInputElement).value = '';
                               (document.getElementById(`val-${com.id}`) as HTMLInputElement).value = '';
@@ -754,6 +776,10 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                           onClick={() => {
                             if (!com.materialArrivedDate) {
                               const inv = (document.getElementById(`invoice-ord-${com.id}`) as HTMLInputElement)?.value;
+                              if (!inv || !inv.trim()) {
+                                alert('A Nota Fiscal é obrigatória para confirmar o recebimento.');
+                                return;
+                              }
                               handleToggleMaterialArrived(com, inv);
                             } else {
                               handleToggleMaterialArrived(com);
@@ -784,16 +810,18 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
       {showConfDocModal && (
         <ProcessTrackingModals 
-          commitments={commitments} 
+          commitments={mappedCommitments.filter(c => canEditItem(c.section))} 
           onUpdateCommitment={onUpdateCommitment}
+          onNotify={onNotify}
           onClose={() => setShowConfDocModal(false)}
           modalType="ConfDoc"
         />
       )}
       {showFinanceModal && (
         <ProcessTrackingModals 
-          commitments={commitments} 
+          commitments={mappedCommitments.filter(c => canEditItem(c.section))} 
           onUpdateCommitment={onUpdateCommitment}
+          onNotify={onNotify}
           onClose={() => setShowFinanceModal(false)}
           modalType="Finance"
         />
