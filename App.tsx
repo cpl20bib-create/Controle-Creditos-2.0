@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History, PackageSearch } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History, PackageSearch, Bell } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract, AuditLog } from './types';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
@@ -25,6 +25,7 @@ const App: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const [filters, setFilters] = useState<Filters>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
@@ -107,6 +108,27 @@ const App: React.FC = () => {
     localStorage.removeItem('budget_session');
   };
 
+  const sendNotification = async (targetRole: string, title: string, message: string, section?: string) => {
+    if (!isOnline || !currentUser) return;
+    const notif: AuditLog = {
+      id: Math.random().toString(36).substr(2, 9),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      action: 'NOTIFICATION',
+      entityType: targetRole as any,
+      entityId: Math.random().toString(36).substr(2, 9),
+      description: JSON.stringify({ title, message, readBy: [], section }),
+      timestamp: new Date().toISOString()
+    };
+    try {
+      await api.upsert('audit_logs', notif);
+      // We don't necessarily need to await syncWithServer here
+      // as it will be called by the caller
+    } catch (e) {
+      console.warn('Failed to send notification', e);
+    }
+  };
+
   const handleAddCredit = async (newCredit: Credit) => {
     const nextCredits = [...credits, newCredit];
     setCredits(nextCredits);
@@ -114,6 +136,7 @@ const App: React.FC = () => {
     if (isOnline) {
       try {
         await api.upsert('credits', newCredit);
+        await sendNotification('ALMOXARIFADO', 'Novo Recurso', `Recurso ${newCredit.nc} recebido com saldo R$ ${Number(newCredit.valueReceived).toLocaleString('pt-BR')}.`, newCredit.section);
         syncWithServer();
       } catch (e: any) {
         console.warn(e.message);
@@ -159,6 +182,8 @@ const App: React.FC = () => {
     if (isOnline) {
       try {
         await api.upsert('commitments', newCom);
+        const credit = credits.find(c => c.id === newCom.creditId);
+        await sendNotification('ALMOXARIFADO', 'Novo Empenho', `Empenho ${newCom.ne} registrado no valor de R$ ${Number(newCom.value).toLocaleString('pt-BR')}.`, credit?.section);
         syncWithServer();
       } catch (e: any) {
         console.warn(e.message);
@@ -261,6 +286,8 @@ const App: React.FC = () => {
     if (isOnline) {
       try {
         await api.upsert('refunds', newRefund);
+        const credit = credits.find(c => c.id === newRefund.creditId);
+        await sendNotification('ALMOXARIFADO', 'Novo Recolhimento', `Recolhimento registrado no valor de R$ ${Number(newRefund.value).toLocaleString('pt-BR')}.`, credit?.section);
         syncWithServer();
       } catch (e: any) {
         console.warn(e.message);
@@ -274,6 +301,9 @@ const App: React.FC = () => {
     if (isOnline) {
       try {
         await api.upsert('cancellations', newCan);
+        const com = commitments.find(c => c.id === newCan.commitmentId);
+        const credit = credits.find(c => c.id === com?.creditId);
+        await sendNotification('ALMOXARIFADO', 'Nova Anulação', `Anulação registrada no valor de R$ ${Number(newCan.value).toLocaleString('pt-BR')}.`, credit?.section);
         syncWithServer();
       } catch (e: any) {
         console.warn(e.message);
@@ -297,13 +327,13 @@ const App: React.FC = () => {
   };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
-    { id: 'tracking', label: 'Acompanhamento', icon: PackageSearch, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO'] },
-    { id: 'liquidations', label: 'Liquidação', icon: CheckCircle, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
-    { id: 'credits', label: 'Créditos', icon: ReceiptText, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
-    { id: 'commitments', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
-    { id: 'contracts', label: 'Contratos', icon: Briefcase, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
-    { id: 'reports', label: 'Relatórios', icon: FilePieChart, roles: ['ADMIN', 'EDITOR', 'VIEWER'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO', 'CONFORMADOR', 'FINANCEIRO'] },
+    { id: 'tracking', label: 'Acompanhamento', icon: PackageSearch, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO', 'CONFORMADOR', 'FINANCEIRO'] },
+    { id: 'liquidations', label: 'Liquidação', icon: CheckCircle, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO', 'CONFORMADOR', 'FINANCEIRO'] },
+    { id: 'credits', label: 'Créditos', icon: ReceiptText, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO', 'CONFORMADOR', 'FINANCEIRO'] },
+    { id: 'commitments', label: 'Empenhos', icon: TrendingDown, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO', 'CONFORMADOR', 'FINANCEIRO'] },
+    { id: 'contracts', label: 'Contratos', icon: Briefcase, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO', 'CONFORMADOR', 'FINANCEIRO'] },
+    { id: 'reports', label: 'Relatórios', icon: FilePieChart, roles: ['ADMIN', 'EDITOR', 'VIEWER', 'ALMOXARIFADO', 'CONFORMADOR', 'FINANCEIRO'] },
     { id: 'audit', label: 'Auditoria', icon: History, roles: ['ADMIN'] },
     { id: 'users', label: 'Usuários', icon: Users, roles: ['ADMIN'] },
   ] as const;
@@ -313,6 +343,41 @@ const App: React.FC = () => {
   }
 
   const filteredMenuItems = menuItems.filter(item => (item.roles as readonly string[]).includes(currentUser.role));
+
+  const userNotifications = auditLogs.filter(log => {
+    if (log.action !== 'NOTIFICATION') return false;
+    if (log.entityType === 'ALL') return true;
+    if (log.entityType !== currentUser.role) return false;
+    
+    try {
+      const parsed = JSON.parse(log.description);
+      if (parsed.section && currentUser.role === 'ALMOXARIFADO') {
+        if (!currentUser.assignedSections || currentUser.assignedSections.length === 0) return true;
+        return currentUser.assignedSections.includes(parsed.section);
+      }
+    } catch (e) {}
+    return true;
+  });
+  const unreadCount = userNotifications.filter(log => !log.description.includes(`"readBy":["${currentUser.id}"]`)).length;
+
+
+
+  const markAllAsRead = async () => {
+    const unread = userNotifications.filter(log => !log.description.includes(`"readBy":["${currentUser.id}"]`));
+    for (const log of unread) {
+      try {
+        const parsed = JSON.parse(log.description);
+        parsed.readBy = parsed.readBy || [];
+        if (!parsed.readBy.includes(currentUser.id)) {
+           parsed.readBy.push(currentUser.id);
+           const updated = { ...log, description: JSON.stringify(parsed) };
+           await api.upsert('audit_logs', updated);
+        }
+      } catch (e) {}
+    }
+    syncWithServer();
+  };
+
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-black relative">
@@ -407,6 +472,51 @@ const App: React.FC = () => {
             </button>
           </div>
           <div className="flex items-center gap-4 md:gap-6">
+            
+            <div className="relative">
+              <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors relative">
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Notificações</h3>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllAsRead} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase">
+                        Marcar como lidas
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {userNotifications.length === 0 ? (
+                      <div className="p-8 text-center text-slate-400 text-xs font-medium">
+                        Nenhuma notificação no momento.
+                      </div>
+                    ) : (
+                      userNotifications.slice(0, 50).map(notif => {
+                        let parsed: any = { title: 'Aviso', message: notif.description };
+                        try { parsed = JSON.parse(notif.description); } catch(e){}
+                        const isRead = parsed.readBy?.includes(currentUser.id);
+                        return (
+                          <div key={notif.id} className={`p-4 border-b border-slate-50 transition-colors ${isRead ? 'opacity-50' : 'bg-slate-50/30'}`}>
+                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-1">{parsed.title}</h4>
+                            <p className="text-[11px] text-slate-600 leading-snug">{parsed.message}</p>
+                            <span className="text-[9px] text-slate-400 font-medium mt-2 block">
+                              {new Date(notif.timestamp).toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="text-right hidden xs:block">
               <p className="text-[9px] md:text-[10px] font-black text-slate-900 uppercase">{currentUser.name}</p>
               <p className="text-[7px] md:text-[9px] text-emerald-600 font-bold uppercase italic tracking-widest">BIB 20</p>
@@ -416,8 +526,8 @@ const App: React.FC = () => {
 
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
           {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
-          {activeTab === 'tracking' && <DeliveryTracking credits={credits} commitments={commitments} cancellations={cancellations} onUpdateCommitment={handleUpdateCommitment} userRole={currentUser.role} userSection={currentUser.assignedSection} />}
-          {activeTab === 'liquidations' && <LiquidationTracking commitments={commitments} cancellations={cancellations} credits={credits} onUpdateCommitment={handleUpdateCommitment} />}
+          {activeTab === 'tracking' && <DeliveryTracking credits={credits} commitments={commitments} cancellations={cancellations} onUpdateCommitment={handleUpdateCommitment} onNotify={sendNotification} userRole={currentUser.role} userSections={currentUser.assignedSections} />}
+          {activeTab === 'liquidations' && <LiquidationTracking commitments={commitments} cancellations={cancellations} credits={credits} onUpdateCommitment={handleUpdateCommitment} userRole={currentUser.role} />}
           {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} auditLogs={auditLogs} />}
           {activeTab === 'contracts' && <ContractList contracts={contracts} credits={credits} commitments={commitments} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
