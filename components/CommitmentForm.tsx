@@ -115,7 +115,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     credits.filter(c => c.ug === formData.ug).forEach(credit => {
       // Ao editar, o saldo disponível deve INCLUIR o valor já empenhado pelos registros que estamos editando
       const realBalance = getNCBalance(credit, excludeIds);
-      if (realBalance <= 0.01) return;
+      const isOriginalCredit = originalCommitments.some(c => c.creditId === credit.id);
+      if (realBalance <= 0.01 && !isOriginalCredit) return;
 
       const cellKey = `${credit.pi}-${credit.nd}-${credit.fonte}-${credit.ptres}-${credit.esfera}-${credit.ugr}`;
 
@@ -210,7 +211,25 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
       .reduce((acc, nc) => acc + nc.realBalance, 0);
   }, [selectedCell, selectedNcIds]);
 
-  const isBalanceInsufficient = selectedCell && formData.totalValue > 0 && selectedNotesBalance < formData.totalValue;
+  const originalTotalValue = useMemo(() => {
+    return originalCommitments.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+  }, [originalCommitments]);
+
+  const originalCellId = useMemo(() => {
+    if (initialData && credits.length > 0) {
+      const credit = credits.find(c => c.id === initialData.creditId);
+      if (credit) {
+        return `${credit.pi}-${credit.nd}-${credit.fonte}-${credit.ptres}-${credit.esfera}-${credit.ugr}`;
+      }
+    }
+    return '';
+  }, [initialData, credits]);
+
+  const isValueUnchanged = originalCommitments.length > 0 
+    && Math.abs(formData.totalValue - originalTotalValue) < 0.01 
+    && formData.cellId === originalCellId;
+
+  const isBalanceInsufficient = selectedCell && formData.totalValue > 0 && selectedNotesBalance < formData.totalValue && !isValueUnchanged;
 
   const handleToggleNc = (ncId: string) => {
     setSelectedNcIds(prev => {
