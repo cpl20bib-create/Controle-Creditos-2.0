@@ -1,6 +1,6 @@
 
 export type UG = '160211' | '167211';
-export type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER' | 'ALMOXARIFADO' | 'CONFORMADOR';
+export type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER' | 'ALMOXARIFADO' | 'CONFORMADOR' | 'FINANCEIRO';
 export type ContractType = 'RECEITA' | 'DESPESA';
 
 export interface User {
@@ -9,7 +9,7 @@ export interface User {
   password?: string;
   role: UserRole;
   name: string;
-  assignedSection?: string;
+  assignedSections?: string[];
 }
 
 export interface Credit {
@@ -136,7 +136,7 @@ export interface Filters {
   sortOrder?: SortOrder;
 }
 
-export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
+export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'NOTIFICATION';
 export type EntityType = 'CRÉDITO' | 'EMPENHO' | 'RECOLHIMENTO' | 'ANULAÇÃO' | 'CONTRATO';
 
 export interface AuditLog {
