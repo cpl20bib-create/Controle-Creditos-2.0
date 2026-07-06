@@ -19,12 +19,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
     name: '',
     role: 'VIEWER',
     password: '',
-    assignedSection: ''
+    assignedSections: []
   });
 
   const handleOpenAdd = () => {
     setEditingId(null);
-    setFormData({ username: '', name: '', role: 'VIEWER', password: '', assignedSection: '' });
+    setFormData({ username: '', name: '', role: 'VIEWER', password: '', assignedSections: [] });
     setShowPasswordInForm(false);
     setShowForm(true);
   };
@@ -36,7 +36,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
       name: user.name,
       role: user.role,
       password: user.password,
-      assignedSection: user.assignedSection || ''
+      assignedSections: user.assignedSections || []
     });
     setShowPasswordInForm(false);
     setShowForm(true);
@@ -60,7 +60,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
         name: formData.name || '',
         role: (formData.role as UserRole) || 'VIEWER',
         password: formData.password || '',
-        assignedSection: formData.assignedSection || undefined
+        assignedSections: formData.assignedSections?.length ? formData.assignedSections : undefined
       } : u));
     } else {
       const newUser: User = {
@@ -69,13 +69,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
         name: formData.name || '',
         role: (formData.role as UserRole) || 'VIEWER',
         password: formData.password || '',
-        assignedSection: formData.assignedSection || undefined
+        assignedSections: formData.assignedSections?.length ? formData.assignedSections : undefined
       };
       setUsers([...users, newUser]);
     }
     
     setShowForm(false);
-    setFormData({ username: '', name: '', role: 'VIEWER', password: '', assignedSection: '' });
+    setFormData({ username: '', name: '', role: 'VIEWER', password: '', assignedSections: [] });
   };
 
   const handleDelete = (id: string) => {
@@ -93,6 +93,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
       case 'ADMIN': return <ShieldAlert className="text-red-500" size={14} />;
       case 'EDITOR': return <ShieldCheck className="text-emerald-500" size={14} />;
       case 'ALMOXARIFADO': return <UserIcon className="text-blue-500" size={14} />;
+      case 'CONFORMADOR': return <UserIcon className="text-orange-500" size={14} />;
+      case 'FINANCEIRO': return <UserIcon className="text-purple-500" size={14} />;
       default: return <UserIcon className="text-slate-400" size={14} />;
     }
   };
@@ -102,6 +104,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
       case 'ADMIN': return 'Administrador';
       case 'EDITOR': return 'Editor';
       case 'ALMOXARIFADO': return 'Almoxarifado';
+      case 'CONFORMADOR': return 'Conformador';
+      case 'FINANCEIRO': return 'Financeiro';
       default: return 'Visualizador';
     }
   };
@@ -141,7 +145,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
                 </span>
                 {user.role === 'ALMOXARIFADO' && (
                   <span className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-100">
-                    Seção: {user.assignedSection || 'Todas'}
+                    Seções: {user.assignedSections?.length ? user.assignedSections.join(', ') : 'Todas'}
                   </span>
                 )}
               </div>
@@ -223,6 +227,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
                     <option value="VIEWER">Visualizador</option>
                     <option value="EDITOR">Editor</option>
                     <option value="ALMOXARIFADO">Almoxarifado</option>
+                    <option value="CONFORMADOR">Conformador</option>
+                    <option value="FINANCEIRO">Financeiro</option>
                     <option value="ADMIN">Administrador</option>
                   </select>
                 </div>
@@ -263,16 +269,37 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
               {formData.role === 'ALMOXARIFADO' && (
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Seção Designada</label>
-                  <select 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-emerald-500 text-black"
-                    value={formData.assignedSection || ''}
-                    onChange={e => setFormData({...formData, assignedSection: e.target.value})}
-                  >
-                    <option value="">Todas as Seções (Liberado)</option>
+                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={!formData.assignedSections || formData.assignedSections.length === 0}
+                        onChange={() => setFormData({...formData, assignedSections: []})}
+                        className="rounded text-emerald-500 focus:ring-emerald-500"
+                      />
+                      <span className="text-xs font-bold uppercase">Todas as Seções (Liberado)</span>
+                    </label>
+                    <div className="h-px bg-slate-200 my-1"></div>
                     {SECTION_OPTIONS.map(sec => (
-                      <option key={sec} value={sec}>{sec}</option>
+                      <label key={sec} className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.assignedSections?.includes(sec) || false}
+                          onChange={(e) => {
+                            let curr = formData.assignedSections || [];
+                            if (e.target.checked) {
+                              curr = [...curr, sec];
+                            } else {
+                              curr = curr.filter(s => s !== sec);
+                            }
+                            setFormData({...formData, assignedSections: curr});
+                          }}
+                          className="rounded text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <span className="text-xs font-bold uppercase text-slate-700">{sec}</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
 
