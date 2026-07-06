@@ -6,13 +6,14 @@ import { formatDateBR } from '../utils/dateUtils';
 interface ProcessTrackingModalsProps {
   commitments: Commitment[];
   onUpdateCommitment: (updated: Commitment) => void;
+  onNotify?: (role: string, title: string, msg: string) => void;
   onClose: () => void;
   modalType: 'ConfDoc' | 'Finance';
 }
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ commitments, onUpdateCommitment, onClose, modalType }) => {
+export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ commitments, onUpdateCommitment, onNotify, onClose, modalType }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [actionDate, setActionDate] = useState('');
   const [diexRemessa, setDiexRemessa] = useState('');
@@ -153,6 +154,13 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
 
     Object.values(updatesByCommitment).forEach(com => {
       onUpdateCommitment(com);
+      if (onNotify) {
+         if (modalType === 'ConfDoc') {
+            onNotify('CONFORMADOR', 'Processo Recebido', `Empenho ${com.ne} enviado para Conformidade Documental.`);
+         } else if (modalType === 'Finance') {
+            onNotify('FINANCEIRO', 'Processo Recebido', `Empenho ${com.ne} enviado para o Setor Financeiro.`);
+         }
+      }
     });
 
     onClose();
