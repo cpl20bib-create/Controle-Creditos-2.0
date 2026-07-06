@@ -10,9 +10,11 @@ interface LiquidationTrackingProps {
   cancellations: Cancellation[];
   credits: Credit[];
   onUpdateCommitment: (updated: Commitment) => void;
+  userRole?: string;
 }
 
-const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, credits, onUpdateCommitment }) => {
+const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, credits, onUpdateCommitment, userRole }) => {
+  const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR' || userRole === 'FINANCEIRO';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -27,8 +29,13 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
     return commitments
       .filter(com => {
         const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-        const isArrived = isGlobal ? (com.materialArrivals?.length || 0) > 0 : !!com.materialArrivedDate;
-        if (!isArrived) return false;
+        let hasSentToFinance = false;
+        if (isGlobal) {
+          hasSentToFinance = (com.materialArrivals || []).some(arr => !!arr.sentToFinanceDate);
+        } else {
+          hasSentToFinance = !!com.sentToFinanceDate;
+        }
+        if (!hasSentToFinance) return false;
         
         const totalCancellations = cancellations
           .filter(c => c.commitmentId === com.id)
