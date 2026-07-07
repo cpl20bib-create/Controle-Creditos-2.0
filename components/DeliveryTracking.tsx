@@ -693,6 +693,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                           )}
                         </div>
                         
+                        {canEditItem(com.section) && (
                         <div className="border-t border-slate-100 pt-4 space-y-3">
                           <h5 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Novo Recebimento</h5>
                           <div className="flex flex-col gap-2">
@@ -736,6 +737,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                             <Plus size={14} /> Adicionar
                           </button>
                         </div>
+                        )}
                         <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Recebido</span>
                           <span className="text-sm font-black text-emerald-600">
@@ -762,7 +764,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                               </p>
                             )}
                           </div>
-                        ) : (
+                        ) : canEditItem(com.section) ? (
                           <div className="w-full max-w-xs mb-4">
                             <input 
                               type="text"
@@ -771,7 +773,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                               className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-center"
                             />
                           </div>
-                        )}
+                        ) : null}
+                        {canEditItem(com.section) && (
                         <button
                           onClick={() => {
                             if (!com.materialArrivedDate) {
@@ -789,6 +792,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                         >
                           {com.materialArrivedDate ? 'Desfazer Entrega' : 'Confirmar Recebimento'}
                         </button>
+                        )}
                       </div>
                     )}
 
