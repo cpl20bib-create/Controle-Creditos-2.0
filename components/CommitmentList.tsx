@@ -42,6 +42,100 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
 
   const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR';
 
+  
+function getProcessStatus(com: any, balance: number, liquidatedTotal: number) {
+  const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+  let statusStr = '';
+  let since = null;
+  let responsible = '';
+  let stage = '';
+
+  if (isGlobal) {
+    const arrivals = com.materialArrivals || [];
+    const totalArrived = arrivals.reduce((sum, a) => sum + Number(a.value), 0);
+    const confDocArrivals = arrivals.filter(a => a.sentToConfDocDate && !a.sentToFinanceDate);
+    const unforwardedArrivals = arrivals.filter(a => !a.sentToConfDocDate);
+    const financeArrivals = arrivals.filter(a => a.sentToFinanceDate);
+    const totalSentToFinance = financeArrivals.reduce((sum, a) => sum + Number(a.value), 0);
+    const totalSentToConfDoc = arrivals.filter(a => a.sentToConfDocDate).reduce((sum, a) => sum + Number(a.value), 0);
+
+    if (liquidatedTotal >= balance && balance > 0) {
+      statusStr = 'Totalmente Liquidado';
+      responsible = 'Financeiro';
+      since = com.liquidationDate || null;
+      stage = 'liquidado';
+    } else if (totalSentToFinance > liquidatedTotal) {
+      statusStr = 'Com o Setor Financeiro (Parcial)';
+      responsible = 'Setor Financeiro';
+      since = financeArrivals.map(a => a.sentToFinanceDate).sort()[0];
+      stage = 'financeiro';
+    } else if (confDocArrivals.length > 0) {
+      statusStr = 'Com o Conf. Doc. (Parcial)';
+      responsible = 'Conf. Doc.';
+      since = confDocArrivals.map(a => a.sentToConfDocDate).sort()[0];
+      stage = 'confdoc';
+    } else if (unforwardedArrivals.length > 0) {
+      statusStr = 'Recebimento Confirmado (Parcial)';
+      responsible = 'Almoxarifado';
+      since = unforwardedArrivals.map(a => a.date).sort()[0];
+      stage = 'recebido';
+    } else if (com.sentToCompanyDate) {
+      statusStr = 'Enviado para Empresa (Aguardando Entrega)';
+      responsible = 'Empresa';
+      since = com.sentToCompanyDate;
+      stage = 'empresa';
+    } else {
+      statusStr = 'Aguardando Envio / Entrega';
+      responsible = 'Almoxarifado';
+      since = com.date;
+      stage = 'almoxarifado';
+    }
+  } else {
+    if (com.liquidationNs) {
+      statusStr = 'Liquidado';
+      responsible = 'Financeiro';
+      since = com.liquidationDate;
+      stage = 'liquidado';
+    } else if (com.sentToFinanceDate) {
+      statusStr = 'Com o Setor Financeiro';
+      responsible = 'Setor Financeiro';
+      since = com.sentToFinanceDate;
+      stage = 'financeiro';
+    } else if (com.sentToConfDocDate) {
+      statusStr = 'Com o Conf. Doc.';
+      responsible = 'Conf. Doc.';
+      since = com.sentToConfDocDate;
+      stage = 'confdoc';
+    } else if (com.materialArrivedDate) {
+      statusStr = 'Recebimento Confirmado';
+      responsible = 'Almoxarifado';
+      since = com.materialArrivedDate;
+      stage = 'recebido';
+    } else if (com.sentToCompanyDate) {
+      statusStr = 'Enviado para Empresa (Aguardando Entrega)';
+      responsible = 'Empresa';
+      since = com.sentToCompanyDate;
+      stage = 'empresa';
+    } else {
+      statusStr = 'Aguardando Envio / Entrega';
+      responsible = 'Almoxarifado';
+      since = com.date;
+      stage = 'almoxarifado';
+    }
+  }
+
+  let days = 0;
+  if (since && stage !== 'liquidado') {
+    const d = new Date(since);
+    d.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    days = Math.floor((today.getTime() - d.getTime()) / (1000 * 3600 * 24));
+  }
+
+  return { statusStr, responsible, since, days, stage };
+}
+
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
@@ -92,6 +186,11 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
         .reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
       
       const currentBalance = group.totalValue - cancelledValue;
+    const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
+    const totalLiquidated = isGlobal 
+        ? (item.liquidations || []).reduce((sum: number, l: any) => sum + Number(l.value), 0)
+        : (item.liquidationNs ? item.value : 0);
+    const status = getProcessStatus(item, currentBalance, totalLiquidated);
       
       // Pegamos o primeiro crédito para filtros básicos (UG já está no grupo agora)
       const firstAllocation = group.allocations[0];
@@ -156,7 +255,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
     const cancelledValue = (cancellations || []).filter(can => group.ids.includes(can.commitmentId)).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
     const currentBalance = group.totalValue - cancelledValue;
 
-    return { ...item, ...group, credit, logs: relatedLogs, currentBalance };
+    return { ...item, ...group, credit, logs: relatedLogs, currentBalance, processStatus: status };
   }, [detailItemId, groupedCommitments, commitments, credits, auditLogs, cancellations]);
 
   // Modal de Detalhes da NC (Reutilizado)
@@ -429,6 +528,22 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 md:col-span-2">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo Líquido Remanescente</p>
                     <p className={`text-xl font-black ${selectedDetailItem.currentBalance < 0.01 ? 'text-slate-400 line-through' : 'text-emerald-600'}`}>{formatCurrency(selectedDetailItem.currentBalance)}</p>
+                 </div>
+                 
+                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 md:col-span-2">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Status / Localização</p>
+                    <div className="flex justify-between items-center">
+                       <div>
+                          <p className="text-xl font-black text-indigo-700">{selectedDetailItem.processStatus.statusStr}</p>
+                          <p className="text-xs font-bold text-slate-500 mt-1">Responsável: {selectedDetailItem.processStatus.responsible}</p>
+                       </div>
+                       {selectedDetailItem.processStatus.stage !== 'liquidado' && selectedDetailItem.processStatus.since && (
+                         <div className="text-right">
+                            <p className="text-3xl font-black text-amber-500 leading-none">{selectedDetailItem.processStatus.days}</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Dias nesta etapa</p>
+                         </div>
+                       )}
+                    </div>
                  </div>
               </div>
 
