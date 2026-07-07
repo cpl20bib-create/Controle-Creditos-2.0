@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History, PackageSearch, Bell } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History, PackageSearch, Bell, Trash2 } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract, AuditLog } from './types';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
@@ -351,6 +351,7 @@ const App: React.FC = () => {
     
     try {
       const parsed = JSON.parse(log.description);
+      if (parsed.deletedBy && parsed.deletedBy.includes(currentUser.id)) return false;
       if (parsed.section && currentUser.role === 'ALMOXARIFADO') {
         if (!currentUser.assignedSections || currentUser.assignedSections.length === 0) return true;
         return currentUser.assignedSections.includes(parsed.section);
@@ -358,12 +359,26 @@ const App: React.FC = () => {
     } catch (e) {}
     return true;
   });
-  const unreadCount = userNotifications.filter(log => !log.description.includes(`"readBy":["${currentUser.id}"]`)).length;
+  const unreadCount = userNotifications.filter(log => {
+    try {
+      const parsed = JSON.parse(log.description);
+      return !(parsed.readBy && parsed.readBy.includes(currentUser.id));
+    } catch(e) {
+      return true;
+    }
+  }).length;
 
 
 
   const markAllAsRead = async () => {
-    const unread = userNotifications.filter(log => !log.description.includes(`"readBy":["${currentUser.id}"]`));
+    const unread = userNotifications.filter(log => {
+    try {
+      const parsed = JSON.parse(log.description);
+      return !(parsed.readBy && parsed.readBy.includes(currentUser.id));
+    } catch(e) {
+      return true;
+    }
+  });
     for (const log of unread) {
       try {
         const parsed = JSON.parse(log.description);
@@ -376,6 +391,20 @@ const App: React.FC = () => {
       } catch (e) {}
     }
     syncWithServer();
+  };
+  const deleteNotification = async (logId: string) => {
+    const log = auditLogs.find(l => l.id === logId);
+    if (!log) return;
+    try {
+      let parsed = JSON.parse(log.description);
+      parsed.deletedBy = parsed.deletedBy || [];
+      if (!parsed.deletedBy.includes(currentUser.id)) {
+        parsed.deletedBy.push(currentUser.id);
+        const updated = { ...log, description: JSON.stringify(parsed) };
+        await api.upsert('audit_logs', updated);
+        syncWithServer();
+      }
+    } catch(e) {}
   };
 
 
@@ -502,8 +531,15 @@ const App: React.FC = () => {
                         try { parsed = JSON.parse(notif.description); } catch(e){}
                         const isRead = parsed.readBy?.includes(currentUser.id);
                         return (
-                          <div key={notif.id} className={`p-4 border-b border-slate-50 transition-colors ${isRead ? 'opacity-50' : 'bg-slate-50/30'}`}>
-                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-1">{parsed.title}</h4>
+                          <div key={notif.id} className={`p-4 border-b border-slate-50 transition-colors relative group ${isRead ? 'opacity-50 hover:opacity-100' : 'bg-slate-50/30'}`}>
+                            <div className="flex justify-between items-start">
+                              <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-1">{parsed.title}</h4>
+                              {isRead && (
+                                <button onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir aviso">
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
+                            </div>
                             <p className="text-[11px] text-slate-600 leading-snug">{parsed.message}</p>
                             <span className="text-[9px] text-slate-400 font-medium mt-2 block">
                               {new Date(notif.timestamp).toLocaleString('pt-BR')}
