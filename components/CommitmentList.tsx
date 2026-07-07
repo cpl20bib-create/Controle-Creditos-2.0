@@ -186,11 +186,6 @@ function getProcessStatus(com: any, balance: number, liquidatedTotal: number) {
         .reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
       
       const currentBalance = group.totalValue - cancelledValue;
-    const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
-    const totalLiquidated = isGlobal 
-        ? (item.liquidations || []).reduce((sum: number, l: any) => sum + Number(l.value), 0)
-        : (item.liquidationNs ? item.value : 0);
-    const status = getProcessStatus(item, currentBalance, totalLiquidated);
       
       // Pegamos o primeiro crédito para filtros básicos (UG já está no grupo agora)
       const firstAllocation = group.allocations[0];
@@ -254,7 +249,12 @@ function getProcessStatus(com: any, balance: number, liquidatedTotal: number) {
     
     const cancelledValue = (cancellations || []).filter(can => group.ids.includes(can.commitmentId)).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
     const currentBalance = group.totalValue - cancelledValue;
-
+    const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
+    const totalLiquidated = isGlobal 
+        ? (item.liquidations || []).reduce((sum: number, l: any) => sum + Number(l.value), 0)
+        : (item.liquidationNs ? item.value : 0);
+    const status = getProcessStatus(item, currentBalance, totalLiquidated);
+    
     return { ...item, ...group, credit, logs: relatedLogs, currentBalance, processStatus: status };
   }, [detailItemId, groupedCommitments, commitments, credits, auditLogs, cancellations]);
 
