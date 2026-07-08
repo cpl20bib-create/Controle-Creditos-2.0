@@ -180,14 +180,16 @@ const mappers = {
       username: u.username,
       password: u.password,
       role: u.role,
-      name: u.name
+      name: u.name,
+      assigned_sections: u.assignedSections || []
     }),
     fromDB: (row: any): User => ({
       id: row.id,
       username: row.username,
       password: row.password,
       role: row.role,
-      name: row.name
+      name: row.name,
+      assignedSections: row.assigned_sections || []
     })
   },
   audit_logs: {
