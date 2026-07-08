@@ -61,7 +61,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers, onDele
         name: formData.name || '',
         role: (formData.role as UserRole) || 'VIEWER',
         password: formData.password || '',
-        assignedSections: formData.assignedSections?.length ? formData.assignedSections : undefined
+        assignedSections: formData.assignedSections && formData.assignedSections.length > 0 ? formData.assignedSections : []
       } : u));
     } else {
       const newUser: User = {
@@ -70,7 +70,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers, onDele
         name: formData.name || '',
         role: (formData.role as UserRole) || 'VIEWER',
         password: formData.password || '',
-        assignedSections: formData.assignedSections?.length ? formData.assignedSections : undefined
+        assignedSections: formData.assignedSections && formData.assignedSections.length > 0 ? formData.assignedSections : []
       };
       setUsers([...users, newUser]);
     }
