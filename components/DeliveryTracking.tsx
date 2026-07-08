@@ -31,15 +31,25 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   const [sortBy, setSortBy] = useState<'daysPassed' | 'value' | 'ne'>('ne');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [pendingDates, setPendingDates] = useState<Record<string, { sent?: string, received?: string }>>({});
-  const handlePendingDateChange = (id: string, field: 'sent' | 'received', value: string) => {
+  const [pendingDates, setPendingDates] = useState<Record<string, { sent?: string, received?: string, processNumber?: string }>>({});
+
+  const applyProcessMask = (value: string) => {
+    let v = value.replace(/\D/g, '');
+    if (v.length > 5) v = v.slice(0, 5) + '.' + v.slice(5);
+    if (v.length > 12) v = v.slice(0, 12) + '/' + v.slice(12);
+    if (v.length > 17) v = v.slice(0, 17) + '-' + v.slice(17, 19);
+    return v;
+  };
+
+  const handlePendingDateChange = (id: string, field: 'sent' | 'received' | 'processNumber', value: string) => {
     setPendingDates(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
   };
   const handleSaveDates = (com: any) => {
     const sent = pendingDates[com.id]?.sent !== undefined ? pendingDates[com.id].sent : (com.sentToCompanyDate || '');
     const received = pendingDates[com.id]?.received !== undefined ? pendingDates[com.id].received : (com.receivedFromCompanyDate || '');
+    const processNumber = pendingDates[com.id]?.processNumber !== undefined ? pendingDates[com.id].processNumber : (com.processNumber || '');
     com.originalCommitments.forEach((origCom: any) => {
-      const updatedCom = { ...origCom, sentToCompanyDate: sent || undefined, receivedFromCompanyDate: received || undefined };
+      const updatedCom = { ...origCom, sentToCompanyDate: sent || undefined, receivedFromCompanyDate: received || undefined, processNumber: processNumber || undefined };
       onUpdateCommitment(updatedCom);
     });
     alert('Datas salvas com sucesso!');
@@ -665,8 +675,26 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
                     {/* Datas do Empenho */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Datas do Empenho</h4>
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Informações do Empenho</h4>
                       <div className="space-y-4">
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Nº do Processo</label>
+                            <input 
+                              type="text"
+                              placeholder="XXXXX.XXXXXX/XXXX-XX"
+                              value={pendingDates[com.id]?.processNumber !== undefined ? pendingDates[com.id].processNumber : (com.processNumber || '')}
+                              onChange={(e) => handlePendingDateChange(com.id, 'processNumber', applyProcessMask(e.target.value))}
+                              disabled={!canEditItem(com.section)}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-medium disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed uppercase"
+                            />
+                          </div>
+                          {canEditItem(com.section) && (
+                            <button onClick={() => handleSaveDates(com)} className="mb-[2px] p-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg transition-colors shrink-0" title="Salvar">
+                              <CheckCircle2 size={18} />
+                            </button>
+                          )}
+                        </div>
                         <div className="flex items-end gap-2">
                           <div className="flex-1">
                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Enviado para Empresa</label>
