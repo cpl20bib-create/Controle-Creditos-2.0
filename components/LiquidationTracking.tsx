@@ -21,7 +21,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
   const [sectionFilter, setSectionFilter] = useState('');
   const [piFilter, setPiFilter] = useState('');
   const [ugFilter, setUgFilter] = useState('');
-  const [showOnlyPendingNs, setShowOnlyPendingNs] = useState(false);
+  const [viewMode, setViewMode] = useState<'pending' | 'liquidated'>('pending');
   const [sortBy, setSortBy] = useState<'ne' | 'value' | 'days'>('ne');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -89,9 +89,11 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
       const matchesSection = !sectionFilter || com.section === sectionFilter;
       const matchesPi = !piFilter || com.pi === piFilter;
       const matchesUg = !ugFilter || com.ug === ugFilter;
-      const matchesPendingNs = !showOnlyPendingNs || !com.liquidationNs;
+      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const isLiquidated = isGlobal ? com.activeValue <= 0 : !!com.liquidationNs;
+      const matchesViewMode = viewMode === 'pending' ? !isLiquidated : isLiquidated;
 
-      return matchesSearch && matchesSection && matchesPi && matchesUg && matchesPendingNs;
+      return matchesSearch && matchesSection && matchesPi && matchesUg && matchesViewMode;
     });
 
     result.sort((a, b) => {
@@ -107,7 +109,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
     });
 
     return result;
-  }, [eligibleCommitments, searchTerm, sectionFilter, piFilter, ugFilter, showOnlyPendingNs, sortBy, sortOrder]);
+  }, [eligibleCommitments, searchTerm, sectionFilter, piFilter, ugFilter, viewMode, sortBy, sortOrder]);
 
   return (
     <div className="space-y-6">
@@ -165,15 +167,20 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
             {ugs.map(u => <option key={u} value={u}>{u}</option>)}
           </select>
 
-          <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
-            <input 
-              type="checkbox" 
-              checked={showOnlyPendingNs}
-              onChange={(e) => setShowOnlyPendingNs(e.target.checked)}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-            />
-            <span className="text-sm font-medium text-slate-700 whitespace-nowrap">Sem NS</span>
-          </label>
+          <div className="flex bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setViewMode('pending')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${viewMode === 'pending' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Pendentes
+            </button>
+            <button
+              onClick={() => setViewMode('liquidated')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${viewMode === 'liquidated' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Liquidados
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 w-full xl:w-auto pt-4 xl:pt-0 border-t xl:border-t-0 border-slate-100">
