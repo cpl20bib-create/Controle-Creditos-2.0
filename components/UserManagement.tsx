@@ -7,9 +7,10 @@ import { SECTION_OPTIONS } from '../constants';
 interface UserManagementProps {
   users: User[];
   setUsers: (users: User[]) => void;
+  onDelete?: (id: string) => void;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers, onDelete }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPasswordInForm, setShowPasswordInForm] = useState(false);
@@ -84,7 +85,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
         alert('O administrador mestre não pode ser removido.');
         return;
       }
-      setUsers(users.filter(u => u.id !== id));
+      if (onDelete) {
+        onDelete(id);
+      } else {
+        setUsers(users.filter(u => u.id !== id));
+      }
     }
   };
 
