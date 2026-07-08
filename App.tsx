@@ -311,6 +311,23 @@ const App: React.FC = () => {
     }
   };
 
+
+  const handleDeleteUser = async (id: string) => {
+    const nextUsers = users.filter(u => u.id !== id);
+    setUsers(nextUsers);
+    localStorage.setItem('budget_users', JSON.stringify(nextUsers));
+    
+    if (isOnline) {
+      try {
+        await api.delete('users', id);
+        syncWithServer();
+      } catch (e: any) {
+        console.warn('Falha ao excluir usuário:', e.message);
+        alert('Erro ao excluir usuário: ' + e.message);
+      }
+    }
+  };
+
   const handleUpdateUsers = async (nextUsers: User[]) => {
     setUsers(nextUsers);
     localStorage.setItem('budget_users', JSON.stringify(nextUsers));
@@ -569,7 +586,7 @@ const App: React.FC = () => {
           {activeTab === 'contracts' && <ContractList contracts={contracts} credits={credits} commitments={commitments} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
           {activeTab === 'reports' && <Reports credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} />}
           {activeTab === 'audit' && currentUser.role === 'ADMIN' && <AuditHistory logs={auditLogs} />}
-          {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} />}
+          {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} onDelete={handleDeleteUser} />}
         </div>
       </main>
     </div>
