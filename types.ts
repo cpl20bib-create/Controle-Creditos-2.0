@@ -74,6 +74,7 @@ export interface Commitment {
   sentToConfDocDate?: string;
   sentToFinanceDate?: string;
   sentToCompanyDate?: string;
+  processNumber?: string;
   receivedFromCompanyDate?: string;
   liquidationNs?: string;
   liquidationDate?: string;
