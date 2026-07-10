@@ -199,7 +199,9 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       if (sortBy === 'daysPassed') {
         comparison = a.daysPassed - b.daysPassed;
       } else if (sortBy === 'value') {
-        comparison = (a.value || 0) - (b.value || 0);
+        const valA = (a.type === 'Global' || a.type === 'Estimativo') ? Math.max(0, a.value - (a.materialArrivals || []).reduce((acc: number, arr: any) => acc + arr.value, 0)) : (a.value || 0);
+        const valB = (b.type === 'Global' || b.type === 'Estimativo') ? Math.max(0, b.value - (b.materialArrivals || []).reduce((acc: number, arr: any) => acc + arr.value, 0)) : (b.value || 0);
+        comparison = valA - valB;
       } else if (sortBy === 'ne') {
         comparison = a.ne.localeCompare(b.ne);
       }
@@ -282,15 +284,29 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   const handleAddMaterialArrival = (com: any, date: string, value: number, invoice?: string) => {
     if (!date || value <= 0) return;
     const newArrival = { id: generateId(), date, value, invoice };
+    const currentTotal = (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0);
+    const isFullyReceived = currentTotal + value >= com.value;
+
     com.originalCommitments.forEach((origCom: Commitment) => {
-      const updatedCom = { ...origCom, materialArrivals: [...(origCom.materialArrivals || []), newArrival] };
+      const updatedCom = { 
+        ...origCom, 
+        materialArrivals: [...(origCom.materialArrivals || []), newArrival],
+        materialArrivedDate: isFullyReceived ? date : origCom.materialArrivedDate
+      };
       onUpdateCommitment(updatedCom);
     });
   };
 
   const handleRemoveMaterialArrival = (com: any, arrivalId: string) => {
     com.originalCommitments.forEach((origCom: Commitment) => {
-      const updatedCom = { ...origCom, materialArrivals: (origCom.materialArrivals || []).filter(a => a.id !== arrivalId) };
+      const nextArrivals = (origCom.materialArrivals || []).filter(a => a.id !== arrivalId);
+      const currentTotal = nextArrivals.reduce((acc: number, a: any) => acc + a.value, 0);
+      const isFullyReceived = currentTotal >= origCom.value;
+      const updatedCom = { 
+        ...origCom, 
+        materialArrivals: nextArrivals,
+        materialArrivedDate: isFullyReceived ? origCom.materialArrivedDate : undefined
+      };
       onUpdateCommitment(updatedCom);
     });
   };
@@ -776,7 +792,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                           )}
                         </div>
                         
-                        {canEditItem(com.section) && (
+                        {canEditItem(com.section) && Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0)) > 0 && (
                         <div className="border-t border-slate-100 pt-4 space-y-3">
                           <h5 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Novo Recebimento</h5>
                           <div className="flex flex-col gap-2">
@@ -789,7 +805,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                               <input 
                                 type="number"
                                 step="0.01"
-                                placeholder="Valor R$"
+                                max={Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0))}
+                                placeholder={`Valor R$ (Máx: ${formatCurrency(Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0)))})`}
                                 id={`val-${com.id}`}
                                 className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                               />
