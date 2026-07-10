@@ -27,6 +27,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     return '';
   });
   const [ugFilter, setUgFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [showOnlyPending, setShowOnlyPending] = useState(false);
   const [sortBy, setSortBy] = useState<'daysPassed' | 'value' | 'ne'>('ne');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -186,8 +187,9 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
         ? (userSections || []).includes(com.section)
         : (sectionFilter ? com.section === sectionFilter : true);
       const matchesUg = ugFilter ? com.ug === ugFilter : true;
+      const matchesType = typeFilter ? com.type === typeFilter : true;
       const matchesPending = showOnlyPending ? !com.materialArrivedDate : true;
-      return matchesSearch && matchesSection && matchesUg && matchesPending;
+      return matchesSearch && matchesSection && matchesUg && matchesType && matchesPending;
     }).sort((a, b) => {
       // Sort by unresolved first
       if (a.materialArrivedDate && !b.materialArrivedDate) return 1;
@@ -391,6 +393,19 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
             {ugs.map(u => (
               <option key={u} value={u}>{u}</option>
             ))}
+          </select>
+        </div>
+        <div className="md:w-48 relative w-full">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all appearance-none font-medium text-slate-700 bg-white"
+          >
+            <option value="">Todos os Tipos</option>
+            <option value="Ordinário">Ordinário</option>
+            <option value="Global">Global</option>
+            <option value="Estimativo">Estimativo</option>
           </select>
         </div>
         <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 px-2 md:px-0">
