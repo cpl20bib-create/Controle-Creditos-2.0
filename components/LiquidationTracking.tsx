@@ -21,6 +21,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
   const [sectionFilter, setSectionFilter] = useState('');
   const [piFilter, setPiFilter] = useState('');
   const [ugFilter, setUgFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [viewMode, setViewMode] = useState<'pending' | 'liquidated'>('pending');
   const [sortBy, setSortBy] = useState<'ne' | 'value' | 'days'>('ne');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -120,11 +121,12 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
       const matchesSection = !sectionFilter || com.section === sectionFilter;
       const matchesPi = !piFilter || com.pi === piFilter;
       const matchesUg = !ugFilter || com.ug === ugFilter;
+      const matchesType = !typeFilter || com.type === typeFilter;
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
       const isLiquidated = com.hasAnyLiquidation;
       const matchesViewMode = viewMode === 'pending' ? !isLiquidated : isLiquidated;
 
-      return matchesSearch && matchesSection && matchesPi && matchesUg && matchesViewMode;
+      return matchesSearch && matchesSection && matchesPi && matchesUg && matchesType && matchesViewMode;
     });
 
     result.sort((a, b) => {
@@ -196,6 +198,16 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
           >
             <option value="">Todas as UGs</option>
             {ugs.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Todos os Tipos</option>
+            <option value="Ordinário">Ordinário</option>
+            <option value="Global">Global</option>
+            <option value="Estimativo">Estimativo</option>
           </select>
 
           <div className="flex bg-slate-100 p-1 rounded-xl">
