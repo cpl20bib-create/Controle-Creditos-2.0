@@ -153,6 +153,7 @@ function getProcessStatus(com: any, balance: number, liquidatedTotal: number) {
         groups[groupKey] = {
           ne: item.ne,
           ug: ug,
+          type: item.type,
           date: item.date,
           description: item.description,
           totalValue: 0,
@@ -201,11 +202,12 @@ function getProcessStatus(com: any, balance: number, liquidatedTotal: number) {
       const matchPi = !filters.pi || group.firstCredit?.pi === filters.pi;
       const matchNd = !filters.nd || group.firstCredit?.nd === filters.nd;
       const matchSection = !filters.section || group.firstCredit?.section === filters.section;
+      const matchType = !filters.type || group.type === filters.type;
       
       const isNotZero = group.currentBalance >= 0.01;
       const matchHideZero = !filters.hideZeroBalance || isNotZero;
 
-      return matchSearch && matchUg && matchPi && matchNd && matchSection && matchHideZero;
+      return matchSearch && matchUg && matchPi && matchNd && matchSection && matchType && matchHideZero;
     });
 
     result.sort((a, b) => {
