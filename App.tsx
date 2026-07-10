@@ -201,17 +201,6 @@ const App: React.FC = () => {
     if (isOnline) {
       try {
         await api.upsert('commitments', updated);
-        
-        await supabase
-          .from('commitments')
-          .update({
-            contacts: updated.contacts,
-            material_arrived_date: updated.materialArrivedDate || null,
-            sent_to_company_date: updated.sentToCompanyDate || null,
-            received_from_company_date: updated.receivedFromCompanyDate || null
-          })
-          .eq('id', updated.id);
-
         syncWithServer();
       } catch (e: any) {
         console.warn(e.message);
