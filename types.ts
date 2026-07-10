@@ -135,6 +135,7 @@ export interface Filters {
   hideZeroBalance?: boolean;
   sortBy?: SortField;
   sortOrder?: SortOrder;
+  type?: string;
 }
 
 export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'NOTIFICATION';
