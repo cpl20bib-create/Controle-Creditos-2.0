@@ -509,7 +509,7 @@ function getProcessStatus(com: any, balance: number, liquidatedTotal: number) {
                 <div className="p-4 bg-red-600 rounded-2xl shadow-lg shadow-red-500/20"><Receipt size={28} /></div>
                 <div>
                   <h3 className="text-2xl font-black italic uppercase leading-none tracking-tight">{selectedDetailItem.ne}</h3>
-                  <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mt-2 italic">Dossiê de Execução Orçamentária</p>
+                  <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mt-2 italic">Dossiê de Execução Orçamentária • Tipo: {selectedDetailItem.type}</p>
                 </div>
               </div>
               <button onClick={() => setDetailItemId(null)} className="p-3 hover:bg-red-900 rounded-full transition-colors"><X size={28} /></button>
