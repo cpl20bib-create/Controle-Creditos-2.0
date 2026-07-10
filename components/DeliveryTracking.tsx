@@ -474,6 +474,9 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className={`font-black text-lg ${com.materialArrivedDate ? 'text-slate-500' : 'text-slate-900'}`}>{com.ne}</h3>
+                    <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-indigo-200">
+                      {com.type}
+                    </span>
                     <span className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-slate-200">
                       PI: {com.pi}
                     </span>
