@@ -26,7 +26,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const eligibleCommitments = useMemo(() => {
-    return commitments
+    const processed = commitments
       .filter(com => {
         const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
         let hasSentToFinance = false;
@@ -58,21 +58,52 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
         const totalLiquidated = isGlobal 
           ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
           : (com.liquidationNs ? com.value - totalCancellations : 0);
-        
+          
         const daysSinceIssue = Math.floor((new Date().getTime() - new Date(com.date).getTime()) / (1000 * 3600 * 24));
         
         const credit = credits.find(c => c.id === com.creditId);
         
         return { 
           ...com, 
-          activeValue: com.value - totalCancellations - totalLiquidated, 
+          activeValue: com.value - totalCancellations - totalLiquidated,
+          totalCancellations,
+          totalLiquidated,
           daysSinceIssue,
           section: credit?.section || '',
           pi: credit?.pi || '',
           nd: credit?.nd || '',
-          ug: credit?.ug || ''
+          ug: credit?.ug || '',
+          hasAnyLiquidation: isGlobal ? (com.liquidations && com.liquidations.length > 0) : !!com.liquidationNs
         };
       });
+
+    const grouped = new Map<string, any>();
+    processed.forEach(com => {
+      const key = `${com.ne}_${com.ug}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, { ...com, originalIds: [com.id] });
+      } else {
+        const existing = grouped.get(key);
+        existing.value += com.value;
+        existing.activeValue += com.activeValue;
+        existing.totalCancellations += com.totalCancellations;
+        existing.totalLiquidated += com.totalLiquidated;
+        existing.originalIds.push(com.id);
+        
+        if (com.materialArrivals && com.materialArrivals.length > 0) {
+          existing.materialArrivals = [...(existing.materialArrivals || []), ...com.materialArrivals];
+        }
+        if (com.liquidations && com.liquidations.length > 0) {
+          existing.liquidations = [...(existing.liquidations || []), ...com.liquidations];
+        }
+        if (com.liquidationNs) {
+          existing.liquidationNs = existing.liquidationNs ? Array.from(new Set([...existing.liquidationNs.split(', '), com.liquidationNs])).join(', ') : com.liquidationNs;
+        }
+        if (com.hasAnyLiquidation) existing.hasAnyLiquidation = true;
+      }
+    });
+
+    return Array.from(grouped.values());
   }, [commitments, cancellations, credits]);
 
   const sections = useMemo(() => Array.from(new Set(eligibleCommitments.map(c => c.section).filter(Boolean))).sort(), [eligibleCommitments]);
@@ -90,7 +121,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
       const matchesPi = !piFilter || com.pi === piFilter;
       const matchesUg = !ugFilter || com.ug === ugFilter;
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-      const isLiquidated = isGlobal ? com.activeValue <= 0 : !!com.liquidationNs;
+      const isLiquidated = com.hasAnyLiquidation;
       const matchesViewMode = viewMode === 'pending' ? !isLiquidated : isLiquidated;
 
       return matchesSearch && matchesSection && matchesPi && matchesUg && matchesViewMode;
@@ -294,7 +325,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
   const [partialValues, setPartialValues] = useState<Record<string, number>>({});
 
   const pendingCommitments = useMemo(() => {
-    return commitments.filter((com: Commitment) => {
+    const processed = commitments.filter((com: Commitment) => {
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
       const isArrived = isGlobal ? (com.materialArrivals?.length || 0) > 0 : !!com.materialArrivedDate;
       if (!isArrived) return false;
@@ -306,7 +337,6 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
       const totalLiquidated = isGlobal 
         ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
         : (com.liquidationNs ? com.value - totalCancellations : 0);
-
       const activeValue = com.value - totalCancellations - totalLiquidated;
       return activeValue > 0;
     }).map((com: Commitment) => {
@@ -326,7 +356,29 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
         ug: credit?.ug || '',
         section: credit?.section || ''
       };
-    }).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
+    
+    const grouped = new Map<string, any>();
+    processed.forEach(com => {
+      const key = `${com.ne}_${com.ug}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, { ...com, originalIds: [com.id] });
+      } else {
+        const existing = grouped.get(key);
+        existing.value += com.value;
+        existing.activeValue += com.activeValue;
+        existing.originalIds.push(com.id);
+        
+        if (com.materialArrivals && com.materialArrivals.length > 0) {
+          existing.materialArrivals = [...(existing.materialArrivals || []), ...com.materialArrivals];
+        }
+        if (com.liquidations && com.liquidations.length > 0) {
+          existing.liquidations = [...(existing.liquidations || []), ...com.liquidations];
+        }
+      }
+    });
+
+    return Array.from(grouped.values()).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [commitments, cancellations, credits]);
 
   const allowedPi = selectedIds.length > 0 ? pendingCommitments.find((c: any) => c.id === selectedIds[0])?.pi : null;
@@ -356,22 +408,38 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
     const regex = new RegExp(`^\\d{4}NS\\d{6}$`);
     if (!regex.test(liquidationNs)) return alert('O número da NS é inválido. O formato esperado é YYYYNSXXXXXX (ex: 2026NS123456).');
 
-    selectedIds.forEach(id => {
+    selectedIds.forEach(groupId => {
+      const group = pendingCommitments.find((g: any) => g.id === groupId);
+      if (!group) return;
+      group.originalIds.forEach((id: string) => {
       const com = commitments.find((c: Commitment) => c.id === id);
       if (com) {
         const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
         if (isGlobal) {
-          const val = partialValues[id] || 0;
-          if (val > 0) {
+          const totalVal = partialValues[groupId] || 0;
+          const groupActive = group.activeValue;
+          
+          const totalCancellations = cancellations.filter((c: any) => c.commitmentId === com.id).reduce((sum: number, c: any) => sum + c.value, 0);
+          const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + l.value, 0);
+          const comActiveValue = com.value - totalCancellations - totalLiquidated;
+          
+          let valToApply = 0;
+          if (groupActive > 0) {
+            valToApply = totalVal * (comActiveValue / groupActive);
+          } else {
+             valToApply = totalVal / group.originalIds.length;
+          }
+          if (valToApply > 0) {
             onSave({
               ...com,
-              liquidations: [...(com.liquidations || []), { id: Math.random().toString(36).substr(2, 9), ns: liquidationNs, date: liquidationDate, value: val }]
+              liquidations: [...(com.liquidations || []), { id: Math.random().toString(36).substr(2, 9), ns: liquidationNs, date: liquidationDate, value: Number(valToApply.toFixed(2)) }]
             });
           }
         } else {
           onSave({ ...com, liquidationNs, liquidationDate });
         }
       }
+      });
     });
     onClose();
   };
