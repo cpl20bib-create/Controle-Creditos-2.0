@@ -43,7 +43,20 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, credits, sho
         <span className="text-[10px] font-black uppercase tracking-widest">Painel de Filtros Globais</span>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+        <div className="space-y-1.5">
+          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Empenho</label>
+          <select 
+            value={filters.type || ''} 
+            onChange={(e) => handleChange('type', e.target.value)}
+            className="w-full bg-slate-50 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm"
+          >
+            <option value="">Todos os Tipos</option>
+            <option value="Ordinário">Ordinário</option>
+            <option value="Global">Global</option>
+            <option value="Estimativo">Estimativo</option>
+          </select>
+        </div>
         <div className="space-y-1.5">
           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidade Gestora</label>
           <select 
