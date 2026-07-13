@@ -102,8 +102,14 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
         }
       }
 
+      const totalCancellations = cancellations
+          .filter(c => c.commitmentId === com.id)
+          .reduce((sum, c) => sum + c.value, 0);
+      const activeValue = com.value - totalCancellations;
+
       return {
         ...com,
+        activeValue,
         section: credit?.section || 'Desconhecida',
         pi: credit?.pi || 'N/A',
         ug: credit?.ug || 'N/A',
@@ -122,12 +128,12 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
           ...com,
           id: key, // Use composite key for iteration
           originalCommitments: [com],
-          value: com.value,
+          value: com.activeValue,
           description: com.description,
           pi: com.pi,
         };
       } else {
-        groups[key].value += com.value;
+        groups[key].value += com.activeValue;
         groups[key].originalCommitments.push(com);
         
         // Merge descriptions
@@ -298,10 +304,10 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   };
 
   const handleRemoveMaterialArrival = (com: any, arrivalId: string) => {
-    com.originalCommitments.forEach((origCom: Commitment) => {
-      const nextArrivals = (origCom.materialArrivals || []).filter(a => a.id !== arrivalId);
+    com.originalCommitments.forEach((origCom: any) => {
+      const nextArrivals = (origCom.materialArrivals || []).filter((a: any) => a.id !== arrivalId);
       const currentTotal = nextArrivals.reduce((acc: number, a: any) => acc + a.value, 0);
-      const isFullyReceived = currentTotal >= origCom.value;
+      const isFullyReceived = currentTotal >= com.value;
       const updatedCom = { 
         ...origCom, 
         materialArrivals: nextArrivals,
