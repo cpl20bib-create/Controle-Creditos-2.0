@@ -247,9 +247,32 @@ function getProcessStatus(com: any, balance: number, liquidatedTotal: number) {
     if (!item) return null;
 
     const credit = (credits || []).find(cr => cr.id === item.creditId);
-    const relatedLogs = (auditLogs || []).filter(log => group.ids.includes(log.entityId));
     
-    const cancelledValue = (cancellations || []).filter(can => group.ids.includes(can.commitmentId)).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+    const relatedCommitments = (commitments || []).filter(c => group.ids.includes(c.id)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const relatedCancellations = (cancellations || []).filter(can => group.ids.includes(can.commitmentId));
+
+    const combinedLogs = [
+      ...relatedCommitments.map((com, index) => ({
+        id: com.id,
+        timestamp: com.date,
+        userName: 'SISTEMA',
+        description: `${index === 0 ? 'Emissão de Empenho' : 'Reforço de Empenho'} no valor de ${formatCurrency(com.value)}`,
+        type: index === 0 ? 'EMISSAO' : 'REFORCO'
+      })),
+      ...relatedCancellations.map(can => ({
+        id: can.id,
+        timestamp: can.date,
+        userName: 'SISTEMA',
+        description: `Anulação (RO: ${can.ro}${can.bi ? `, BI: ${can.bi}` : ''}) no valor de ${formatCurrency(can.value)}`,
+        type: 'ANULACAO'
+      }))
+    ].sort((a, b) => {
+       const da = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+       const db = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+       return db - da; // Descending
+    });
+    
+    const cancelledValue = relatedCancellations.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
     const currentBalance = group.totalValue - cancelledValue;
     const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
     const totalLiquidated = isGlobal 
@@ -257,8 +280,8 @@ function getProcessStatus(com: any, balance: number, liquidatedTotal: number) {
         : (item.liquidationNs ? item.value : 0);
     const status = getProcessStatus(item, currentBalance, totalLiquidated);
     
-    return { ...item, ...group, credit, logs: relatedLogs, currentBalance, processStatus: status };
-  }, [detailItemId, groupedCommitments, commitments, credits, auditLogs, cancellations]);
+    return { ...item, ...group, credit, logs: combinedLogs, currentBalance, processStatus: status };
+  }, [detailItemId, groupedCommitments, commitments, credits, cancellations]);
 
   // Modal de Detalhes da NC (Reutilizado)
   const selectedDetailCredit = useMemo(() => {
