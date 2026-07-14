@@ -390,7 +390,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
       }
     });
 
-    return Array.from(grouped.values()).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return Array.from(grouped.values()).sort((a: any, b: any) => a.ne.localeCompare(b.ne));
   }, [commitments, cancellations, credits]);
 
   const allowedPi = selectedIds.length > 0 ? pendingCommitments.find((c: any) => c.id === selectedIds[0])?.pi : null;
