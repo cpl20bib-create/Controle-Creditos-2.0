@@ -20,85 +20,80 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
 
   // Extract all individual pending items
   const pendingItems = useMemo(() => {
-    const items: Array<{
-      id: string; // unique identifier for the UI list
-      commitmentId: string;
+    const groups: Record<string, {
+      id: string; // ug_ne
       ne: string;
+      ug: string;
       type: string;
-      invoice: string;
+      invoices: string[];
       value: number;
-      arrivalId?: string; // if it's partial
-      date: string; // when it arrived or was sent
-    }> = [];
+      date: string;
+      items: Array<{ commitmentId: string; arrivalId?: string }>;
+    }> = {};
 
-    commitments.forEach(com => {
+    commitments.forEach((com: any) => {
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const groupKey = `${com.ug || 'N/A'}_${com.ne}`;
+
+      const addGroupItem = (type: string, invoice: string, value: number, arrivalId: string | undefined, date: string) => {
+        if (!groups[groupKey]) {
+          groups[groupKey] = {
+            id: groupKey,
+            ne: com.ne,
+            ug: com.ug || 'N/A',
+            type: isGlobal ? 'Parcial' : 'Ordinário',
+            invoices: [],
+            value: 0,
+            date: date,
+            items: []
+          };
+        }
+        
+        if (invoice && invoice !== 'S/N' && !groups[groupKey].invoices.includes(invoice)) {
+          groups[groupKey].invoices.push(invoice);
+        }
+        groups[groupKey].value += value;
+        groups[groupKey].items.push({ commitmentId: com.id, arrivalId });
+        
+        // Update to earliest date
+        if (new Date(date) < new Date(groups[groupKey].date)) {
+          groups[groupKey].date = date;
+        }
+      };
 
       if (modalType === 'ConfDoc') {
         // Needs to have arrived but not sent to ConfDoc
         if (isGlobal) {
-          (com.materialArrivals || []).forEach(arr => {
+          (com.materialArrivals || []).forEach((arr: any) => {
             if (!arr.sentToConfDocDate) {
-              items.push({
-                id: `${com.id}_${arr.id}`,
-                commitmentId: com.id,
-                ne: com.ne,
-                type: 'Parcial',
-                invoice: arr.invoice || 'S/N',
-                value: arr.value,
-                arrivalId: arr.id,
-                date: arr.date
-              });
+              addGroupItem('Parcial', arr.invoice || 'S/N', arr.value, arr.id, arr.date);
             }
           });
         } else {
           if (com.materialArrivedDate && !com.sentToConfDocDate) {
-            items.push({
-              id: com.id,
-              commitmentId: com.id,
-              ne: com.ne,
-              type: 'Ordinário',
-              invoice: com.invoice || 'S/N',
-              value: com.value,
-              date: com.materialArrivedDate
-            });
+            addGroupItem('Ordinário', com.invoice || 'S/N', com.activeValue || com.value, undefined, com.materialArrivedDate);
           }
         }
       } else {
         // Finance: Needs to be in ConfDoc but not sent to Finance
         if (isGlobal) {
-          (com.materialArrivals || []).forEach(arr => {
+          (com.materialArrivals || []).forEach((arr: any) => {
             if (arr.sentToConfDocDate && !arr.sentToFinanceDate) {
-              items.push({
-                id: `${com.id}_${arr.id}`,
-                commitmentId: com.id,
-                ne: com.ne,
-                type: 'Parcial',
-                invoice: arr.invoice || 'S/N',
-                value: arr.value,
-                arrivalId: arr.id,
-                date: arr.sentToConfDocDate
-              });
+              addGroupItem('Parcial', arr.invoice || 'S/N', arr.value, arr.id, arr.sentToConfDocDate);
             }
           });
         } else {
           if (com.sentToConfDocDate && !com.sentToFinanceDate) {
-            items.push({
-              id: com.id,
-              commitmentId: com.id,
-              ne: com.ne,
-              type: 'Ordinário',
-              invoice: com.invoice || 'S/N',
-              value: com.value,
-              date: com.sentToConfDocDate
-            });
+            addGroupItem('Ordinário', com.invoice || 'S/N', com.activeValue || com.value, undefined, com.sentToConfDocDate);
           }
         }
       }
     });
-    
-    // Sort by date oldest first
-    return items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+    return Object.values(groups).map(g => ({
+      ...g,
+      invoice: g.invoices.length > 0 ? g.invoices.join(', ') : 'S/N'
+    })).sort((a, b) => a.ne.localeCompare(b.ne));
   }, [commitments, modalType]);
 
   const handleToggle = (id: string) => {
@@ -117,39 +112,41 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
     // Group selected items by commitment ID to minimize updates
     const updatesByCommitment: Record<string, Commitment> = {};
 
-    selectedIds.forEach(itemId => {
-      const item = pendingItems.find(i => i.id === itemId);
-      if (!item) return;
+    selectedIds.forEach(groupId => {
+      const group = pendingItems.find(i => i.id === groupId);
+      if (!group) return;
 
-      if (!updatesByCommitment[item.commitmentId]) {
-        // Clone the original commitment
-        const orig = commitments.find(c => c.id === item.commitmentId);
-        if (orig) updatesByCommitment[item.commitmentId] = JSON.parse(JSON.stringify(orig));
-      }
+      group.items.forEach(subItem => {
+        if (!updatesByCommitment[subItem.commitmentId]) {
+          // Clone the original commitment
+          const orig = commitments.find(c => c.id === subItem.commitmentId);
+          if (orig) updatesByCommitment[subItem.commitmentId] = JSON.parse(JSON.stringify(orig));
+        }
 
-      const com = updatesByCommitment[item.commitmentId];
-      if (!com) return;
+        const com = updatesByCommitment[subItem.commitmentId];
+        if (!com) return;
 
-      if (item.arrivalId) {
-        // Partial
-        const arr = com.materialArrivals?.find(a => a.id === item.arrivalId);
-        if (arr) {
+        if (subItem.arrivalId) {
+          // Partial
+          const arr = com.materialArrivals?.find(a => a.id === subItem.arrivalId);
+          if (arr) {
+            if (modalType === 'ConfDoc') {
+              arr.sentToConfDocDate = actionDate;
+              arr.diexRemessa = diexRemessa;
+            } else {
+              arr.sentToFinanceDate = actionDate;
+            }
+          }
+        } else {
+          // Ordinário
           if (modalType === 'ConfDoc') {
-            arr.sentToConfDocDate = actionDate;
-            arr.diexRemessa = diexRemessa;
+            com.sentToConfDocDate = actionDate;
+            com.diexRemessa = diexRemessa;
           } else {
-            arr.sentToFinanceDate = actionDate;
+            com.sentToFinanceDate = actionDate;
           }
         }
-      } else {
-        // Ordinário
-        if (modalType === 'ConfDoc') {
-          com.sentToConfDocDate = actionDate;
-          com.diexRemessa = diexRemessa;
-        } else {
-          com.sentToFinanceDate = actionDate;
-        }
-      }
+      });
     });
 
     Object.values(updatesByCommitment).forEach(com => {
@@ -227,6 +224,7 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
                   <div className="flex-1 min-w-0 flex items-center justify-between">
                     <div>
                       <h4 className="font-black text-slate-800 text-sm truncate">{item.ne}</h4>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">UG: {item.ug}</p>
                       <p className="text-xs font-bold text-slate-500 mt-0.5">NF: <span className="text-indigo-600">{item.invoice}</span></p>
                     </div>
                     <div className="text-right shrink-0 ml-4">
