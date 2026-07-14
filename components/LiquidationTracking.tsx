@@ -46,7 +46,11 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
           ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
           : (com.liquidationNs ? com.value - totalCancellations : 0);
 
-        const activeValue = com.value - totalCancellations - totalLiquidated;
+        const baseValue = isGlobal 
+          ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
+          : com.value;
+
+        const activeValue = baseValue - totalCancellations - totalLiquidated;
         
         return activeValue > 0 || totalLiquidated > 0;
       })
@@ -60,13 +64,17 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
           ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
           : (com.liquidationNs ? com.value - totalCancellations : 0);
           
+        const baseValue = isGlobal 
+          ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
+          : com.value;
+          
         const daysSinceIssue = Math.floor((new Date().getTime() - new Date(com.date).getTime()) / (1000 * 3600 * 24));
         
         const credit = credits.find(c => c.id === com.creditId);
         
         return { 
           ...com, 
-          activeValue: com.value - totalCancellations - totalLiquidated,
+          activeValue: baseValue - totalCancellations - totalLiquidated,
           totalCancellations,
           totalLiquidated,
           daysSinceIssue,
@@ -339,8 +347,8 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
   const pendingCommitments = useMemo(() => {
     const processed = commitments.filter((com: Commitment) => {
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-      const isArrived = isGlobal ? (com.materialArrivals?.length || 0) > 0 : !!com.materialArrivedDate;
-      if (!isArrived) return false;
+      const hasSentToFinance = isGlobal ? (com.materialArrivals || []).some(a => !!a.sentToFinanceDate) : !!com.sentToFinanceDate;
+      if (!hasSentToFinance) return false;
       
       const totalCancellations = cancellations
         .filter((c: Cancellation) => c.commitmentId === com.id)
@@ -349,7 +357,12 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
       const totalLiquidated = isGlobal 
         ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
         : (com.liquidationNs ? com.value - totalCancellations : 0);
-      const activeValue = com.value - totalCancellations - totalLiquidated;
+        
+      const baseValue = isGlobal 
+        ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
+        : com.value;
+        
+      const activeValue = baseValue - totalCancellations - totalLiquidated;
       return activeValue > 0;
     }).map((com: Commitment) => {
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
@@ -359,10 +372,15 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
       const totalLiquidated = isGlobal 
         ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
         : (com.liquidationNs ? com.value - totalCancellations : 0);
+        
+      const baseValue = isGlobal 
+        ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
+        : com.value;
+        
       const credit = credits.find(c => c.id === com.creditId);
       return { 
         ...com, 
-        activeValue: com.value - totalCancellations - totalLiquidated,
+        activeValue: baseValue - totalCancellations - totalLiquidated,
         pi: credit?.pi || '',
         nd: credit?.nd || '',
         ug: credit?.ug || '',
