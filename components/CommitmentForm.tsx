@@ -116,7 +116,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
       // Ao editar, o saldo disponível deve INCLUIR o valor já empenhado pelos registros que estamos editando
       const realBalance = getNCBalance(credit, excludeIds);
       const isOriginalCredit = originalCommitments.some(c => c.creditId === credit.id);
-      if (realBalance <= 0.01 && !isOriginalCredit) return;
+      if (realBalance < 0.01 && !isOriginalCredit) return;
 
       const cellKey = `${credit.pi}-${credit.nd}-${credit.fonte}-${credit.ptres}-${credit.esfera}-${credit.ugr}`;
 
@@ -229,7 +229,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     && Math.abs(formData.totalValue - originalTotalValue) < 0.01 
     && formData.cellId === originalCellId;
 
-  const isBalanceInsufficient = selectedCell && formData.totalValue > 0 && selectedNotesBalance < formData.totalValue && !isValueUnchanged;
+  const isBalanceInsufficient = selectedCell && formData.totalValue > 0 && (formData.totalValue - selectedNotesBalance > 0.01) && !isValueUnchanged;
 
   const handleToggleNc = (ncId: string) => {
     setSelectedNcIds(prev => {
