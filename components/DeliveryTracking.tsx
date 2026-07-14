@@ -542,7 +542,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                     {formatCurrency(
                       (com.type === 'Global' || com.type === 'Estimativo') 
                         ? Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0))
-                        : com.value
+                        : (com.materialArrivedDate ? 0 : com.value)
                     )}
                   </p>
                 </div>
