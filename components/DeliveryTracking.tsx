@@ -197,9 +197,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       const matchesType = typeFilter ? com.type === typeFilter : true;
       const matchesUnresolved = showOnlyUnresolved ? !com.materialArrivedDate : true;
       const matchesPending = showOnlyPending 
-        ? ((com.type === 'Global' || com.type === 'Estimativo') 
-            ? (!com.materialArrivals || com.materialArrivals.length === 0)
-            : !com.materialArrivedDate)
+        ? (!com.materialArrivals || com.materialArrivals.length === 0) && !com.materialArrivedDate
         : true;
       return matchesSearch && matchesSection && matchesUg && matchesType && matchesPending && matchesUnresolved;
     }).sort((a, b) => {
@@ -211,8 +209,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       if (sortBy === 'daysPassed') {
         comparison = a.daysPassed - b.daysPassed;
       } else if (sortBy === 'value') {
-        const valA = (a.type === 'Global' || a.type === 'Estimativo') ? Math.max(0, a.value - (a.materialArrivals || []).reduce((acc: number, arr: any) => acc + arr.value, 0)) : (a.value || 0);
-        const valB = (b.type === 'Global' || b.type === 'Estimativo') ? Math.max(0, b.value - (b.materialArrivals || []).reduce((acc: number, arr: any) => acc + arr.value, 0)) : (b.value || 0);
+        const valA = Math.max(0, a.value - (a.materialArrivals || []).reduce((acc: number, arr: any) => acc + arr.value, 0));
+        const valB = Math.max(0, b.value - (b.materialArrivals || []).reduce((acc: number, arr: any) => acc + arr.value, 0));
         comparison = valA - valB;
       } else if (sortBy === 'ne') {
         comparison = a.ne.localeCompare(b.ne);
@@ -297,7 +295,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     if (!date || value <= 0) return;
     const newArrival = { id: generateId(), date, value, invoice };
     const currentTotal = (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0);
-    const isFullyReceived = currentTotal + value >= com.value;
+    const isFullyReceived = com.type === 'Ordinário' ? true : currentTotal + value >= com.value;
 
     com.originalCommitments.forEach((origCom: Commitment) => {
       const updatedCom = { 
@@ -313,7 +311,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     com.originalCommitments.forEach((origCom: any) => {
       const nextArrivals = (origCom.materialArrivals || []).filter((a: any) => a.id !== arrivalId);
       const currentTotal = nextArrivals.reduce((acc: number, a: any) => acc + a.value, 0);
-      const isFullyReceived = currentTotal >= com.value;
+      const isFullyReceived = origCom.type === 'Ordinário' ? nextArrivals.length > 0 : currentTotal >= com.value;
       const updatedCom = { 
         ...origCom, 
         materialArrivals: nextArrivals,
@@ -788,9 +786,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                     </div>
 
                     {/* Material Arrival / Liquidations depending on type */}
-                    {com.type === 'Global' || com.type === 'Estimativo' ? (
-                      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Recebimentos Parciais</h4>
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Recebimentos</h4>
                         <div className="space-y-3 mb-4">
                           {(com.materialArrivals || []).map((arrival: any) => (
                             <div key={arrival.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -808,12 +805,29 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                               )}
                             </div>
                           ))}
-                          {(com.materialArrivals?.length || 0) === 0 && (
+                          {com.materialArrivedDate && !(com.materialArrivals?.length > 0) && (
+                            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+                              <div>
+                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                   {formatDateBR(com.materialArrivedDate)}
+                                   {com.invoice && <span className="ml-2 text-indigo-500">NF: {com.invoice}</span>}
+                                 </p>
+                                 <p className="text-sm font-black text-emerald-600">Recebimento (Legado)</p>
+                              </div>
+                              {canEditItem(com.section) && (
+                                 <button onClick={() => handleToggleMaterialArrived(com)} className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors">
+                                    <Trash2 size={16} />
+                                 </button>
+                              )}
+                            </div>
+                          )}
+                          {((com.materialArrivals?.length || 0) === 0 && !com.materialArrivedDate) && (
                             <p className="text-xs font-medium text-slate-400 italic text-center py-2">Nenhum recebimento registrado.</p>
                           )}
                         </div>
                         
-                        {canEditItem(com.section) && Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0)) > 0 && (
+                        {canEditItem(com.section) && 
+                         (com.type === 'Ordinário' ? (!com.materialArrivedDate && (com.materialArrivals?.length || 0) === 0) : Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0)) > 0) && (
                         <div className="border-t border-slate-100 pt-4 space-y-3">
                           <h5 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Novo Recebimento</h5>
                           <div className="flex flex-col gap-2">
@@ -862,61 +876,10 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                         <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Recebido</span>
                           <span className="text-sm font-black text-emerald-600">
-                            {formatCurrency((com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0))}
+                            {formatCurrency(com.materialArrivals?.length > 0 ? (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0) : (com.materialArrivedDate ? (com.activeValue || com.value) : 0))}
                           </span>
                         </div>
                       </div>
-                    ) : (
-                      <div className={`p-6 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${com.materialArrivedDate ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${com.materialArrivedDate ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                          {com.materialArrivedDate ? <CheckCircle2 size={32} /> : <Truck size={32} />}
-                        </div>
-                        <h4 className={`text-lg font-black mb-1 ${com.materialArrivedDate ? 'text-emerald-900' : 'text-slate-700'}`}>
-                          {com.materialArrivedDate ? 'Material Entregue' : 'Aguardando Entrega'}
-                        </h4>
-                        {com.materialArrivedDate ? (
-                          <div className="mb-4">
-                            <p className="text-sm font-bold text-emerald-600">
-                              Registrado em: {formatDateBR(com.materialArrivedDate)}
-                            </p>
-                            {com.invoice && (
-                              <p className="text-xs font-bold text-emerald-700 mt-1 uppercase tracking-widest">
-                                NF: {com.invoice}
-                              </p>
-                            )}
-                          </div>
-                        ) : canEditItem(com.section) ? (
-                          <div className="w-full max-w-xs mb-4">
-                            <input 
-                              type="text"
-                              id={`invoice-ord-${com.id}`}
-                              placeholder="Número da Nota Fiscal"
-                              className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-center"
-                            />
-                          </div>
-                        ) : null}
-                        {canEditItem(com.section) && (
-                        <button
-                          onClick={() => {
-                            if (!com.materialArrivedDate) {
-                              const inv = (document.getElementById(`invoice-ord-${com.id}`) as HTMLInputElement)?.value;
-                              if (!inv || !inv.trim()) {
-                                alert('A Nota Fiscal é obrigatória para confirmar o recebimento.');
-                                return;
-                              }
-                              handleToggleMaterialArrived(com, inv);
-                            } else {
-                              handleToggleMaterialArrived(com);
-                            }
-                          }}
-                          className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${com.materialArrivedDate ? 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
-                        >
-                          {com.materialArrivedDate ? 'Desfazer Entrega' : 'Confirmar Recebimento'}
-                        </button>
-                        )}
-                      </div>
-                    )}
-
                   </div>
                 </div>
               </div>
