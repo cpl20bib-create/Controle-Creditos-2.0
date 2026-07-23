@@ -29,6 +29,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   const [ugFilter, setUgFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showOnlyPending, setShowOnlyPending] = useState(false);
+  const [showOnlyUnresolved, setShowOnlyUnresolved] = useState(false);
   const [sortBy, setSortBy] = useState<'daysPassed' | 'value' | 'ne'>('ne');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -194,10 +195,15 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
         : (sectionFilter ? com.section === sectionFilter : true);
       const matchesUg = ugFilter ? com.ug === ugFilter : true;
       const matchesType = typeFilter ? com.type === typeFilter : true;
-      const matchesPending = showOnlyPending ? !com.materialArrivedDate : true;
-      return matchesSearch && matchesSection && matchesUg && matchesType && matchesPending;
+      const matchesUnresolved = showOnlyUnresolved ? !com.materialArrivedDate : true;
+      const matchesPending = showOnlyPending 
+        ? ((com.type === 'Global' || com.type === 'Estimativo') 
+            ? (!com.materialArrivals || com.materialArrivals.length === 0)
+            : !com.materialArrivedDate)
+        : true;
+      return matchesSearch && matchesSection && matchesUg && matchesType && matchesPending && matchesUnresolved;
     }).sort((a, b) => {
-      // Sort by unresolved first
+      // Sort by unresolved first (fully received go to the bottom)
       if (a.materialArrivedDate && !b.materialArrivedDate) return 1;
       if (!a.materialArrivedDate && b.materialArrivedDate) return -1;
       
@@ -430,7 +436,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
             <option value="Estimativo">Estimativo</option>
           </select>
         </div>
-        <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 px-2 md:px-0">
+        <div className="flex flex-col justify-center items-start gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 px-2 md:px-0">
           <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
             <input 
               type="checkbox" 
@@ -438,7 +444,16 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
               onChange={(e) => setShowOnlyPending(e.target.checked)}
               className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
             />
-            <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Apenas Não Recebidos</span>
+            <span className="text-[10px] md:text-xs font-bold text-slate-700 uppercase tracking-wider">Sem Nenhum Recebimento</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+            <input 
+              type="checkbox" 
+              checked={showOnlyUnresolved}
+              onChange={(e) => setShowOnlyUnresolved(e.target.checked)}
+              className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+            />
+            <span className="text-[10px] md:text-xs font-bold text-slate-700 uppercase tracking-wider">Apenas Não Recebidos (Completamente)</span>
           </label>
         </div>
       </div>
