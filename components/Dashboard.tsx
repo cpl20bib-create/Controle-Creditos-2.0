@@ -3,7 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Credit, Commitment, Refund, Cancellation, Filters } from '../types';
 import { formatDateBR, parseLocalDate } from '../utils/dateUtils';
-import { Landmark, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt, Zap, Layers, Calendar, Target } from 'lucide-react';
+import { getProcessStatus } from '../utils/processUtils';
+import { Landmark, AlertTriangle, Clock, ChevronRight, X, Search, ChevronDown, Info, PieChart, Activity, FilterX, BarChart3, Receipt, Zap, Layers, Calendar, Target, History, FileText, Tag } from 'lucide-react';
 import FilterBar from './FilterBar';
 
 interface DashboardProps {
@@ -17,6 +18,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, cancellations, filters, setFilters }) => {
   const [detailCreditId, setDetailCreditId] = useState<string | null>(null);
+  const [detailCommitmentId, setDetailCommitmentId] = useState<string | null>(null);
   const [explorerSearch, setExplorerSearch] = useState('');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [activeSectionFilter, setActiveSectionFilter] = useState<string | null>(null);
@@ -48,6 +50,16 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       const cRefs = safeRefunds.filter(ref => ref.creditId === credit.id);
       const cRefsTotal = cRefs.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
 
+      let cLiquidationsTotal = 0;
+      cComms.forEach(com => {
+        const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+        const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
+        const totalLiquidated = isGlobal 
+          ? (com.liquidations || []).reduce((sum, l) => sum + (Number(l.value) || 0), 0)
+          : (com.liquidationNs ? com.value - totalCancellations : 0);
+        cLiquidationsTotal += totalLiquidated;
+      });
+
       const balanceValue = Number(((Number(credit.valueReceived) || 0) - (cCommsBruto - cCansTotal) - cRefsTotal).toFixed(2));
       const usedValue = Number((cCommsBruto - cCansTotal).toFixed(2));
       const parsedDeadline = parseLocalDate(credit.deadline);
@@ -60,7 +72,8 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         daysToDeadline,
         rawRefunds: cRefsTotal,
         rawCommitted: cCommsBruto,
-        rawCancellations: cCansTotal
+        rawCancellations: cCansTotal,
+        rawLiquidations: cLiquidationsTotal
       };
     });
 
@@ -81,6 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     let sumRefunds = 0;
     let sumCommittedBruto = 0;
     let sumCancellations = 0;
+    let sumLiquidations = 0;
     let sumAvailableUseful = 0;
 
     localFiltered.forEach(c => {
@@ -88,6 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       sumRefunds += c.rawRefunds;
       sumCommittedBruto += c.rawCommitted;
       sumCancellations += c.rawCancellations;
+      sumLiquidations += c.rawLiquidations;
       if (c.balanceValue > 0) {
         sumAvailableUseful += c.balanceValue;
       }
@@ -95,12 +110,38 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
     const summaryReceived = sumReceivedBruto - sumRefunds;
     const summaryCommitted = sumCommittedBruto - sumCancellations;
+    const summaryLiquidated = sumLiquidations;
     const summaryAvailable = sumAvailableUseful;
     const executionPercentage = summaryReceived > 0 ? (summaryCommitted / summaryReceived) * 100 : 0;
+    const liquidatedExecutionPercentage = summaryReceived > 0 ? (summaryLiquidated / summaryReceived) * 100 : 0;
 
     const attentionNCs = localFiltered.filter(c => 
       c.balanceValue >= 0.01 && c.daysToDeadline <= 20
     );
+
+    const localCreditIds = new Set(localFiltered.map(c => c.id));
+    const filteredCommitments = safeCommitments.filter(com => localCreditIds.has(com.creditId));
+    
+    const pendingCommitments = filteredCommitments.map(com => {
+      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
+      const totalLiquidated = isGlobal 
+        ? (com.liquidations || []).reduce((sum, l) => sum + (Number(l.value) || 0), 0)
+        : (com.liquidationNs ? com.value - totalCancellations : 0);
+      
+      const unliquidatedValue = (com.value - totalCancellations) - totalLiquidated;
+      const daysSinceIssue = Math.floor((new Date().getTime() - new Date(com.date).getTime()) / (1000 * 3600 * 24));
+      const credit = localFiltered.find(c => c.id === com.creditId);
+      
+      return {
+        ...com,
+        unliquidatedValue,
+        daysSinceIssue,
+        pi: credit?.pi || ''
+      };
+    }).filter(com => com.unliquidatedValue > 0);
+
+    const topPendingCommitments = pendingCommitments.sort((a, b) => b.unliquidatedValue - a.unliquidatedValue).slice(0, 10);
 
     const sectionMap: Record<string, { totalAvailable: number, pis: Record<string, number> }> = {};
     topFiltered.forEach(c => {
@@ -123,9 +164,13 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       summaryReceived,
       summaryCommitted,
       summaryAvailable,
+      summaryLiquidated,
       executionPercentage,
+      liquidatedExecutionPercentage,
       attentionCount: attentionNCs.length,
       criticalAlerts: attentionNCs.slice(0, 10),
+      topPendingCommitments,
+      pendingCommitments,
       barChartData,
       allProcessedCredits
     };
@@ -211,21 +256,17 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
           <div className="mt-2 text-[9px] font-bold text-emerald-500 uppercase italic">Disponibilidade Real</div>
         </div>
 
-        <div className="bg-slate-950 p-6 rounded-2xl shadow-2xl shadow-emerald-950/20 border border-slate-800 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
-          
-          <div className="flex items-center justify-between relative z-10">
-            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Status de Atenção</p>
-            <AlertTriangle size={22} className={`text-emerald-400 ${dashboardData.attentionCount > 0 ? 'animate-pulse' : 'opacity-20'}`} />
-          </div>
-          
-          <div className="relative z-10 mt-4">
-            <h3 className="text-3xl font-black text-white italic tracking-tighter">
-              {dashboardData.attentionCount} <span className="text-[10px] font-black uppercase text-slate-600 tracking-widest not-italic ml-2">NCs Ativas</span>
-            </h3>
-            <p className="text-[8px] font-bold text-emerald-700 uppercase tracking-[0.2em] mt-1 italic">
-              Vencimento crítico (&lt; 20 dias)
-            </p>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Liquidado</p>
+          <h3 className="text-xl font-black text-indigo-600">{formatCurrency(dashboardData.summaryLiquidated)}</h3>
+          <div className="mt-2 space-y-1.5">
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${Math.min(100, dashboardData.liquidatedExecutionPercentage)}%` }}></div>
+            </div>
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter flex justify-between">
+              <span>Execução</span>
+              <span>{dashboardData.liquidatedExecutionPercentage.toFixed(1)}%</span>
+            </div>
           </div>
         </div>
       </div>
@@ -296,35 +337,38 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
         <div className="bg-white p-4 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col min-h-[300px] md:max-h-[460px]">
           <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 mb-6">
-            <AlertTriangle size={14} className="text-amber-500" /> Situação Crítica
+            <Clock size={14} className="text-amber-500" /> Empenhos Pendentes (Top 10)
           </h4>
           <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
-            {dashboardData.criticalAlerts.length > 0 ? dashboardData.criticalAlerts.map(alert => (
-              <button 
-                key={alert.id} 
-                onClick={() => setDetailCreditId(alert.id)}
-                className="w-full text-left p-4 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-emerald-200 transition-all group shadow-sm"
+            {dashboardData.topPendingCommitments.length > 0 ? dashboardData.topPendingCommitments.map(com => (
+              <div 
+                key={com.id} 
+                onClick={() => setDetailCommitmentId(com.id)}
+                className="w-full text-left p-4 rounded-xl border border-slate-100 bg-slate-50 transition-all shadow-sm hover:bg-white hover:border-emerald-200 cursor-pointer"
               >
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-[10px] font-black text-emerald-800 italic uppercase">{alert.nc}</span>
-                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${alert.daysToDeadline <= 5 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-amber-100 text-amber-700'}`}>
-                    {alert.daysToDeadline} d
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-indigo-800 italic uppercase">{com.ne}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-0.5">PI: {com.pi}</span>
+                  </div>
+                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${com.daysSinceIssue > 30 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-amber-100 text-amber-700'}`}>
+                    {com.daysSinceIssue} dias
                   </span>
                 </div>
                 <div className="flex items-end justify-between">
                    <div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Saldo Livre</p>
-                      <p className="text-sm font-black text-slate-900 leading-none">{formatCurrency(alert.balanceValue)}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Valor Pendente</p>
+                      <p className="text-sm font-black text-slate-900 leading-none">{formatCurrency(com.unliquidatedValue)}</p>
                    </div>
-                   <div className="p-1 bg-white rounded-lg border border-slate-100 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                   <div className="p-1 bg-white rounded-lg border border-slate-100 group-hover:bg-emerald-600 group-hover:text-white transition-all text-slate-400">
                       <ChevronRight size={14} />
                    </div>
                 </div>
-              </button>
+              </div>
             )) : (
               <div className="h-full flex flex-col items-center justify-center opacity-20">
                 <Activity size={40} className="mb-2" />
-                <p className="text-[9px] font-black uppercase text-center tracking-widest">Tudo sob controle</p>
+                <p className="text-[9px] font-black uppercase text-center tracking-widest">Nenhum empenho pendente</p>
               </div>
             )}
           </div>
@@ -525,6 +569,177 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                         </span>
                      </div>
                   </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes do Empenho (Pendente) */}
+      {detailCommitmentId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300 text-black">
+          <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            {(() => {
+              const item = dashboardData.pendingCommitments.find(c => c.id === detailCommitmentId);
+              if (!item) return null;
+              
+              const credit = (credits || []).find(cr => cr.id === item.creditId);
+              const ug = credit?.ug || '---';
+
+              const relatedCommitments = (commitments || []).filter(c => {
+                const cr = (credits || []).find(cr => cr.id === c.creditId);
+                return cr?.ug === ug && c.ne === item.ne;
+              }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+              const groupIds = relatedCommitments.map(c => c.id);
+              const relatedCancellations = (cancellations || []).filter(can => groupIds.includes(can.commitmentId));
+              
+              const combinedLogs = [
+                ...relatedCommitments.map((com, index) => ({
+                  id: com.id,
+                  timestamp: com.date,
+                  userName: 'SISTEMA',
+                  description: `${index === 0 ? 'Emissão de Empenho' : 'Reforço de Empenho'} no valor de ${formatCurrency(com.value)}`,
+                  type: index === 0 ? 'EMISSAO' : 'REFORCO'
+                })),
+                ...relatedCancellations.map(can => ({
+                  id: can.id,
+                  timestamp: can.date,
+                  userName: 'SISTEMA',
+                  description: `Anulação (RO: ${can.ro}${can.bi ? `, BI: ${can.bi}` : ''}) no valor de ${formatCurrency(can.value)}`,
+                  type: 'ANULACAO'
+                }))
+              ].sort((a, b) => {
+                 const da = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                 const db = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                 return db - da; // Descending
+              });
+
+              const totalValue = relatedCommitments.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+              const cancelledValue = relatedCancellations.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+              const currentBalance = totalValue - cancelledValue;
+
+              const allocations = relatedCommitments.map(c => {
+                const cr = (credits || []).find(cr => cr.id === c.creditId);
+                return {
+                  id: c.id,
+                  creditId: c.creditId,
+                  nc: cr?.nc || '---',
+                  value: Number(c.value) || 0,
+                  pi: cr?.pi || '---'
+                };
+              });
+
+              const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
+              const totalLiquidated = isGlobal 
+                  ? (item.liquidations || []).reduce((sum: number, l: any) => sum + Number(l.value), 0)
+                  : (item.liquidationNs ? item.value : 0);
+              const processStatus = getProcessStatus(item, currentBalance, totalLiquidated);
+              
+              return (
+                <>
+            <div className="bg-red-950 p-8 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-6">
+                <div className="p-4 bg-red-600 rounded-2xl shadow-lg shadow-red-500/20"><Receipt size={28} /></div>
+                <div>
+                  <h3 className="text-2xl font-black italic uppercase leading-none tracking-tight">{item.ne}</h3>
+                  <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mt-2 italic">Dossiê de Execução Orçamentária • Tipo: {item.type}</p>
+                </div>
+              </div>
+              <button onClick={() => setDetailCommitmentId(null)} className="p-3 hover:bg-red-900 rounded-full transition-colors"><X size={28} /></button>
+            </div>
+
+            <div className="p-10 overflow-y-auto space-y-10 font-sans flex-1 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="bg-slate-900 p-6 rounded-xl text-white">
+                    <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Empenhado Bruto</p>
+                    <p className="text-2xl font-black italic">{formatCurrency(totalValue)}</p>
+                 </div>
+                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data Emissão</p>
+                    <p className="text-xl font-black text-slate-900">{formatDateBR(item.date)}</p>
+                 </div>
+                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 md:col-span-2">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo Líquido Remanescente</p>
+                    <p className={`text-xl font-black ${currentBalance < 0.01 ? 'text-slate-400 line-through' : 'text-emerald-600'}`}>{formatCurrency(currentBalance)}</p>
+                 </div>
+                 
+                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 md:col-span-2">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Status / Localização</p>
+                    <div className="flex justify-between items-center">
+                       <div>
+                          <p className="text-xl font-black text-indigo-700">{processStatus.statusStr}</p>
+                          <p className="text-xs font-bold text-slate-500 mt-1">Responsável: {processStatus.responsible}</p>
+                       </div>
+                       {processStatus.stage !== 'liquidado' && processStatus.since && (
+                         <div className="text-right">
+                            <p className="text-3xl font-black text-amber-500 leading-none">{processStatus.days}</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Dias nesta etapa</p>
+                         </div>
+                       )}
+                    </div>
+                 </div>
+              </div>
+
+              <div className="bg-slate-50 p-8 rounded-xl border border-slate-100 shadow-inner">
+                <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-4">
+                   <Landmark size={18} className="text-red-600" />
+                   <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Distribuição por Dotação</h4>
+                </div>
+                <div className="space-y-4">
+                   {allocations.map((alloc: any) => (
+                     <div key={alloc.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100 hover:border-emerald-500 transition-all cursor-pointer group/item" onClick={() => { setDetailCommitmentId(null); setDetailCreditId(alloc.creditId); }}>
+                        <div>
+                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Nota de Crédito</p>
+                           <p className="text-[11px] font-black text-emerald-900 uppercase italic group-hover/item:text-emerald-600 transition-colors flex items-center gap-2">
+                              <Tag size={12} /> {alloc.nc}
+                           </p>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor Alocado</p>
+                           <p className="text-[11px] font-black text-slate-900">{formatCurrency(alloc.value)}</p>
+                        </div>
+                     </div>
+                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2">
+                   <FileText size={14} className="text-red-600" /> Descrição do Objeto
+                </h4>
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm italic text-slate-700 text-[11px] leading-relaxed">
+                   {item.description || "Sem descrição informada."}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                 <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b pb-2">
+                    <History size={14} className="text-red-600" /> Registro de Alterações
+                 </h4>
+                 <div className="space-y-3">
+                    {combinedLogs && combinedLogs.length > 0 ? combinedLogs.map((log: any) => (
+                      <div key={log.id} className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                         <div className="p-2 bg-white rounded-lg shadow-sm text-slate-400"><Clock size={14} /></div>
+                         <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                               <span className="text-[9px] font-black text-slate-900 uppercase tracking-tighter">{log.userName}</span>
+                               <span className="text-[8px] font-bold text-slate-400">{new Date(log.timestamp).toLocaleString('pt-BR')}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-600 font-medium italic">{log.description}</p>
+                         </div>
+                      </div>
+                    )) : (
+                      <p className="p-6 text-center text-[9px] font-black text-slate-400 uppercase">Sem alterações registradas no log.</p>
+                    )}
+                 </div>
+              </div>
+            </div>
+
+            <div className="p-8 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+               <button onClick={() => setDetailCommitmentId(null)} className="px-10 py-4 bg-slate-950 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg active:scale-95">Fechar Dossiê</button>
+            </div>
                 </>
               );
             })()}
