@@ -293,8 +293,12 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
   const handleAddMaterialArrival = (com: any, date: string, value: number, invoice?: string) => {
     if (!date || value <= 0) return;
-    const newArrival = { id: generateId(), date, value, invoice };
     const currentTotal = (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0);
+    if (com.type !== 'Ordinário' && currentTotal + value > com.value + 0.01) {
+      alert(`O valor recebido não pode ultrapassar o saldo do empenho. Saldo disponível: R$ ${(com.value - currentTotal).toFixed(2)}`);
+      return;
+    }
+    const newArrival = { id: generateId(), date, value, invoice };
     const isFullyReceived = com.type === 'Ordinário' ? true : currentTotal + value >= com.value;
 
     com.originalCommitments.forEach((origCom: Commitment) => {
