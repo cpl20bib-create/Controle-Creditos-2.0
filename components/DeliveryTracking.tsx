@@ -294,12 +294,12 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   const handleAddMaterialArrival = (com: any, date: string, value: number, invoice?: string) => {
     if (!date || value <= 0) return;
     const currentTotal = (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0);
-    if (com.type !== 'Ordinário' && currentTotal + value > com.value + 0.01) {
+    if (currentTotal + value > com.value + 0.01) {
       alert(`O valor recebido não pode ultrapassar o saldo do empenho. Saldo disponível: R$ ${(com.value - currentTotal).toFixed(2)}`);
       return;
     }
     const newArrival = { id: generateId(), date, value, invoice };
-    const isFullyReceived = com.type === 'Ordinário' ? true : currentTotal + value >= com.value;
+    const isFullyReceived = currentTotal + value >= com.value - 0.01;
 
     com.originalCommitments.forEach((origCom: Commitment) => {
       const updatedCom = { 
@@ -315,7 +315,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     com.originalCommitments.forEach((origCom: any) => {
       const nextArrivals = (origCom.materialArrivals || []).filter((a: any) => a.id !== arrivalId);
       const currentTotal = nextArrivals.reduce((acc: number, a: any) => acc + a.value, 0);
-      const isFullyReceived = origCom.type === 'Ordinário' ? nextArrivals.length > 0 : currentTotal >= com.value;
+      const isFullyReceived = currentTotal >= com.value - 0.01;
       const updatedCom = { 
         ...origCom, 
         materialArrivals: nextArrivals,
@@ -557,9 +557,9 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:hidden">Valor</p>
                   <p className="font-black text-slate-700">
                     {formatCurrency(
-                      (com.type === 'Global' || com.type === 'Estimativo') 
-                        ? Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0))
-                        : (com.materialArrivedDate ? 0 : com.value)
+                      (com.materialArrivedDate && !(com.materialArrivals?.length > 0))
+                        ? 0
+                        : Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0))
                     )}
                   </p>
                 </div>
