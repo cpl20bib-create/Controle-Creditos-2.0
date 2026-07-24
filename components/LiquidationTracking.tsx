@@ -263,7 +263,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
   const ugs = useMemo(() => Array.from(new Set(credits.map(c => c.ug).filter(Boolean))), [credits]);
 
   const processedCommitments = useMemo(() => {
-    return commitments.map(com => {
+    const rawProcessed = commitments.map(com => {
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
       const credit = credits.find(c => c.id === com.creditId);
       
@@ -292,6 +292,50 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
         section: credit?.section || ''
       };
     });
+
+    const grouped = new Map<string, any>();
+    rawProcessed.forEach(com => {
+      const key = `${com.ne}_${com.ug}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, { 
+          ...com,
+          id: key,
+          originalIds: [com.id],
+          pis: new Set(com.pi ? [com.pi] : []),
+          nds: new Set(com.nd ? [com.nd] : []),
+          sections: new Set(com.section ? [com.section] : []),
+          processNumbers: new Set(com.processNumber ? [com.processNumber] : []),
+          allLiquidations: com.liquidations ? [...com.liquidations] : []
+        });
+      } else {
+        const existing = grouped.get(key);
+        existing.value += com.value;
+        existing.activeValue += com.activeValue;
+        existing.totalLiquidated += com.totalLiquidated;
+        existing.amountSentToFinance += com.amountSentToFinance;
+        existing.totalCancellations += com.totalCancellations;
+        
+        if (com.pi) existing.pis.add(com.pi);
+        if (com.nd) existing.nds.add(com.nd);
+        if (com.section) existing.sections.add(com.section);
+        if (com.processNumber) existing.processNumbers.add(com.processNumber);
+        
+        if (com.liquidations && com.liquidations.length > 0) {
+          existing.allLiquidations = [...existing.allLiquidations, ...com.liquidations];
+        }
+        
+        existing.originalIds.push(com.id);
+      }
+    });
+
+    return Array.from(grouped.values()).map(g => ({
+      ...g,
+      pi: Array.from(g.pis).join(', '),
+      nd: Array.from(g.nds).join(', '),
+      section: Array.from(g.sections).join(', '),
+      processNumber: Array.from(g.processNumbers).join(', '),
+      liquidations: g.allLiquidations
+    })).sort((a, b) => a.ne.localeCompare(b.ne));
   }, [commitments, credits, cancellations]);
 
   const filtered = useMemo(() => {
@@ -301,13 +345,13 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
 
       const matchesSearch = com.ne.toLowerCase().includes(searchTerm.toLowerCase()) || 
         com.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesSection = sectionFilter ? com.section === sectionFilter : true;
-      const matchesPi = piFilter ? com.pi === piFilter : true;
-      const matchesUg = ugFilter ? com.ug === ugFilter : true;
+      const matchesSection = sectionFilter ? com.section.includes(sectionFilter) : true;
+      const matchesPi = piFilter ? com.pi.includes(piFilter) : true;
+      const matchesUg = ugFilter ? com.ug.includes(ugFilter) : true;
       const matchesType = typeFilter ? com.type === typeFilter : true;
 
       return matchesSearch && matchesSection && matchesPi && matchesUg && matchesType;
-    }).sort((a, b) => b.totalLiquidated - a.totalLiquidated);
+    }).sort((a, b) => a.ne.localeCompare(b.ne));
   }, [processedCommitments, viewMode, searchTerm, sectionFilter, piFilter, ugFilter, typeFilter]);
 
   const totalValue = filtered.reduce((sum, c) => sum + (viewMode === 'pending' ? c.activeValue : c.totalLiquidated), 0);
