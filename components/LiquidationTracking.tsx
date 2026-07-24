@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Commitment, Cancellation, Credit } from '../types';
-import { Search, Plus, Calendar, FileText, CheckSquare, Square, X, CheckCircle2, Tag, Filter, ArrowUp, ArrowDown, Building2 } from 'lucide-react';
+import { Search, Plus, Calendar, FileText, CheckSquare, Square, X, CheckCircle2, Tag, Filter, ArrowUp, ArrowDown, Building2, PackageSearch } from 'lucide-react';
 import { formatDateBR } from '../utils/dateUtils';
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -13,331 +13,6 @@ interface LiquidationTrackingProps {
   userRole?: string;
 }
 
-const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, credits, onUpdateCommitment, userRole }) => {
-  const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR' || userRole === 'FINANCEIRO';
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const [sectionFilter, setSectionFilter] = useState('');
-  const [piFilter, setPiFilter] = useState('');
-  const [ugFilter, setUgFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [viewMode, setViewMode] = useState<'pending' | 'liquidated'>('pending');
-  const [sortBy, setSortBy] = useState<'ne' | 'value' | 'days'>('ne');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
-  const eligibleCommitments = useMemo(() => {
-    const processed = commitments
-      .filter(com => {
-        const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-        let hasSentToFinance = false;
-        if (isGlobal) {
-          hasSentToFinance = (com.materialArrivals || []).some(arr => !!arr.sentToFinanceDate);
-        } else {
-          hasSentToFinance = !!com.sentToFinanceDate;
-        }
-        if (!hasSentToFinance) return false;
-        
-        const totalCancellations = cancellations
-          .filter(c => c.commitmentId === com.id)
-          .reduce((sum, c) => sum + c.value, 0);
-        
-        const totalLiquidated = isGlobal 
-          ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
-          : (com.liquidationNs ? com.value - totalCancellations : 0);
-
-        const baseValue = isGlobal 
-          ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
-          : com.value;
-
-        const activeValue = baseValue - totalCancellations - totalLiquidated;
-        
-        return activeValue > 0 || totalLiquidated > 0;
-      })
-      .map(com => {
-        const totalCancellations = cancellations
-          .filter(c => c.commitmentId === com.id)
-          .reduce((sum, c) => sum + c.value, 0);
-          
-        const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-        const totalLiquidated = isGlobal 
-          ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
-          : (com.liquidationNs ? com.value - totalCancellations : 0);
-          
-        const baseValue = isGlobal 
-          ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
-          : com.value;
-          
-        const daysSinceIssue = Math.floor((new Date().getTime() - new Date(com.date).getTime()) / (1000 * 3600 * 24));
-        
-        const credit = credits.find(c => c.id === com.creditId);
-        
-        return { 
-          ...com, 
-          activeValue: baseValue - totalCancellations - totalLiquidated,
-          totalCancellations,
-          totalLiquidated,
-          daysSinceIssue,
-          section: credit?.section || '',
-          pi: credit?.pi || '',
-          nd: credit?.nd || '',
-          ug: credit?.ug || '',
-          hasAnyLiquidation: isGlobal ? (com.liquidations && com.liquidations.length > 0) : !!com.liquidationNs
-        };
-      });
-
-    const grouped = new Map<string, any>();
-    processed.forEach(com => {
-      const key = `${com.ne}_${com.ug}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, { ...com, originalIds: [com.id] });
-      } else {
-        const existing = grouped.get(key);
-        existing.value += com.value;
-        existing.activeValue += com.activeValue;
-        existing.totalCancellations += com.totalCancellations;
-        existing.totalLiquidated += com.totalLiquidated;
-        existing.originalIds.push(com.id);
-        
-        if (com.materialArrivals && com.materialArrivals.length > 0) {
-          existing.materialArrivals = [...(existing.materialArrivals || []), ...com.materialArrivals];
-        }
-        if (com.liquidations && com.liquidations.length > 0) {
-          existing.liquidations = [...(existing.liquidations || []), ...com.liquidations];
-        }
-        if (com.liquidationNs) {
-          existing.liquidationNs = existing.liquidationNs ? Array.from(new Set([...existing.liquidationNs.split(', '), com.liquidationNs])).join(', ') : com.liquidationNs;
-        }
-        if (com.hasAnyLiquidation) existing.hasAnyLiquidation = true;
-      }
-    });
-
-    return Array.from(grouped.values());
-  }, [commitments, cancellations, credits]);
-
-  const sections = useMemo(() => Array.from(new Set(eligibleCommitments.map(c => c.section).filter(Boolean))).sort(), [eligibleCommitments]);
-  const pis = useMemo(() => Array.from(new Set(eligibleCommitments.map(c => c.pi).filter(Boolean))).sort(), [eligibleCommitments]);
-  const ugs = useMemo(() => Array.from(new Set(eligibleCommitments.map(c => c.ug).filter(Boolean))).sort(), [eligibleCommitments]);
-
-  const filteredAndSortedCommitments = useMemo(() => {
-    let result = eligibleCommitments.filter(com => {
-      const matchesSearch = 
-        com.ne.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (com.liquidationNs && com.liquidationNs.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        com.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesSection = !sectionFilter || com.section === sectionFilter;
-      const matchesPi = !piFilter || com.pi === piFilter;
-      const matchesUg = !ugFilter || com.ug === ugFilter;
-      const matchesType = !typeFilter || com.type === typeFilter;
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-      const isLiquidated = com.hasAnyLiquidation;
-      const matchesViewMode = viewMode === 'pending' ? !isLiquidated : isLiquidated;
-
-      return matchesSearch && matchesSection && matchesPi && matchesUg && matchesType && matchesViewMode;
-    });
-
-    result.sort((a, b) => {
-      let comparison = 0;
-      if (sortBy === 'ne') {
-        comparison = a.ne.localeCompare(b.ne);
-      } else if (sortBy === 'value') {
-        comparison = a.activeValue - b.activeValue;
-      } else if (sortBy === 'days') {
-        comparison = a.daysSinceIssue - b.daysSinceIssue;
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
-  }, [eligibleCommitments, searchTerm, sectionFilter, piFilter, ugFilter, viewMode, sortBy, sortOrder]);
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar por NE, NS ou descrição..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-700 outline-none"
-          />
-        </div>
-        {canEdit && (
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 shrink-0"
-        >
-          <Plus size={18} /> Nova Liquidação
-        </button>
-        )}
-      </div>
-
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
-        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-          <div className="flex items-center gap-2 text-sm font-black text-slate-500 uppercase tracking-widest mr-2 shrink-0">
-            <Filter size={16} /> Filtros:
-          </div>
-          
-          <select
-            value={sectionFilter}
-            onChange={(e) => setSectionFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Todas as Seções</option>
-            {sections.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-
-          <select
-            value={piFilter}
-            onChange={(e) => setPiFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Todos os PIs</option>
-            {pis.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-
-          <select
-            value={ugFilter}
-            onChange={(e) => setUgFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Todas as UGs</option>
-            {ugs.map(u => <option key={u} value={u}>{u}</option>)}
-          </select>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Todos os Tipos</option>
-            <option value="Ordinário">Ordinário</option>
-            <option value="Global">Global</option>
-            <option value="Estimativo">Estimativo</option>
-          </select>
-
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button
-              onClick={() => setViewMode('pending')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${viewMode === 'pending' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Pendentes
-            </button>
-            <button
-              onClick={() => setViewMode('liquidated')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${viewMode === 'liquidated' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Liquidados
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 w-full xl:w-auto pt-4 xl:pt-0 border-t xl:border-t-0 border-slate-100">
-          <span className="text-sm font-black text-slate-500 uppercase tracking-widest shrink-0">Ordenar por:</span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-1 min-w-[140px]"
-          >
-            <option value="ne">Número NE</option>
-            <option value="value">Valor</option>
-            <option value="days">Dias Emitido</option>
-          </select>
-          <button
-            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-            className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
-            title={sortOrder === 'asc' ? 'Crescente' : 'Decrescente'}
-          >
-            {sortOrder === 'asc' ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
-          </button>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {filteredAndSortedCommitments.length === 0 ? (
-          <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center">
-            <FileText className="mx-auto text-slate-300 mb-4" size={56} />
-            <h3 className="text-xl font-black text-slate-700 uppercase tracking-widest mb-2">Nenhum Empenho</h3>
-            <p className="text-slate-500 font-medium max-w-sm mx-auto">Nenhum empenho recebido corresponde aos filtros selecionados.</p>
-          </div>
-        ) : (
-          filteredAndSortedCommitments.map(com => (
-            <div key={com.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row items-stretch">
-              <div className={`w-2 md:w-3 shrink-0 ${com.liquidationNs ? 'bg-indigo-500' : 'bg-amber-400'}`} />
-              <div className="p-5 flex-1 flex flex-col md:flex-row gap-4 md:items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h3 className="text-lg font-black text-slate-800">{com.ne}</h3>
-                    {com.type === 'Global' || com.type === 'Estimativo' ? (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {(com.liquidations || []).map((liq: any) => (
-                           <span key={liq.id} className="text-[10px] font-black text-indigo-700 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 flex items-center gap-1">
-                             <CheckCircle2 size={12} /> {liq.ns} ({formatCurrency(liq.value)})
-                           </span>
-                        ))}
-                        {(!com.liquidations || com.liquidations.length === 0) && (
-                           <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest bg-amber-50 px-2 py-1 rounded-md border border-amber-100 flex items-center gap-1">
-                             <Calendar size={12} /> Aguardando NS
-                           </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {com.liquidationNs ? (
-                          <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 flex items-center gap-1">
-                            <CheckCircle2 size={12} /> {com.liquidationNs}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest bg-amber-50 px-2 py-1 rounded-md border border-amber-100 flex items-center gap-1">
-                            <Calendar size={12} /> Aguardando NS
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md mt-2">
-                      UG {com.ug}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-slate-500 line-clamp-2">{com.description}</p>
-                  <div className="flex flex-wrap gap-3 mt-3 text-xs font-medium text-slate-500">
-                    <span className="flex items-center gap-1"><Building2 size={14} /> {com.section || 'Sem Seção'}</span>
-                    <span className="flex items-center gap-1"><Tag size={14} /> PI: {com.pi || '-'} / ND: {com.nd || '-'}</span>
-                    <span className="flex items-center gap-1"><Calendar size={14} /> Emitido há {com.daysSinceIssue} dias</span>
-                    {com.materialArrivedDate && (
-                      <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 size={14} /> Recebido em: {formatDateBR(com.materialArrivedDate)}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="text-left md:text-right shrink-0">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Saldo Disponível</p>
-                  <p className="text-xl font-black text-slate-800">{formatCurrency(com.activeValue)}</p>
-                  {com.liquidationDate && (
-                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">
-                      Liq: {formatDateBR(com.liquidationDate)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {isModalOpen && (
-        <NewLiquidationModal 
-          commitments={commitments} 
-          cancellations={cancellations}
-          credits={credits}
-          onClose={() => setIsModalOpen(false)} 
-          onSave={onUpdateCommitment} 
-        />
-      )}
-    </div>
-  );
-};
-
 const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onSave }: any) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [liquidationDate, setLiquidationDate] = useState('');
@@ -345,51 +20,29 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
   const [partialValues, setPartialValues] = useState<Record<string, number>>({});
 
   const pendingCommitments = useMemo(() => {
-    const processed = commitments.filter((com: Commitment) => {
+    const processed = commitments.map((com: Commitment) => {
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-      const hasSentToFinance = isGlobal ? (com.materialArrivals || []).some(a => !!a.sentToFinanceDate) : !!com.sentToFinanceDate;
-      if (!hasSentToFinance) return false;
+      const credit = credits.find((c: Credit) => c.id === com.creditId);
       
-      const totalCancellations = cancellations
-        .filter((c: Cancellation) => c.commitmentId === com.id)
-        .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
+      const amountSentToFinance = isGlobal 
+        ? (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
+        : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
         
-      const totalLiquidated = isGlobal 
-        ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
-        : (com.liquidationNs ? com.value - totalCancellations : 0);
-        
-      const baseValue = isGlobal 
-        ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
-        : com.value;
-        
-      const activeValue = baseValue - totalCancellations - totalLiquidated;
-      return activeValue > 0;
-    }).map((com: Commitment) => {
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-      const totalCancellations = cancellations
-        .filter((c: Cancellation) => c.commitmentId === com.id)
-        .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
-      const totalLiquidated = isGlobal 
-        ? (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
-        : (com.liquidationNs ? com.value - totalCancellations : 0);
-        
-      const baseValue = isGlobal 
-        ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
-        : com.value;
-        
-      const credit = credits.find(c => c.id === com.creditId);
+      const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + l.value, 0)
+        + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
+              
       return { 
         ...com, 
-        activeValue: baseValue - totalCancellations - totalLiquidated,
+        activeValue: amountSentToFinance - totalLiquidated,
         pi: credit?.pi || '',
         nd: credit?.nd || '',
         ug: credit?.ug || '',
         section: credit?.section || ''
       };
-    });
+    }).filter((com: any) => com.activeValue > 0.01);
     
     const grouped = new Map<string, any>();
-    processed.forEach(com => {
+    processed.forEach((com: any) => {
       const key = `${com.ne}_${com.ug}`;
       if (!grouped.has(key)) {
         grouped.set(key, { ...com, originalIds: [com.id] });
@@ -398,21 +51,10 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
         existing.value += com.value;
         existing.activeValue += com.activeValue;
         existing.originalIds.push(com.id);
-        
-        if (com.materialArrivals && com.materialArrivals.length > 0) {
-          existing.materialArrivals = [...(existing.materialArrivals || []), ...com.materialArrivals];
-        }
-        if (com.liquidations && com.liquidations.length > 0) {
-          existing.liquidations = [...(existing.liquidations || []), ...com.liquidations];
-        }
       }
     });
-
-    return Array.from(grouped.values()).sort((a: any, b: any) => a.ne.localeCompare(b.ne));
+    return Array.from(grouped.values()).sort((a, b) => a.ne.localeCompare(b.ne));
   }, [commitments, cancellations, credits]);
-
-  const allowedPi = selectedIds.length > 0 ? pendingCommitments.find((c: any) => c.id === selectedIds[0])?.pi : null;
-  const allowedNd = selectedIds.length > 0 ? pendingCommitments.find((c: any) => c.id === selectedIds[0])?.nd : null;
 
   const handleToggle = (id: string, activeValue: number) => {
     if (selectedIds.includes(id)) {
@@ -422,53 +64,60 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
       setPartialValues(newVals);
     } else {
       setSelectedIds([...selectedIds, id]);
-      setPartialValues(prev => ({ ...prev, [id]: activeValue }));
     }
   };
 
   const handlePartialValueChange = (id: string, val: number, max: number) => {
-    setPartialValues(prev => ({ ...prev, [id]: Math.min(val, max) }));
+    setPartialValues({ ...partialValues, [id]: Math.min(Math.max(0, val), max) });
   };
+
+  const allowedPi = selectedIds.length > 0 ? pendingCommitments.find(c => c.id === selectedIds[0])?.pi : null;
+  const allowedNd = selectedIds.length > 0 ? pendingCommitments.find(c => c.id === selectedIds[0])?.nd : null;
 
   const handleSave = () => {
     if (selectedIds.length === 0) return alert('Selecione pelo menos um empenho para liquidar.');
     if (!liquidationDate) return alert('Informe a data da liquidação.');
     
-    // Validar NS no formato YYYYNSXXXXXX
     const regex = new RegExp(`^\\d{4}NS\\d{6}$`);
     if (!regex.test(liquidationNs)) return alert('O número da NS é inválido. O formato esperado é YYYYNSXXXXXX (ex: 2026NS123456).');
 
     selectedIds.forEach(groupId => {
       const group = pendingCommitments.find((g: any) => g.id === groupId);
       if (!group) return;
+
       group.originalIds.forEach((id: string) => {
-      const com = commitments.find((c: Commitment) => c.id === id);
-      if (com) {
-        const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-        if (isGlobal) {
-          const totalVal = partialValues[groupId] || 0;
+        const com = commitments.find((c: Commitment) => c.id === id);
+        if (com) {
+          const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+          const comActiveValue = pendingCommitments.find((c: any) => c.id === id)?.activeValue || 0; // Wait, this doesn't work, we grouped by ne_ug. 
+          // Let's compute comActiveValue again:
+          const amountSentToFinance = isGlobal 
+            ? (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
+            : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
+          const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + l.value, 0)
+            + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
+          const comActive = amountSentToFinance - totalLiquidated;
+
+          const totalVal = partialValues[groupId] !== undefined ? partialValues[groupId] : group.activeValue;
           const groupActive = group.activeValue;
-          
-          const totalCancellations = cancellations.filter((c: any) => c.commitmentId === com.id).reduce((sum: number, c: any) => sum + c.value, 0);
-          const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + l.value, 0);
-          const comActiveValue = com.value - totalCancellations - totalLiquidated;
           
           let valToApply = 0;
           if (groupActive > 0) {
-            valToApply = totalVal * (comActiveValue / groupActive);
-          } else {
-             valToApply = totalVal / group.originalIds.length;
+            valToApply = totalVal * (comActive / groupActive);
+          } else { 
+            valToApply = totalVal / group.originalIds.length;
           }
-          if (valToApply > 0) {
+          
+          if (valToApply > 0.01) {
             onSave({
               ...com,
-              liquidations: [...(com.liquidations || []), { id: Math.random().toString(36).substr(2, 9), ns: liquidationNs, date: liquidationDate, value: Number(valToApply.toFixed(2)) }]
+              liquidations: [...(com.liquidations || []), { id: Math.random().toString(36).substr(2, 9), ns: liquidationNs, date: liquidationDate, value: Number(valToApply.toFixed(2)) }],
+              // Also populate legacy fields for compatibility
+              liquidationNs: com.liquidationNs || liquidationNs,
+              liquidationDate: com.liquidationDate || liquidationDate
             });
           }
-        } else {
-          onSave({ ...com, liquidationNs, liquidationDate });
         }
-      }
       });
     });
     onClose();
@@ -486,7 +135,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
             <X size={20} />
           </button>
         </div>
-
+        
         <div className="p-6 md:p-8 overflow-y-auto flex-1 flex flex-col gap-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
             <div>
@@ -561,7 +210,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
                                 type="number" 
                                 step="0.01" 
                                 max={com.activeValue}
-                                value={partialValues[com.id] || ''}
+                                value={partialValues[com.id] !== undefined ? partialValues[com.id] : com.activeValue}
                                 onChange={(e) => handlePartialValueChange(com.id, parseFloat(e.target.value) || 0, com.activeValue)}
                                 className="w-28 px-2 py-1 rounded border border-indigo-200 focus:border-indigo-500 outline-none text-xs font-black text-indigo-700"
                               />
@@ -576,7 +225,6 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
             )}
           </div>
         </div>
-
         <div className="p-6 md:p-8 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-end gap-3 shrink-0">
           <button 
             onClick={onClose}
@@ -593,6 +241,267 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, credits, onUpdateCommitment, userRole }) => {
+  const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR' || userRole === 'FINANCEIRO';
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [sectionFilter, setSectionFilter] = useState('');
+  const [piFilter, setPiFilter] = useState('');
+  const [ugFilter, setUgFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+
+  const [viewMode, setViewMode] = useState<'pending' | 'liquidated'>('pending');
+
+  const sections = useMemo(() => Array.from(new Set(credits.map(c => c.section).filter(Boolean))), [credits]);
+  const pis = useMemo(() => Array.from(new Set(credits.map(c => c.pi).filter(Boolean))), [credits]);
+  const ugs = useMemo(() => Array.from(new Set(credits.map(c => c.ug).filter(Boolean))), [credits]);
+
+  const processedCommitments = useMemo(() => {
+    return commitments.map(com => {
+      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const credit = credits.find(c => c.id === com.creditId);
+      
+      const totalCancellations = cancellations
+        .filter((c: Cancellation) => c.commitmentId === com.id)
+        .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
+
+      const amountSentToFinance = isGlobal 
+        ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
+        : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
+        
+      const totalLiquidated = (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
+        + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
+              
+      const activeValue = amountSentToFinance - totalLiquidated;
+      
+      return {
+        ...com,
+        activeValue: Math.max(0, activeValue),
+        totalLiquidated,
+        amountSentToFinance,
+        totalCancellations,
+        pi: credit?.pi || '',
+        nd: credit?.nd || '',
+        ug: credit?.ug || '',
+        section: credit?.section || ''
+      };
+    });
+  }, [commitments, credits, cancellations]);
+
+  const filtered = useMemo(() => {
+    return processedCommitments.filter(com => {
+      if (viewMode === 'pending' && com.activeValue < 0.01) return false;
+      if (viewMode === 'liquidated' && com.totalLiquidated < 0.01) return false;
+
+      const matchesSearch = com.ne.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        com.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSection = sectionFilter ? com.section === sectionFilter : true;
+      const matchesPi = piFilter ? com.pi === piFilter : true;
+      const matchesUg = ugFilter ? com.ug === ugFilter : true;
+      const matchesType = typeFilter ? com.type === typeFilter : true;
+
+      return matchesSearch && matchesSection && matchesPi && matchesUg && matchesType;
+    }).sort((a, b) => b.totalLiquidated - a.totalLiquidated);
+  }, [processedCommitments, viewMode, searchTerm, sectionFilter, piFilter, ugFilter, typeFilter]);
+
+  const totalValue = filtered.reduce((sum, c) => sum + (viewMode === 'pending' ? c.activeValue : c.totalLiquidated), 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+        <div className="flex-1 w-full xl:w-auto relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input 
+            type="text" 
+            placeholder="Buscar por NE, descrição..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-700 outline-none"
+          />
+        </div>
+        {canEdit && (
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 shrink-0 w-full xl:w-auto"
+        >
+          <Plus size={18} /> Nova Liquidação
+        </button>
+        )}
+      </div>
+
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+          <div className="flex items-center gap-2 text-sm font-black text-slate-500 uppercase tracking-widest mr-2 shrink-0">
+            <Filter size={16} /> Filtros:
+          </div>
+          <select value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Todas as Seções</option>
+            {sections.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={piFilter} onChange={(e) => setPiFilter(e.target.value)} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Todos os PIs</option>
+            {pis.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select value={ugFilter} onChange={(e) => setUgFilter(e.target.value)} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Todas as UGs</option>
+            {ugs.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Todos os Tipos</option>
+            <option value="Ordinário">Ordinário</option>
+            <option value="Global">Global</option>
+            <option value="Estimativo">Estimativo</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-0">
+          <div className="flex">
+            <button 
+              onClick={() => setViewMode('pending')}
+              className={`flex-1 sm:flex-none px-6 py-4 text-sm font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 border-b-2 ${viewMode === 'pending' ? 'border-indigo-500 text-indigo-600 bg-indigo-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+            >
+              Pendentes
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${viewMode === 'pending' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
+                {processedCommitments.filter(c => c.activeValue >= 0.01).length}
+              </span>
+            </button>
+            <button 
+              onClick={() => setViewMode('liquidated')}
+              className={`flex-1 sm:flex-none px-6 py-4 text-sm font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 border-b-2 ${viewMode === 'liquidated' ? 'border-emerald-500 text-emerald-600 bg-emerald-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+            >
+              Liquidados
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${viewMode === 'liquidated' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                {processedCommitments.filter(c => c.totalLiquidated >= 0.01).length}
+              </span>
+            </button>
+          </div>
+          <div className="px-6 py-3 sm:py-0 mt-4 sm:mt-0 text-right bg-slate-50 sm:bg-transparent rounded-xl sm:rounded-none">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+              {viewMode === 'pending' ? 'Total Pendente' : 'Total Liquidado'}
+            </p>
+            <p className={`text-lg font-black ${viewMode === 'pending' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+              {formatCurrency(totalValue)}
+            </p>
+          </div>
+        </div>
+
+        <div className="p-0">
+          {filtered.length === 0 ? (
+            <div className="text-center py-16">
+              <PackageSearch size={48} className="mx-auto text-slate-300 mb-4" />
+              <h3 className="text-lg font-black text-slate-700 uppercase tracking-tight">Nenhum resultado</h3>
+              <p className="text-slate-500 font-medium mt-2">Nenhum empenho encontrado com os filtros atuais.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {filtered.map(com => (
+                <div key={com.id} className="p-6 hover:bg-slate-50/50 transition-colors">
+                  <div className="flex flex-col lg:flex-row justify-between gap-6">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-black text-slate-800">{com.ne}</h3>
+                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${
+                          com.type === 'Global' ? 'bg-purple-100 text-purple-700' :
+                          com.type === 'Estimativo' ? 'bg-blue-100 text-blue-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {com.type}
+                        </span>
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-black uppercase tracking-widest">
+                          {com.ug}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-slate-600 line-clamp-2 leading-relaxed mb-4">{com.description}</p>
+                      
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                          <Building2 size={14} className="text-slate-400" />
+                          {com.pi} / {com.nd}
+                        </div>
+                        {com.section && (
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            <Tag size={14} className="text-slate-400" />
+                            {com.section}
+                          </div>
+                        )}
+                        {com.processNumber && (
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            <FileText size={14} className="text-slate-400" />
+                            {com.processNumber}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="lg:w-72 shrink-0 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col justify-center">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Valor do Empenho</span>
+                        <span className="text-sm font-black text-slate-700">{formatCurrency(com.value)}</span>
+                      </div>
+                      
+                      {viewMode === 'pending' ? (
+                        <>
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Enviado p/ Financeiro</span>
+                            <span className="text-sm font-black text-indigo-400">{formatCurrency(com.amountSentToFinance)}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+                            <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Pendente Liq.</span>
+                            <span className="text-lg font-black text-indigo-600">{formatCurrency(com.activeValue)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+                            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Total Liquidado</span>
+                            <span className="text-lg font-black text-emerald-600">{formatCurrency(com.totalLiquidated)}</span>
+                          </div>
+                          {com.liquidations && com.liquidations.length > 0 && (
+                            <div className="pt-2 border-t border-slate-100 border-dashed space-y-2 mt-2">
+                              {com.liquidations.map((l: any, i: number) => (
+                                <div key={i} className="flex justify-between items-center text-xs">
+                                  <span className="text-slate-500 font-medium">{formatDateBR(l.date)} - {l.ns}</span>
+                                  <span className="font-bold text-emerald-600">{formatCurrency(l.value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {com.liquidationNs && !(com.liquidations?.length > 0) && (
+                            <div className="pt-2 border-t border-slate-100 border-dashed space-y-2 mt-2">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-500 font-medium">{formatDateBR(com.liquidationDate || '')} - {com.liquidationNs}</span>
+                                <span className="font-bold text-emerald-600">{formatCurrency(com.totalLiquidated)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isModalOpen && (
+        <NewLiquidationModal
+          commitments={commitments}
+          cancellations={cancellations}
+          credits={credits}
+          onClose={() => setIsModalOpen(false)}
+          onSave={onUpdateCommitment}
+        />
+      )}
     </div>
   );
 };
