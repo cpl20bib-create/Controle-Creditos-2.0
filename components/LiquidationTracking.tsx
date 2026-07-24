@@ -24,9 +24,15 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
       const credit = credits.find((c: Credit) => c.id === com.creditId);
       
-      const amountSentToFinance = isGlobal 
+      const totalCancellations = cancellations
+        .filter((c: Cancellation) => c.commitmentId === com.id)
+        .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
+
+      const calculatedAmountSentToFinance = isGlobal 
         ? (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
         : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
+      
+      const amountSentToFinance = Math.min(calculatedAmountSentToFinance, com.value - totalCancellations);
         
       const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + l.value, 0)
         + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
@@ -91,9 +97,16 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
           const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
           const comActiveValue = pendingCommitments.find((c: any) => c.id === id)?.activeValue || 0; // Wait, this doesn't work, we grouped by ne_ug. 
           // Let's compute comActiveValue again:
-          const amountSentToFinance = isGlobal 
+          const totalCancellations = cancellations
+            .filter((c: Cancellation) => c.commitmentId === com.id)
+            .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
+          
+          const calculatedAmountSentToFinance = isGlobal 
             ? (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
             : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
+          
+          const amountSentToFinance = Math.min(calculatedAmountSentToFinance, com.value - totalCancellations);
+
           const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + l.value, 0)
             + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
           const comActive = amountSentToFinance - totalLiquidated;
@@ -271,10 +284,12 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
         .filter((c: Cancellation) => c.commitmentId === com.id)
         .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
 
-      const amountSentToFinance = isGlobal 
+      const calculatedAmountSentToFinance = isGlobal 
         ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
         : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
         
+      const amountSentToFinance = Math.min(calculatedAmountSentToFinance, com.value - totalCancellations);
+
       const totalLiquidated = (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
         + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
               
