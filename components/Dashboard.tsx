@@ -56,7 +56,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
         const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
         let legacySent = 0;
-        if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate) {
+        if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate && com.materialArrivedDate) {
             legacySent = Number(com.value) || 0;
         }
         const calculatedAmountSentToFinance = arrivalsSent + legacySent;
@@ -133,7 +133,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
       const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
       let legacySent = 0;
-      if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate) {
+      if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate && com.materialArrivedDate) {
           legacySent = Number(com.value) || 0;
       }
       const calculatedAmountSentToFinance = arrivalsSent + legacySent;
@@ -646,7 +646,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
               const arrivalsSent = (item.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
               let legacySent = 0;
-              if (!isGlobal && arrivalsSent === 0 && item.sentToFinanceDate) {
+              if (!isGlobal && arrivalsSent === 0 && item.sentToFinanceDate && item.materialArrivedDate) {
                   legacySent = Number(item.value) || 0;
               }
               const calculatedAmountSentToFinance = arrivalsSent + legacySent;
