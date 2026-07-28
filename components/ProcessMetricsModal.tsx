@@ -29,7 +29,7 @@ export const ProcessMetricsModal: React.FC<ProcessMetricsModalProps> = ({ commit
   };
 
   const processItems = useMemo(() => {
-    const items: Array<{
+    const itemsMap = new Map<string, {
       id: string;
       ne: string;
       invoice: string;
@@ -43,7 +43,7 @@ export const ProcessMetricsModal: React.FC<ProcessMetricsModalProps> = ({ commit
       ug: string;
       pi: string;
       nd: string;
-    }> = [];
+    }>();
 
     commitments.forEach(com => {
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
@@ -57,37 +57,42 @@ export const ProcessMetricsModal: React.FC<ProcessMetricsModalProps> = ({ commit
       if (isGlobal) {
         (com.materialArrivals || []).forEach(arr => {
           const liq = com.liquidations?.find(l => l.date >= (arr.sentToFinanceDate || ''));
-          
-          items.push({
-            id: `${com.id}_${arr.id}`,
-            ne: com.ne,
-            invoice: arr.invoice || 'S/N',
-            type: 'Parcial',
-            timeEmpenhoToCompany,
-            timeReceivedToArrival: getDaysDiff(com.receivedFromCompanyDate, arr.date),
-            timeArrivalToConfDoc: getDaysDiff(arr.date, arr.sentToConfDocDate),
-            timeConfDocToFinance: getDaysDiff(arr.sentToConfDocDate, arr.sentToFinanceDate),
-            timeFinanceToLiquidation: getDaysDiff(arr.sentToFinanceDate, liq?.date),
-            section, ug, pi, nd
-          });
+          const key = `${com.ne}_${ug}_${arr.id}`;
+          if (!itemsMap.has(key)) {
+            itemsMap.set(key, {
+              id: key,
+              ne: com.ne,
+              invoice: arr.invoice || 'S/N',
+              type: 'Parcial',
+              timeEmpenhoToCompany,
+              timeReceivedToArrival: getDaysDiff(com.receivedFromCompanyDate, arr.date),
+              timeArrivalToConfDoc: getDaysDiff(arr.date, arr.sentToConfDocDate),
+              timeConfDocToFinance: getDaysDiff(arr.sentToConfDocDate, arr.sentToFinanceDate),
+              timeFinanceToLiquidation: getDaysDiff(arr.sentToFinanceDate, liq?.date),
+              section, ug, pi, nd
+            });
+          }
         });
       } else {
-        items.push({
-          id: com.id,
-          ne: com.ne,
-          invoice: com.invoice || 'S/N',
-          type: 'Ordinário',
-          timeEmpenhoToCompany,
-          timeReceivedToArrival: getDaysDiff(com.receivedFromCompanyDate, com.materialArrivedDate),
-          timeArrivalToConfDoc: getDaysDiff(com.materialArrivedDate, com.sentToConfDocDate),
-          timeConfDocToFinance: getDaysDiff(com.sentToConfDocDate, com.sentToFinanceDate),
-          timeFinanceToLiquidation: getDaysDiff(com.sentToFinanceDate, com.liquidationDate),
-          section, ug, pi, nd
-        });
+        const key = `${com.ne}_${ug}`;
+        if (!itemsMap.has(key)) {
+          itemsMap.set(key, {
+            id: key,
+            ne: com.ne,
+            invoice: com.invoice || 'S/N',
+            type: 'Ordinário',
+            timeEmpenhoToCompany,
+            timeReceivedToArrival: getDaysDiff(com.receivedFromCompanyDate, com.materialArrivedDate),
+            timeArrivalToConfDoc: getDaysDiff(com.materialArrivedDate, com.sentToConfDocDate),
+            timeConfDocToFinance: getDaysDiff(com.sentToConfDocDate, com.sentToFinanceDate),
+            timeFinanceToLiquidation: getDaysDiff(com.sentToFinanceDate, com.liquidationDate),
+            section, ug, pi, nd
+          });
+        }
       }
     });
 
-    return items;
+    return Array.from(itemsMap.values());
   }, [commitments, credits]);
 
   const sections = useMemo(() => Array.from(new Set(processItems.map(i => i.section).filter(Boolean))).sort(), [processItems]);
