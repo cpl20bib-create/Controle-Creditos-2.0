@@ -334,6 +334,9 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
          const updatedCom = { ...origCom };
          delete updatedCom.materialArrivedDate;
          delete updatedCom.invoice;
+         delete updatedCom.sentToConfDocDate;
+         delete updatedCom.diexRemessa;
+         delete updatedCom.sentToFinanceDate;
          onUpdateCommitment(updatedCom);
        });
     } else {
