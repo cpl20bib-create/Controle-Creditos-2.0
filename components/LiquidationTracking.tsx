@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Commitment, Cancellation, Credit } from '../types';
-import { Search, Plus, Calendar, FileText, CheckSquare, Square, X, CheckCircle2, Tag, Filter, ArrowUp, ArrowDown, Building2, PackageSearch } from 'lucide-react';
+import { Search, Trash2, Plus, Calendar, FileText, CheckSquare, Square, X, CheckCircle2, Tag, Filter, ArrowUp, ArrowDown, Building2, PackageSearch } from 'lucide-react';
 import { formatDateBR } from '../utils/dateUtils';
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -220,6 +220,27 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
 };
 
 const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, credits, onUpdateCommitment, userRole }) => {
+  const handleDeleteLiquidation = (groupId: string, liquidationId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta liquidação?')) return;
+    
+    const group = allGroupedCommitments.find(g => g.id === groupId);
+    if (!group) return;
+
+    group.originalIds.forEach((id: string) => {
+      const com = commitments.find(c => c.id === id);
+      if (com && com.liquidations) {
+        const hasLiq = com.liquidations.some((l: any) => l.id === liquidationId);
+        if (hasLiq) {
+           const updatedLiquidations = com.liquidations.filter((l: any) => l.id !== liquidationId);
+           onUpdateCommitment({
+             ...com,
+             liquidations: updatedLiquidations
+           });
+        }
+      }
+    });
+  };
+
   const canEdit = userRole === 'ADMIN' || userRole === 'EDITOR' || userRole === 'FINANCEIRO';
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -519,9 +540,16 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
                           {com.liquidations && com.liquidations.length > 0 && (
                             <div className="pt-2 border-t border-slate-100 border-dashed space-y-2 mt-2">
                               {com.liquidations.map((l: any, i: number) => (
-                                <div key={i} className="flex justify-between items-center text-xs">
+                                <div key={i} className="flex justify-between items-center text-xs bg-slate-50 p-1.5 rounded-lg border border-slate-100">
                                   <span className="text-slate-500 font-medium">{formatDateBR(l.date)} - {l.ns}</span>
-                                  <span className="font-bold text-emerald-600">{formatCurrency(l.value)}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-emerald-600">{formatCurrency(l.value)}</span>
+                                    {(userRole === 'ADMIN' || userRole === 'FINANCEIRO') && (
+                                      <button onClick={() => handleDeleteLiquidation(com.id, l.id)} className="text-slate-400 hover:text-red-500 transition-colors">
+                                        <Trash2 size={14} />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
