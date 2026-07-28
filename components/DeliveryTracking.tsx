@@ -28,9 +28,10 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       const totalLiquidated = isGlobal 
         ? (com.liquidations || []).reduce((acc: number, l: any) => acc + l.value, 0)
         : (com.liquidationNs ? baseValue : 0);
-      return { ...com, activeValue: baseValue - totalLiquidated };
+      const credit = credits.find((c: any) => c.id === com.creditId);
+      return { ...com, activeValue: baseValue - totalLiquidated, ug: credit?.ug || '' };
     });
-  }, [commitments, cancellations]);
+  }, [commitments, cancellations, credits]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sectionFilter, setSectionFilter] = useState(() => {
