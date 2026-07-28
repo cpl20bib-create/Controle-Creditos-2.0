@@ -19,6 +19,19 @@ interface DeliveryTrackingProps {
 }
 
 const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitments, cancellations, onUpdateCommitment, onNotify, userRole, userSections }) => {
+
+  const allMappedCommitments = useMemo(() => {
+    return commitments.map((com: any) => {
+      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const comCancellations = cancellations.filter((c: any) => c.commitmentId === com.id).reduce((acc: number, c: any) => acc + (Number(c.value) || 0), 0);
+      const baseValue = com.value - comCancellations;
+      const totalLiquidated = isGlobal 
+        ? (com.liquidations || []).reduce((acc: number, l: any) => acc + l.value, 0)
+        : (com.liquidationNs ? baseValue : 0);
+      return { ...com, activeValue: baseValue - totalLiquidated };
+    });
+  }, [commitments, cancellations]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [sectionFilter, setSectionFilter] = useState(() => {
     if (userRole === 'ALMOXARIFADO' && userSections && userSections.length > 0) {
@@ -905,7 +918,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
       {showConfDocModal && (
         <ProcessTrackingModals 
-          commitments={mappedCommitments.filter(c => canEditItem(c.section))} 
+          commitments={allMappedCommitments.filter((c: any) => canEditItem(c.section))} 
           onUpdateCommitment={onUpdateCommitment}
           onNotify={onNotify}
           onClose={() => setShowConfDocModal(false)}
@@ -914,7 +927,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       )}
       {showFinanceModal && (
         <ProcessTrackingModals 
-          commitments={mappedCommitments.filter(c => canEditItem(c.section))} 
+          commitments={allMappedCommitments.filter((c: any) => canEditItem(c.section))} 
           onUpdateCommitment={onUpdateCommitment}
           onNotify={onNotify}
           onClose={() => setShowFinanceModal(false)}
