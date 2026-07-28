@@ -56,8 +56,9 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
         const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
         const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
         let legacySent = 0;
-        if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate && com.materialArrivedDate) {
-            legacySent = Number(com.value) || 0;
+        const hasArrivals = (com.materialArrivals?.length || 0) > 0;
+        if (!isGlobal && !hasArrivals && com.sentToFinanceDate && com.materialArrivedDate) {
+            legacySent = Math.max(0, (Number(com.value) || 0) - totalCancellations);
         }
         const calculatedAmountSentToFinance = arrivalsSent + legacySent;
 
@@ -133,8 +134,9 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
       const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
       let legacySent = 0;
-      if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate && com.materialArrivedDate) {
-          legacySent = Number(com.value) || 0;
+      const hasArrivals = (com.materialArrivals?.length || 0) > 0;
+      if (!isGlobal && !hasArrivals && com.sentToFinanceDate && com.materialArrivedDate) {
+          legacySent = Math.max(0, (Number(com.value) || 0) - totalCancellations);
       }
       const calculatedAmountSentToFinance = arrivalsSent + legacySent;
 
@@ -646,8 +648,10 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
               const arrivalsSent = (item.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
               let legacySent = 0;
-              if (!isGlobal && arrivalsSent === 0 && item.sentToFinanceDate && item.materialArrivedDate) {
-                  legacySent = Number(item.value) || 0;
+              const hasArrivals = (item.materialArrivals?.length || 0) > 0;
+              const itemCancellations = safeCancellations.filter(c => c.commitmentId === item.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
+              if (!isGlobal && !hasArrivals && item.sentToFinanceDate && item.materialArrivedDate) {
+                  legacySent = Math.max(0, (Number(item.value) || 0) - itemCancellations);
               }
               const calculatedAmountSentToFinance = arrivalsSent + legacySent;
 
