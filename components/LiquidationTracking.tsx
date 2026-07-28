@@ -13,7 +13,7 @@ interface LiquidationTrackingProps {
   userRole?: string;
 }
 
-const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onSave }: any) => {
+const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onSave, pendingCommitments }: any) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [liquidationDate, setLiquidationDate] = useState('');
   const [liquidationNs, setLiquidationNs] = useState('');
@@ -55,15 +55,13 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
         const com = commitments.find((c: Commitment) => c.id === id);
         if (com) {
           const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-          const comActiveValue = pendingCommitments.find((c: any) => c.id === id)?.activeValue || 0; // Wait, this doesn't work, we grouped by ne_ug. 
-          // Let's compute comActiveValue again:
           const totalCancellations = cancellations
             .filter((c: Cancellation) => c.commitmentId === com.id)
             .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
           
           const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
           let legacySent = 0;
-          if (arrivalsSent === 0 && com.sentToFinanceDate) {
+          if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate) {
               legacySent = com.value;
           }
           const calculatedAmountSentToFinance = arrivalsSent + legacySent;
@@ -260,6 +258,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
           totalValue: com.value,
           totalCancellations: comCancellations,
           legacySentToFinanceDate: com.sentToFinanceDate,
+          isGlobal: com.type === 'Global' || com.type === 'Estimativo',
           legacyLiquidationNs: com.liquidationNs
         });
       } else {
@@ -301,7 +300,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
 
       const arrivalsSent = arrivals.filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
       let legacySent = 0;
-      if (arrivalsSent === 0 && g.legacySentToFinanceDate) {
+      if (!g.isGlobal && arrivalsSent === 0 && g.legacySentToFinanceDate) {
           legacySent = g.totalValue;
       }
       const calculatedAmountSentToFinance = arrivalsSent + legacySent;
@@ -542,6 +541,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
           commitments={commitments}
           cancellations={cancellations}
           credits={credits}
+          pendingCommitments={pendingCommitments}
           onClose={() => setIsModalOpen(false)}
           onSave={onUpdateCommitment}
         />
