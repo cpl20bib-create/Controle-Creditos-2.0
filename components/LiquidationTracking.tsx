@@ -240,14 +240,26 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
     const grouped = new Map<string, any>();
 
     commitments.forEach(com => {
-      const key = `${com.ne}_${com.ug}`;
       const credit = credits.find((c: Credit) => c.id === com.creditId);
+      const ug = credit?.ug || '';
+      const key = `${com.ne}_${ug}`;
       const comCancellations = cancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + c.value, 0);
+
+      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
+      let legacySent = 0;
+      if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate) {
+          legacySent = Number(com.value) || 0;
+      }
+      const calculatedAmountSentToFinance = arrivalsSent + legacySent;
+      const comTotalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + (Number(l.value) || 0), 0)
+        + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? calculatedAmountSentToFinance : 0);
 
       if (!grouped.has(key)) {
         grouped.set(key, { 
           ...com,
           id: key,
+          ug: ug,
           originalIds: [com.id],
           pis: new Set(credit?.pi ? [credit.pi] : []),
           nds: new Set(credit?.nd ? [credit.nd] : []),
@@ -258,13 +270,14 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
           totalValue: com.value,
           totalCancellations: comCancellations,
           legacySentToFinanceDate: com.sentToFinanceDate,
-          isGlobal: com.type === 'Global' || com.type === 'Estimativo',
-          legacyLiquidationNs: com.liquidationNs
+          legacyLiquidationNs: com.liquidationNs,
+          groupTotalLiquidated: comTotalLiquidated
         });
       } else {
         const existing = grouped.get(key);
         existing.totalValue += com.value;
         existing.totalCancellations += comCancellations;
+        existing.groupTotalLiquidated += comTotalLiquidated;
         
         if (credit?.pi) existing.pis.add(credit.pi);
         if (credit?.nd) existing.nds.add(credit.nd);
@@ -298,21 +311,15 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
       });
       const arrivals = Array.from(uniqueArrivals.values());
 
-      const arrivalsSent = arrivals.filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
+      const arrivalsSent = arrivals.filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
       let legacySent = 0;
-      if (!g.isGlobal && arrivalsSent === 0 && g.legacySentToFinanceDate) {
+      const isGroupGlobal = g.type === 'Global' || g.type === 'Estimativo';
+      if (!isGroupGlobal && arrivalsSent === 0 && g.legacySentToFinanceDate) {
           legacySent = g.totalValue;
       }
       const calculatedAmountSentToFinance = arrivalsSent + legacySent;
 
-      // Group liquidations: these are split proportionally across origComs, so summing them directly works if they have unique amounts, but wait!
-      // In handleSave, we generate a NEW liquidation object for EACH origCom!
-      // So if group has 2 origComs, there will be 2 liquidation objects created. 
-      // This means allLiquidations will have 2 items. If we just sum them, it is correct!
-      // Because they were split proportionally, their sum is exactly the valToApply!
-      const totalLiquidated = g.allLiquidations.reduce((sum: number, l: any) => sum + l.value, 0)
-        + ((g.legacyLiquidationNs && g.allLiquidations.length === 0) ? calculatedAmountSentToFinance : 0);
-
+      const totalLiquidated = g.groupTotalLiquidated;
       const amountSentToFinance = Math.min(calculatedAmountSentToFinance, g.totalValue - g.totalCancellations);
       const activeValue = amountSentToFinance - totalLiquidated;
 
