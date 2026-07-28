@@ -29,6 +29,8 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
       value: number;
       date: string;
       items: Array<{ commitmentId: string; arrivalId?: string }>;
+      addedArrivals: Set<string>;
+      addedCommitments: Set<string>;
     }> = {};
 
     commitments.forEach((com: any) => {
@@ -45,14 +47,27 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
             invoices: [],
             value: 0,
             date: date,
-            items: []
+            items: [],
+            addedArrivals: new Set(),
+            addedCommitments: new Set(),
           };
         }
         
         if (invoice && invoice !== 'S/N' && !groups[groupKey].invoices.includes(invoice)) {
           groups[groupKey].invoices.push(invoice);
         }
-        groups[groupKey].value += value;
+        
+        if (arrivalId) {
+          if (!groups[groupKey].addedArrivals.has(arrivalId)) {
+            groups[groupKey].value += value;
+            groups[groupKey].addedArrivals.add(arrivalId);
+          }
+        } else {
+          if (!groups[groupKey].addedCommitments.has(com.id)) {
+            groups[groupKey].value += value;
+            groups[groupKey].addedCommitments.add(com.id);
+          }
+        }
         groups[groupKey].items.push({ commitmentId: com.id, arrivalId });
         
         // Update to earliest date
@@ -71,7 +86,10 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
           });
         } else {
           if (com.materialArrivedDate && !com.sentToConfDocDate) {
-            addGroupItem('Ordinário', com.invoice || 'S/N', com.activeValue || com.value, undefined, com.materialArrivedDate);
+            const arr = com.materialArrivals?.[0];
+            const invoice = arr?.invoice || com.invoice || 'S/N';
+            const value = arr?.value || com.activeValue || com.value;
+            addGroupItem('Ordinário', invoice, value, arr?.id, com.materialArrivedDate);
           }
         }
       } else {
@@ -84,7 +102,10 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
           });
         } else {
           if (com.sentToConfDocDate && !com.sentToFinanceDate) {
-            addGroupItem('Ordinário', com.invoice || 'S/N', com.activeValue || com.value, undefined, com.sentToConfDocDate);
+            const arr = com.materialArrivals?.[0];
+            const invoice = arr?.invoice || com.invoice || 'S/N';
+            const value = arr?.value || com.activeValue || com.value;
+            addGroupItem('Ordinário', invoice, value, arr?.id, com.sentToConfDocDate);
           }
         }
       }
