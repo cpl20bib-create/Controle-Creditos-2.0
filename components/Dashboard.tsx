@@ -54,9 +54,15 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
       cComms.forEach(com => {
         const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
         const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
-        const totalLiquidated = isGlobal 
-          ? (com.liquidations || []).reduce((sum, l) => sum + (Number(l.value) || 0), 0)
-          : (com.liquidationNs ? com.value - totalCancellations : 0);
+        const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
+        let legacySent = 0;
+        if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate) {
+            legacySent = Number(com.value) || 0;
+        }
+        const calculatedAmountSentToFinance = arrivalsSent + legacySent;
+
+        const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + (Number(l.value) || 0), 0)
+          + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? calculatedAmountSentToFinance : 0);
         cLiquidationsTotal += totalLiquidated;
       });
 
@@ -125,9 +131,15 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const pendingCommitments = filteredCommitments.map(com => {
       const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
       const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
-      const totalLiquidated = isGlobal 
-        ? (com.liquidations || []).reduce((sum, l) => sum + (Number(l.value) || 0), 0)
-        : (com.liquidationNs ? com.value - totalCancellations : 0);
+      const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
+      let legacySent = 0;
+      if (!isGlobal && arrivalsSent === 0 && com.sentToFinanceDate) {
+          legacySent = Number(com.value) || 0;
+      }
+      const calculatedAmountSentToFinance = arrivalsSent + legacySent;
+
+      const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + (Number(l.value) || 0), 0)
+        + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? calculatedAmountSentToFinance : 0);
       
       const unliquidatedValue = (com.value - totalCancellations) - totalLiquidated;
       const daysSinceIssue = Math.floor((new Date().getTime() - new Date(com.date).getTime()) / (1000 * 3600 * 24));
@@ -632,9 +644,15 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               });
 
               const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
-              const totalLiquidated = isGlobal 
-                  ? (item.liquidations || []).reduce((sum: number, l: any) => sum + Number(l.value), 0)
-                  : (item.liquidationNs ? item.value : 0);
+              const arrivalsSent = (item.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
+              let legacySent = 0;
+              if (!isGlobal && arrivalsSent === 0 && item.sentToFinanceDate) {
+                  legacySent = Number(item.value) || 0;
+              }
+              const calculatedAmountSentToFinance = arrivalsSent + legacySent;
+
+              const totalLiquidated = (item.liquidations || []).reduce((sum: number, l: any) => sum + (Number(l.value) || 0), 0)
+                + ((item.liquidationNs && !(item.liquidations?.length > 0)) ? calculatedAmountSentToFinance : 0);
               const processStatus = getProcessStatus(item, currentBalance, totalLiquidated);
               
               return (
