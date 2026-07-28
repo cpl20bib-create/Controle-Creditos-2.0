@@ -270,6 +270,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
           totalValue: com.value,
           totalCancellations: comCancellations,
           legacySentToFinanceDate: com.sentToFinanceDate,
+          legacyMaterialArrivedDate: com.materialArrivedDate,
           legacyLiquidationNs: com.liquidationNs,
           groupTotalLiquidated: comTotalLiquidated
         });
@@ -293,6 +294,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
         
         existing.originalIds.push(com.id);
         
+        if (com.materialArrivedDate && !existing.legacyMaterialArrivedDate) { existing.legacyMaterialArrivedDate = com.materialArrivedDate; }
         if (com.sentToFinanceDate && !existing.legacySentToFinanceDate) {
            existing.legacySentToFinanceDate = com.sentToFinanceDate;
         }
@@ -314,7 +316,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
       const arrivalsSent = arrivals.filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
       let legacySent = 0;
       const isGroupGlobal = g.type === 'Global' || g.type === 'Estimativo';
-      if (!isGroupGlobal && arrivalsSent === 0 && g.legacySentToFinanceDate) {
+      if (!isGroupGlobal && arrivalsSent === 0 && g.legacySentToFinanceDate && g.legacyMaterialArrivedDate) {
           legacySent = g.totalValue;
       }
       const calculatedAmountSentToFinance = arrivalsSent + legacySent;
