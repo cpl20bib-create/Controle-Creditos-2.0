@@ -19,48 +19,8 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
   const [liquidationNs, setLiquidationNs] = useState('');
   const [partialValues, setPartialValues] = useState<Record<string, number>>({});
 
-  const pendingCommitments = useMemo(() => {
-    const processed = commitments.map((com: Commitment) => {
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-      const credit = credits.find((c: Credit) => c.id === com.creditId);
-      
-      const totalCancellations = cancellations
-        .filter((c: Cancellation) => c.commitmentId === com.id)
-        .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
+  // unified logic replaces pendingCommitments
 
-      const calculatedAmountSentToFinance = isGlobal 
-        ? (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
-        : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
-      
-      const amountSentToFinance = Math.min(calculatedAmountSentToFinance, com.value - totalCancellations);
-        
-      const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + l.value, 0)
-        + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
-              
-      return { 
-        ...com, 
-        activeValue: amountSentToFinance - totalLiquidated,
-        pi: credit?.pi || '',
-        nd: credit?.nd || '',
-        ug: credit?.ug || '',
-        section: credit?.section || ''
-      };
-    }).filter((com: any) => com.activeValue > 0.01);
-    
-    const grouped = new Map<string, any>();
-    processed.forEach((com: any) => {
-      const key = `${com.ne}_${com.ug}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, { ...com, originalIds: [com.id] });
-      } else {
-        const existing = grouped.get(key);
-        existing.value += com.value;
-        existing.activeValue += com.activeValue;
-        existing.originalIds.push(com.id);
-      }
-    });
-    return Array.from(grouped.values()).sort((a, b) => a.ne.localeCompare(b.ne));
-  }, [commitments, cancellations, credits]);
 
   const handleToggle = (id: string, activeValue: number) => {
     if (selectedIds.includes(id)) {
@@ -101,9 +61,12 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
             .filter((c: Cancellation) => c.commitmentId === com.id)
             .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
           
-          const calculatedAmountSentToFinance = isGlobal 
-            ? (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
-            : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
+          const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
+          let legacySent = 0;
+          if (arrivalsSent === 0 && com.sentToFinanceDate) {
+              legacySent = com.value;
+          }
+          const calculatedAmountSentToFinance = arrivalsSent + legacySent;
           
           const amountSentToFinance = Math.min(calculatedAmountSentToFinance, com.value - totalCancellations);
 
@@ -275,83 +238,105 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
   const pis = useMemo(() => Array.from(new Set(credits.map(c => c.pi).filter(Boolean))), [credits]);
   const ugs = useMemo(() => Array.from(new Set(credits.map(c => c.ug).filter(Boolean))), [credits]);
 
-  const processedCommitments = useMemo(() => {
-    const rawProcessed = commitments.map(com => {
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
-      const credit = credits.find(c => c.id === com.creditId);
-      
-      const totalCancellations = cancellations
-        .filter((c: Cancellation) => c.commitmentId === com.id)
-        .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
-
-      const calculatedAmountSentToFinance = isGlobal 
-        ? (com.materialArrivals || []).filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0) 
-        : (com.sentToFinanceDate ? (com.materialArrivals?.length ? com.materialArrivals[0].value : com.value) : 0);
-        
-      const amountSentToFinance = Math.min(calculatedAmountSentToFinance, com.value - totalCancellations);
-
-      const totalLiquidated = (com.liquidations || []).reduce((sum, l) => sum + l.value, 0)
-        + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
-              
-      const activeValue = amountSentToFinance - totalLiquidated;
-      
-      return {
-        ...com,
-        activeValue: Math.max(0, activeValue),
-        totalLiquidated,
-        amountSentToFinance,
-        totalCancellations,
-        pi: credit?.pi || '',
-        nd: credit?.nd || '',
-        ug: credit?.ug || '',
-        section: credit?.section || ''
-      };
-    });
-
+  const allGroupedCommitments = useMemo(() => {
     const grouped = new Map<string, any>();
-    rawProcessed.forEach(com => {
+
+    commitments.forEach(com => {
       const key = `${com.ne}_${com.ug}`;
+      const credit = credits.find((c: Credit) => c.id === com.creditId);
+      const comCancellations = cancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + c.value, 0);
+
       if (!grouped.has(key)) {
         grouped.set(key, { 
           ...com,
           id: key,
           originalIds: [com.id],
-          pis: new Set(com.pi ? [com.pi] : []),
-          nds: new Set(com.nd ? [com.nd] : []),
-          sections: new Set(com.section ? [com.section] : []),
+          pis: new Set(credit?.pi ? [credit.pi] : []),
+          nds: new Set(credit?.nd ? [credit.nd] : []),
+          sections: new Set(credit?.section ? [credit.section] : []),
           processNumbers: new Set(com.processNumber ? [com.processNumber] : []),
-          allLiquidations: com.liquidations ? [...com.liquidations] : []
+          allLiquidations: com.liquidations ? [...com.liquidations] : [],
+          allMaterialArrivals: com.materialArrivals ? [...com.materialArrivals] : [],
+          totalValue: com.value,
+          totalCancellations: comCancellations,
+          legacySentToFinanceDate: com.sentToFinanceDate,
+          legacyLiquidationNs: com.liquidationNs
         });
       } else {
         const existing = grouped.get(key);
-        existing.value += com.value;
-        existing.activeValue += com.activeValue;
-        existing.totalLiquidated += com.totalLiquidated;
-        existing.amountSentToFinance += com.amountSentToFinance;
-        existing.totalCancellations += com.totalCancellations;
+        existing.totalValue += com.value;
+        existing.totalCancellations += comCancellations;
         
-        if (com.pi) existing.pis.add(com.pi);
-        if (com.nd) existing.nds.add(com.nd);
-        if (com.section) existing.sections.add(com.section);
+        if (credit?.pi) existing.pis.add(credit.pi);
+        if (credit?.nd) existing.nds.add(credit.nd);
+        if (credit?.section) existing.sections.add(credit.section);
         if (com.processNumber) existing.processNumbers.add(com.processNumber);
         
-        if (com.liquidations && com.liquidations.length > 0) {
+        if (com.liquidations) {
           existing.allLiquidations = [...existing.allLiquidations, ...com.liquidations];
+        }
+        if (com.materialArrivals) {
+          existing.allMaterialArrivals = [...existing.allMaterialArrivals, ...com.materialArrivals];
         }
         
         existing.originalIds.push(com.id);
+        
+        if (com.sentToFinanceDate && !existing.legacySentToFinanceDate) {
+           existing.legacySentToFinanceDate = com.sentToFinanceDate;
+        }
+        if (com.liquidationNs && !existing.legacyLiquidationNs) {
+           existing.legacyLiquidationNs = com.liquidationNs;
+        }
       }
     });
 
-    return Array.from(grouped.values()).map(g => ({
-      ...g,
-      pi: Array.from(g.pis).join(', '),
-      nd: Array.from(g.nds).join(', '),
-      section: Array.from(g.sections).join(', '),
-      processNumber: Array.from(g.processNumbers).join(', '),
-      liquidations: g.allLiquidations
-    })).sort((a, b) => a.ne.localeCompare(b.ne));
+    return Array.from(grouped.values()).map(g => {
+      const uniqueArrivals = new Map();
+      g.allMaterialArrivals.forEach((arr: any) => {
+        if (!uniqueArrivals.has(arr.id)) {
+          uniqueArrivals.set(arr.id, arr);
+        }
+      });
+      const arrivals = Array.from(uniqueArrivals.values());
+
+      const arrivalsSent = arrivals.filter(a => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
+      let legacySent = 0;
+      if (arrivalsSent === 0 && g.legacySentToFinanceDate) {
+          legacySent = g.totalValue;
+      }
+      const calculatedAmountSentToFinance = arrivalsSent + legacySent;
+
+      // Group liquidations: these are split proportionally across origComs, so summing them directly works if they have unique amounts, but wait!
+      // In handleSave, we generate a NEW liquidation object for EACH origCom!
+      // So if group has 2 origComs, there will be 2 liquidation objects created. 
+      // This means allLiquidations will have 2 items. If we just sum them, it is correct!
+      // Because they were split proportionally, their sum is exactly the valToApply!
+      const totalLiquidated = g.allLiquidations.reduce((sum: number, l: any) => sum + l.value, 0)
+        + ((g.legacyLiquidationNs && g.allLiquidations.length === 0) ? calculatedAmountSentToFinance : 0);
+
+      const amountSentToFinance = Math.min(calculatedAmountSentToFinance, g.totalValue - g.totalCancellations);
+      const activeValue = amountSentToFinance - totalLiquidated;
+
+      return {
+        ...g,
+        value: g.totalValue, 
+        pi: Array.from(g.pis).join(', '),
+        nd: Array.from(g.nds).join(', '),
+        section: Array.from(g.sections).join(', '),
+        processNumber: Array.from(g.processNumbers).join(', '),
+        liquidations: g.allLiquidations,
+        materialArrivals: arrivals,
+        totalCancellations: g.totalCancellations,
+        amountSentToFinance,
+        totalLiquidated,
+        activeValue: Math.max(0, activeValue)
+      };
+    }).sort((a, b) => a.ne.localeCompare(b.ne));
   }, [commitments, credits, cancellations]);
+
+  const pendingCommitments = useMemo(() => allGroupedCommitments.filter(c => c.activeValue > 0.01), [allGroupedCommitments]);
+  const processedCommitments = allGroupedCommitments;
+
 
   const filtered = useMemo(() => {
     return processedCommitments.filter(com => {
