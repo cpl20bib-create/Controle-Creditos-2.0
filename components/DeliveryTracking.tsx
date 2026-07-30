@@ -22,7 +22,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
   const allMappedCommitments = useMemo(() => {
     return commitments.map((com: any) => {
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
       const comCancellations = cancellations.filter((c: any) => c.commitmentId === com.id).reduce((acc: number, c: any) => acc + (Number(c.value) || 0), 0);
       const baseValue = com.value - comCancellations;
       const totalLiquidated = isGlobal 
