@@ -46,7 +46,7 @@ export const ProcessMetricsModal: React.FC<ProcessMetricsModalProps> = ({ commit
     }>();
 
     commitments.forEach(com => {
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
       const timeEmpenhoToCompany = getDaysDiff(com.date, com.sentToCompanyDate);
       const credit = credits.find(c => c.id === com.creditId);
       const section = credit?.section || '';
