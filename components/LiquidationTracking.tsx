@@ -54,7 +54,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
       group.originalIds.forEach((id: string) => {
         const com = commitments.find((c: Commitment) => c.id === id);
         if (com) {
-          const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+          const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
           const totalCancellations = cancellations
             .filter((c: Cancellation) => c.commitmentId === com.id)
             .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
@@ -179,7 +179,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{com.pi} / {com.nd}</p>
                             <p className={`font-black ${isSelected ? 'text-indigo-700' : 'text-slate-700'}`}>{formatCurrency(com.activeValue)}</p>
                           </div>
-                          {(com.type === 'Global' || com.type === 'Estimativo') && isSelected && (
+                          {(com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo') && isSelected && (
                             <div className="ml-4 flex flex-col items-end" onClick={e => e.stopPropagation()}>
                               <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Valor a Liquidar (R$)</label>
                               <input 
@@ -268,7 +268,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
       const key = `${com.ne}_${ug}`;
       const comCancellations = cancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + c.value, 0);
 
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
       const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
       let legacySent = 0;
       const hasArrivals = (com.materialArrivals?.length || 0) > 0;
@@ -339,7 +339,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
 
       const arrivalsSent = arrivals.filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
       let legacySent = 0;
-      const isGroupGlobal = g.type === 'Global' || g.type === 'Estimativo';
+      const isGroupGlobal = g.type?.toLowerCase() === 'global' || g.type?.toLowerCase() === 'estimativo';
       const hasArrivals = arrivals.length > 0;
       if (!isGroupGlobal && !hasArrivals && g.legacySentToFinanceDate && g.legacyMaterialArrivedDate) {
           legacySent = Math.max(0, g.totalValue - g.totalCancellations);
