@@ -34,7 +34,7 @@ const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, 
       return acc + (com.creditId === credit.id ? com.value : 0);
     }, 0);
 
-    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + b.value, 0);
+    const totalRefunded = refunds.filter(ref => ref.creditId === credit.id).reduce((a, b) => a + (Number(b.value) || 0), 0);
     
     // Fixed: Commitment uses creditId directly, not allocations
     const totalCancelled = cancellations.reduce((acc, can) => {
