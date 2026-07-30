@@ -26,7 +26,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       const comCancellations = cancellations.filter((c: any) => c.commitmentId === com.id).reduce((acc: number, c: any) => acc + (Number(c.value) || 0), 0);
       const baseValue = com.value - comCancellations;
       const totalLiquidated = isGlobal 
-        ? (com.liquidations || []).reduce((acc: number, l: any) => acc + l.value, 0)
+        ? (com.liquidations || []).reduce((acc: number, l: any) => acc + (Number(l.value) || 0), 0)
         : (com.liquidationNs ? baseValue : 0);
       const credit = credits.find((c: any) => c.id === com.creditId);
       return { ...com, activeValue: baseValue - totalLiquidated, ug: credit?.ug || '' };
@@ -99,7 +99,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       .filter(com => {
         const totalCancellations = cancellations
           .filter(c => c.commitmentId === com.id)
-          .reduce((sum, c) => sum + c.value, 0);
+          .reduce((sum, c) => sum + (Number(c.value) || 0), 0);
         const balance = com.value - totalCancellations;
         return balance > 0;
       })
@@ -119,7 +119,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
       const totalCancellations = cancellations
           .filter(c => c.commitmentId === com.id)
-          .reduce((sum, c) => sum + c.value, 0);
+          .reduce((sum, c) => sum + (Number(c.value) || 0), 0);
       const activeValue = com.value - totalCancellations;
 
       return {
@@ -223,8 +223,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       if (sortBy === 'daysPassed') {
         comparison = a.daysPassed - b.daysPassed;
       } else if (sortBy === 'value') {
-        const valA = Math.max(0, a.value - (a.materialArrivals || []).reduce((acc: number, arr: any) => acc + arr.value, 0));
-        const valB = Math.max(0, b.value - (b.materialArrivals || []).reduce((acc: number, arr: any) => acc + arr.value, 0));
+        const valA = Math.max(0, a.value - (a.materialArrivals || []).reduce((acc: number, arr: any) => acc + (Number(arr.value) || 0), 0));
+        const valB = Math.max(0, b.value - (b.materialArrivals || []).reduce((acc: number, arr: any) => acc + (Number(arr.value) || 0), 0));
         comparison = valA - valB;
       } else if (sortBy === 'ne') {
         comparison = a.ne.localeCompare(b.ne);
@@ -307,7 +307,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
 
   const handleAddMaterialArrival = (com: any, date: string, value: number, invoice?: string) => {
     if (!date || value <= 0) return;
-    const currentTotal = (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0);
+    const currentTotal = (com.materialArrivals || []).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
     if (currentTotal + value > com.value + 0.01) {
       alert(`O valor recebido não pode ultrapassar o saldo do empenho. Saldo disponível: R$ ${(com.value - currentTotal).toFixed(2)}`);
       return;
@@ -328,7 +328,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
   const handleRemoveMaterialArrival = (com: any, arrivalId: string) => {
     com.originalCommitments.forEach((origCom: any) => {
       const nextArrivals = (origCom.materialArrivals || []).filter((a: any) => a.id !== arrivalId);
-      const currentTotal = nextArrivals.reduce((acc: number, a: any) => acc + a.value, 0);
+      const currentTotal = nextArrivals.reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
       const isFullyReceived = currentTotal >= com.value - 0.01;
       const updatedCom = { 
         ...origCom, 
@@ -576,7 +576,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                     {formatCurrency(
                       (com.materialArrivedDate && !(com.materialArrivals?.length > 0))
                         ? 0
-                        : Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0))
+                        : Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0))
                     )}
                   </p>
                 </div>
@@ -848,7 +848,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                         </div>
                         
                         {canEditItem(com.section) && 
-                         (com.type === 'Ordinário' ? (!com.materialArrivedDate && (com.materialArrivals?.length || 0) === 0) : Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0)) > 0) && (
+                         (com.type === 'Ordinário' ? (!com.materialArrivedDate && (com.materialArrivals?.length || 0) === 0) : Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0)) > 0) && (
                         <div className="border-t border-slate-100 pt-4 space-y-3">
                           <h5 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Novo Recebimento</h5>
                           <div className="flex flex-col gap-2">
@@ -861,8 +861,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                               <input 
                                 type="number"
                                 step="0.01"
-                                max={Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0))}
-                                placeholder={`Valor R$ (Máx: ${formatCurrency(Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0)))})`}
+                                max={Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0))}
+                                placeholder={`Valor R$ (Máx: ${formatCurrency(Math.max(0, com.value - (com.materialArrivals || []).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0)))})`}
                                 id={`val-${com.id}`}
                                 className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                               />
@@ -897,7 +897,7 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
                         <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Recebido</span>
                           <span className="text-sm font-black text-emerald-600">
-                            {formatCurrency(com.materialArrivals?.length > 0 ? (com.materialArrivals || []).reduce((acc: number, a: any) => acc + a.value, 0) : (com.materialArrivedDate ? (com.activeValue || com.value) : 0))}
+                            {formatCurrency(com.materialArrivals?.length > 0 ? (com.materialArrivals || []).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0) : (com.materialArrivedDate ? (com.activeValue || com.value) : 0))}
                           </span>
                         </div>
                       </div>
