@@ -34,7 +34,7 @@ export const ProcessTrackingModals: React.FC<ProcessTrackingModalsProps> = ({ co
     }> = {};
 
     commitments.forEach((com: any) => {
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
       const groupKey = `${com.ug || 'N/A'}_${com.ne}`;
 
       const addGroupItem = (type: string, invoice: string, value: number, arrivalId: string | undefined, date: string) => {
