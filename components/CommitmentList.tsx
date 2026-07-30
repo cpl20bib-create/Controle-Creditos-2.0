@@ -181,7 +181,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
     
     const cancelledValue = relatedCancellations.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
     const currentBalance = group.totalValue - cancelledValue;
-    const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
+    const isGlobal = item.type?.toLowerCase() === 'global' || item.type?.toLowerCase() === 'estimativo';
     const totalLiquidated = isGlobal 
         ? (item.liquidations || []).reduce((sum: number, l: any) => sum + Number(l.value), 0)
         : (item.liquidationNs ? item.value : 0);
