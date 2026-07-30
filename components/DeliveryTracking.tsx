@@ -170,8 +170,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
           groups[key].type = com.type;
         }
 
-        if (com.materialArrivals && com.materialArrivals.length > (groups[key].materialArrivals?.length || 0)) {
-           groups[key].materialArrivals = com.materialArrivals;
+        if (com.materialArrivals && com.materialArrivals.length > 0) {
+           groups[key].materialArrivals = [...(groups[key].materialArrivals || []), ...com.materialArrivals];
         }
 
         // Inherit contacts if one has more up-to-date contacts
@@ -312,16 +312,29 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
       alert(`O valor recebido não pode ultrapassar o saldo do empenho. Saldo disponível: R$ ${(com.value - currentTotal).toFixed(2)}`);
       return;
     }
-    const newArrival = { id: generateId(), date, value, invoice };
+
+    let remainingValue = value;
     const isFullyReceived = currentTotal + value >= com.value - 0.01;
 
     com.originalCommitments.forEach((origCom: Commitment) => {
-      const updatedCom = { 
-        ...origCom, 
-        materialArrivals: [...(origCom.materialArrivals || []), newArrival],
-        materialArrivedDate: isFullyReceived ? date : origCom.materialArrivedDate
-      };
-      onUpdateCommitment(updatedCom);
+      if (remainingValue <= 0) return;
+      
+      const origCancellations = cancellations.filter((c: any) => c.commitmentId === origCom.id).reduce((acc: number, c: any) => acc + (Number(c.value) || 0), 0);
+      const origArrivals = (origCom.materialArrivals || []).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
+      const availableInOrig = Math.max(0, origCom.value - origCancellations - origArrivals);
+      
+      if (availableInOrig > 0.01) {
+        const amountToApply = Math.min(availableInOrig, remainingValue);
+        const newArrival = { id: generateId(), date, value: Number(amountToApply.toFixed(2)), invoice };
+        
+        const updatedCom = { 
+          ...origCom, 
+          materialArrivals: [...(origCom.materialArrivals || []), newArrival],
+          materialArrivedDate: (origArrivals + amountToApply >= origCom.value - origCancellations - 0.01 || isFullyReceived) ? date : origCom.materialArrivedDate
+        };
+        onUpdateCommitment(updatedCom);
+        remainingValue -= amountToApply;
+      }
     });
   };
 
@@ -329,7 +342,8 @@ const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ credits, commitment
     com.originalCommitments.forEach((origCom: any) => {
       const nextArrivals = (origCom.materialArrivals || []).filter((a: any) => a.id !== arrivalId);
       const currentTotal = nextArrivals.reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
-      const isFullyReceived = currentTotal >= com.value - 0.01;
+      const origCancellations = cancellations.filter((c: any) => c.commitmentId === origCom.id).reduce((acc: number, c: any) => acc + (Number(c.value) || 0), 0);
+      const isFullyReceived = currentTotal >= (origCom.value - origCancellations - 0.01);
       const updatedCom = { 
         ...origCom, 
         materialArrivals: nextArrivals,
