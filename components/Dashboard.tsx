@@ -52,7 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
 
       let cLiquidationsTotal = 0;
       cComms.forEach(com => {
-        const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+        const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
         const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
         const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
         let legacySent = 0;
@@ -130,7 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
     const filteredCommitments = safeCommitments.filter(com => localCreditIds.has(com.creditId));
     
     const pendingCommitments = filteredCommitments.map(com => {
-      const isGlobal = com.type === 'Global' || com.type === 'Estimativo';
+      const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
       const totalCancellations = safeCancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
       const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
       let legacySent = 0;
@@ -645,7 +645,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
                 };
               });
 
-              const isGlobal = item.type === 'Global' || item.type === 'Estimativo';
+              const isGlobal = item.type?.toLowerCase() === 'global' || item.type?.toLowerCase() === 'estimativo';
               const arrivalsSent = (item.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
               let legacySent = 0;
               const hasArrivals = (item.materialArrivals?.length || 0) > 0;
