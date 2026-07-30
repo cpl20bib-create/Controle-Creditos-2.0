@@ -57,9 +57,9 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
           const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
           const totalCancellations = cancellations
             .filter((c: Cancellation) => c.commitmentId === com.id)
-            .reduce((sum: number, c: Cancellation) => sum + c.value, 0);
+            .reduce((sum: number, c: Cancellation) => sum + (Number(c.value) || 0), 0);
           
-          const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
+          const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
           let legacySent = 0;
           const hasArrivals = (com.materialArrivals?.length || 0) > 0;
           const comCancellations = cancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
@@ -70,7 +70,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
           
           const amountSentToFinance = Math.min(calculatedAmountSentToFinance, com.value - totalCancellations);
 
-          const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + l.value, 0)
+          const totalLiquidated = (com.liquidations || []).reduce((sum: number, l: any) => sum + (Number(l.value) || 0), 0)
             + ((com.liquidationNs && !(com.liquidations?.length > 0)) ? amountSentToFinance : 0);
           const comActive = amountSentToFinance - totalLiquidated;
 
@@ -266,7 +266,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
       const credit = credits.find((c: Credit) => c.id === com.creditId);
       const ug = credit?.ug || '';
       const key = `${com.ne}_${ug}`;
-      const comCancellations = cancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + c.value, 0);
+      const comCancellations = cancellations.filter(c => c.commitmentId === com.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
 
       const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
       const arrivalsSent = (com.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
@@ -337,7 +337,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
       });
       const arrivals = Array.from(uniqueArrivals.values());
 
-      const arrivalsSent = arrivals.filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + a.value, 0);
+      const arrivalsSent = arrivals.filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
       let legacySent = 0;
       const isGroupGlobal = g.type?.toLowerCase() === 'global' || g.type?.toLowerCase() === 'estimativo';
       const hasArrivals = arrivals.length > 0;
