@@ -329,13 +329,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
     });
 
     return Array.from(grouped.values()).map(g => {
-      const uniqueArrivals = new Map();
-      g.allMaterialArrivals.forEach((arr: any) => {
-        if (!uniqueArrivals.has(arr.id)) {
-          uniqueArrivals.set(arr.id, arr);
-        }
-      });
-      const arrivals = Array.from(uniqueArrivals.values());
+      const arrivals = g.allMaterialArrivals || [];
 
       const arrivalsSent = arrivals.filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
       let legacySent = 0;
