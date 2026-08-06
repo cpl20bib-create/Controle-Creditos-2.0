@@ -481,7 +481,7 @@ const App: React.FC = () => {
           </button>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hidden md:flex items-center gap-4 text-emerald-100/30 hover:text-white w-full px-4 py-3 transition-colors">
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
+            {isSidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>}
           </button>
         </div>
       </aside>
