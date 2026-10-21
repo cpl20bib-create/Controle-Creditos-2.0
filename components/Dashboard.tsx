@@ -649,7 +649,7 @@ const Dashboard: React.FC<DashboardProps> = ({ credits, commitments, refunds, ca
               const arrivalsSent = (item.materialArrivals || []).filter((a: any) => !!a.sentToFinanceDate).reduce((acc: number, a: any) => acc + (Number(a.value) || 0), 0);
               let legacySent = 0;
               const hasArrivals = (item.materialArrivals?.length || 0) > 0;
-              const itemCancellations = safeCancellations.filter(c => c.commitmentId === item.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
+              const itemCancellations = (cancellations || []).filter(c => c.commitmentId === item.id).reduce((sum, c) => sum + (Number(c.value) || 0), 0);
               if (!isGlobal && !hasArrivals && item.sentToFinanceDate && item.materialArrivedDate) {
                   legacySent = Math.max(0, (Number(item.value) || 0) - itemCancellations);
               }
