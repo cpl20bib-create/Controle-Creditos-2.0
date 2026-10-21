@@ -27,14 +27,32 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
 
   const [error, setError] = useState<string | null>(null);
 
-  // Filtragem de PIs: Apenas PIs que possuem empenhos emitidos na UG selecionada
+  // Helper para calcular saldo remanescente disponível de um empenho (descontando anulações e liquidações)
+  const getCommitmentBalance = (com: Commitment) => {
+    const alreadyCancelled = cancellations
+      .filter(can => can.commitmentId === com.id)
+      .reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+    
+    const baseValue = Math.max(0, (Number(com.value) || 0) - alreadyCancelled);
+    if (baseValue < 0.01) return 0;
+
+    const isGlobal = com.type?.toLowerCase() === 'global' || com.type?.toLowerCase() === 'estimativo';
+    const totalLiquidated = isGlobal
+      ? (com.liquidations || []).reduce((acc: number, l: any) => acc + (Number(l.value) || 0), 0)
+      : (com.liquidationNs ? baseValue : 0);
+
+    return Math.max(0, parseFloat((baseValue - totalLiquidated).toFixed(2)));
+  };
+
+  // Filtragem de PIs: Apenas PIs que possuem empenhos com saldo emitidos na UG selecionada
   const piOptions = useMemo(() => {
     if (!formData.ug) return [];
     
-    // 1. Filtrar empenhos cujos créditos pertencem à UG selecionada
+    // 1. Filtrar empenhos cujos créditos pertencem à UG selecionada e que possuam saldo para anulação
     const commitmentsInUG = commitments.filter(com => {
       const credit = credits.find(c => c.id === com.creditId);
-      return credit?.ug === formData.ug;
+      if (credit?.ug !== formData.ug) return false;
+      return getCommitmentBalance(com) >= 0.01;
     });
 
     // 2. Extrair os PIs únicos desses créditos
@@ -44,31 +62,44 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
     }).filter(Boolean) as string[];
 
     return Array.from(new Set(pisWithCommitments)).sort();
-  }, [formData.ug, credits, commitments]);
+  }, [formData.ug, credits, commitments, cancellations]);
 
   const filteredCommitments = useMemo(() => {
     if (!formData.ug || !formData.pi) return [];
-    return commitments.filter(com => {
-      const credit = credits.find(c => c.id === com.creditId);
-      return credit?.ug === formData.ug && credit?.pi === formData.pi;
-    });
-  }, [formData.ug, formData.pi, commitments, credits]);
+    return commitments
+      .filter(com => {
+        const credit = credits.find(c => c.id === com.creditId);
+        if (credit?.ug !== formData.ug || credit?.pi !== formData.pi) return false;
+        return getCommitmentBalance(com) >= 0.01;
+      })
+      .map(com => ({
+        ...com,
+        balance: getCommitmentBalance(com)
+      }))
+      .sort((a, b) => {
+        const comp = (a.ne || '').localeCompare(b.ne || '', undefined, { numeric: true, sensitivity: 'base' });
+        if (comp !== 0) return comp;
+        return (a.id || '').localeCompare(b.id || '');
+      });
+  }, [formData.ug, formData.pi, commitments, credits, cancellations]);
 
   useEffect(() => { setFormData(prev => ({ ...prev, pi: '', commitmentId: '', value: 0 })); }, [formData.ug]);
   useEffect(() => { setFormData(prev => ({ ...prev, commitmentId: '', value: 0 })); }, [formData.pi]);
+  useEffect(() => {
+    if (formData.commitmentId && !filteredCommitments.some(c => c.id === formData.commitmentId)) {
+      setFormData(prev => ({ ...prev, commitmentId: '', value: 0 }));
+    }
+  }, [filteredCommitments, formData.commitmentId]);
 
   const maxCancellableValue = useMemo(() => {
     const com = commitments.find(c => c.id === formData.commitmentId);
     if (!com) return 0;
-    const alreadyCancelled = cancellations
-      .filter(can => can.commitmentId === com.id)
-      .reduce((acc, curr) => acc + curr.value, 0);
-    return com.value - alreadyCancelled;
+    return getCommitmentBalance(com);
   }, [formData.commitmentId, commitments, cancellations]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.commitmentId || formData.value <= 0 || formData.value > maxCancellableValue || formData.ro.length < 12) {
+    if (!formData.commitmentId || formData.value <= 0 || formData.value > maxCancellableValue + 0.009 || formData.ro.length < 12) {
       setError('Verifique os campos. O valor não pode exceder o saldo do empenho e a RO deve estar completa.');
       return;
     }
@@ -76,7 +107,8 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
     const { ug, pi, ...cancellationData } = formData;
     onSave({ 
       id: Math.random().toString(36).substr(2, 9), 
-      ...cancellationData 
+      ...cancellationData,
+      value: Number(formData.value.toFixed(2))
     });
     onCancel();
   };
@@ -116,7 +148,7 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
                 disabled={!formData.ug}
               >
                 <option value="">
-                  {!formData.ug ? 'Aguardando UG...' : piOptions.length === 0 ? 'Sem empenhos emitidos nesta UG' : 'Selecione o PI...'}
+                  {!formData.ug ? 'Aguardando UG...' : piOptions.length === 0 ? 'Sem empenhos com saldo nesta UG' : 'Selecione o PI...'}
                 </option>
                 {piOptions.map(pi => <option key={pi} value={pi}>{pi}</option>)}
               </select>
@@ -126,17 +158,34 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
           <div className="space-y-1.5">
             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><FileText size={10} /> Empenho para Anular (NE)</label>
             <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black disabled:opacity-50" value={formData.commitmentId} onChange={e => setFormData({...formData, commitmentId: e.target.value})} disabled={!formData.pi}>
-              <option value="">{!formData.pi ? 'Aguardando PI...' : 'Selecione a NE...'}</option>
-              {filteredCommitments.map(com => (
-                <option key={com.id} value={com.id}>{com.ne} - R$ {com.value.toLocaleString('pt-BR')}</option>
-              ))}
+              <option value="">{!formData.pi ? 'Aguardando PI...' : filteredCommitments.length === 0 ? 'Nenhum empenho com saldo para anular' : 'Selecione a NE...'}</option>
+              {filteredCommitments.map(com => {
+                const credit = credits.find(c => c.id === com.creditId);
+                const hasDuplicateNe = filteredCommitments.filter(c => c.ne === com.ne).length > 1;
+                return (
+                  <option key={com.id} value={com.id}>
+                    {com.ne}{hasDuplicateNe && credit?.nc ? ` (${credit.nc})` : ''} - Saldo: R$ {com.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
           {formData.commitmentId && (
-            <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 animate-in fade-in slide-in-from-top-2 shadow-inner">
-              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Saldo Remanescente do Empenho</p>
-              <p className="text-2xl font-black text-blue-900">R$ {maxCancellableValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            <div 
+              onClick={() => setFormData(prev => ({ ...prev, value: maxCancellableValue }))}
+              title="Clique para utilizar o saldo integral"
+              className="bg-blue-50 p-6 rounded-2xl border border-blue-100 animate-in fade-in slide-in-from-top-2 shadow-inner cursor-pointer hover:bg-blue-100/70 transition-all group"
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Saldo Remanescente do Empenho</p>
+                  <p className="text-2xl font-black text-blue-900">R$ {maxCancellableValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-blue-600 bg-white/90 group-hover:bg-blue-600 group-hover:text-white px-3 py-1.5 rounded-lg border border-blue-200 transition-all shadow-sm">
+                  Usar Saldo Total
+                </span>
+              </div>
             </div>
           )}
 
