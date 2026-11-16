@@ -1,16 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { Contract, ContractStatus, ContractType } from '../types';
-import { toLocalDateString } from '../utils/dateUtils';
+import { getDefaultDateForYear } from '../utils/dateUtils';
+import { getDefaultFiscalYear } from '../utils/yearUtils';
 import { Save, ArrowLeft, Briefcase, Building2, Landmark, Target, Calendar, UserCheck, FileText, AlertCircle, Clock, Tag, DollarSign, TrendingUp } from 'lucide-react';
 
 interface ContractFormProps {
   onSave: (contract: Contract) => void;
   onCancel: () => void;
   initialData?: Contract;
+  activeYear?: number;
 }
 
-const ContractForm: React.FC<ContractFormProps> = ({ onSave, onCancel, initialData }) => {
+const ContractForm: React.FC<ContractFormProps> = ({ onSave, onCancel, initialData, activeYear = getDefaultFiscalYear() }) => {
   const [formData, setFormData] = useState<Partial<Contract>>({
     contractNumber: '',
     companyName: '',
@@ -65,7 +67,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ onSave, onCancel, initialDa
     const contractToSave: Contract = {
       ...formData,
       id: initialData?.id || Math.random().toString(36).substr(2, 9),
-      created_at: initialData?.created_at || toLocalDateString(new Date()),
+      created_at: initialData?.created_at || getDefaultDateForYear(activeYear),
       pi: formData.type === 'RECEITA' ? '' : (formData.pi || '')
     } as Contract;
 
@@ -149,7 +151,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ onSave, onCancel, initialDa
                   </label>
                   <input 
                     type="text" 
-                    placeholder="Ex: 01/2026-BIB20"
+                    placeholder={`Ex: 01/${activeYear}-BIB20`}
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black uppercase outline-none focus:ring-2 focus:ring-slate-500 transition-all" 
                     value={formData.contractNumber} 
                     onChange={e => setFormData({...formData, contractNumber: e.target.value.toUpperCase()})}
@@ -277,7 +279,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ onSave, onCancel, initialDa
                    </label>
                    <input 
                      type="text" 
-                     placeholder="Ex: BI nº 24 de 15/01/2026"
+                     placeholder={`Ex: BI nº 24 de 15/01/${activeYear}`}
                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-xs font-black outline-none focus:ring-2 focus:ring-slate-500" 
                      value={formData.biNumber} 
                      onChange={e => setFormData({...formData, biNumber: e.target.value})}
