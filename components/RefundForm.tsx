@@ -4,7 +4,8 @@ import { Credit, Commitment, Refund, Cancellation, UG } from '../types';
 import { Save, AlertCircle, RefreshCw, ArrowLeft, Landmark, PieChart } from 'lucide-react';
 import { UGS } from '../constants';
 
-import { toLocalDateString } from '../utils/dateUtils';
+import { getDefaultDateForYear } from '../utils/dateUtils';
+import { getDefaultFiscalYear } from '../utils/yearUtils';
 
 interface RefundFormProps {
   credits: Credit[];
@@ -13,16 +14,17 @@ interface RefundFormProps {
   cancellations: Cancellation[];
   onSave: (refund: Refund) => void;
   onCancel: () => void;
+  activeYear?: number;
 }
 
-const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, cancellations, onSave, onCancel }) => {
+const RefundForm: React.FC<RefundFormProps> = ({ credits, commitments, refunds, cancellations, onSave, onCancel, activeYear = getDefaultFiscalYear() }) => {
   const [formData, setFormData] = useState({
     ug: '' as UG | '',
     pi: '',
     creditId: '',
     value: 0,
     description: '',
-    date: toLocalDateString(new Date())
+    date: getDefaultDateForYear(activeYear)
   });
 
   const [error, setError] = useState<string | null>(null);
