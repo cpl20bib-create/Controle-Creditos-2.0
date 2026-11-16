@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { Landmark, Lock, User as UserIcon, AlertCircle, ShieldCheck } from 'lucide-react';
+import { getDefaultFiscalYear } from '../utils/yearUtils';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -59,6 +60,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, setUsers }) => {
           <p className="text-emerald-400 font-black text-[10px] uppercase tracking-widest">
             SISTEMA DE CONTROLE ORÇAMENTÁRIO SALC
           </p>
+          <span className="inline-block mt-2 px-3 py-1 rounded-full bg-emerald-900/70 border border-emerald-700/60 text-emerald-300 font-black text-[9px] uppercase tracking-widest">
+            Exercício {getDefaultFiscalYear()}
+          </span>
         </div>
 
         <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl border border-emerald-900/50">
@@ -121,7 +125,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, setUsers }) => {
 
         <div className="mt-8 text-center">
           <p className="text-[10px] text-emerald-100/30 font-bold uppercase tracking-widest">
-            © 2026 - Logística BIB 20
+            © {new Date().getFullYear()} - Logística BIB 20
           </p>
         </div>
       </div>
