@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History, PackageSearch, Bell, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { LayoutDashboard, ReceiptText, Landmark, FilePieChart, Menu, X, TrendingDown, Users, LogOut, Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Briefcase, History, PackageSearch, Bell, Trash2, Calendar, ArrowRightLeft } from 'lucide-react';
 import { Credit, Commitment, Refund, Cancellation, Filters, User, Contract, AuditLog } from './types';
 import Dashboard from './components/Dashboard';
 import CreditList from './components/CreditList';
@@ -13,6 +13,16 @@ import AuditHistory from './components/AuditHistory';
 import DeliveryTracking from './components/DeliveryTracking';
 import LiquidationTracking from './components/LiquidationTracking';
 import { api, supabase } from './api';
+import {
+  getAvailableFiscalYears,
+  getDefaultFiscalYear,
+  getCreditFiscalYear,
+  getCommitmentFiscalYear,
+  getCancellationFiscalYear,
+  getRefundFiscalYear,
+  isContractInFiscalYear,
+  getAuditLogFiscalYear
+} from './utils/yearUtils';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -27,12 +37,21 @@ const App: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const defaultSystemYear = useMemo(() => getDefaultFiscalYear(), []);
+  const availableYears = useMemo(() => getAvailableFiscalYears(), []);
+  const [activeYear, setActiveYear] = useState<number>(() => getDefaultFiscalYear());
+
   const [filters, setFilters] = useState<Filters>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   
   const syncingLock = useRef(false);
+
+  const handleYearChange = (year: number) => {
+    setActiveYear(year);
+    setFilters(prev => ({ hideZeroBalance: prev.hideZeroBalance }));
+  };
 
   const syncWithServer = useCallback(async () => {
     if (syncingLock.current) return;
@@ -56,16 +75,22 @@ const App: React.FC = () => {
           
           localStorage.setItem('budget_credits', JSON.stringify(state.credits));
           localStorage.setItem('budget_commitments', JSON.stringify(state.commitments));
+          localStorage.setItem('budget_refunds', JSON.stringify(state.refunds));
+          localStorage.setItem('budget_cancellations', JSON.stringify(state.cancellations));
           localStorage.setItem('budget_users', JSON.stringify(state.users));
           localStorage.setItem('budget_contracts', JSON.stringify(state.contracts || []));
         }
       } else {
         const cachedCredits = localStorage.getItem('budget_credits');
         const cachedComs = localStorage.getItem('budget_commitments');
+        const cachedRefunds = localStorage.getItem('budget_refunds');
+        const cachedCancellations = localStorage.getItem('budget_cancellations');
         const cachedUsers = localStorage.getItem('budget_users');
         const cachedContracts = localStorage.getItem('budget_contracts');
         if (cachedCredits) setCredits(JSON.parse(cachedCredits));
         if (cachedComs) setCommitments(JSON.parse(cachedComs));
+        if (cachedRefunds) setRefunds(JSON.parse(cachedRefunds));
+        if (cachedCancellations) setCancellations(JSON.parse(cachedCancellations));
         if (cachedUsers) setUsers(JSON.parse(cachedUsers));
         if (cachedContracts) setContracts(JSON.parse(cachedContracts));
       }
@@ -272,6 +297,7 @@ const App: React.FC = () => {
   const handleAddRefund = async (newRefund: Refund) => {
     const nextR = [...refunds, newRefund];
     setRefunds(nextR);
+    localStorage.setItem('budget_refunds', JSON.stringify(nextR));
     if (isOnline) {
       try {
         await api.upsert('refunds', newRefund);
@@ -287,6 +313,7 @@ const App: React.FC = () => {
   const handleAddCancellation = async (newCan: Cancellation) => {
     const nextC = [...cancellations, newCan];
     setCancellations(nextC);
+    localStorage.setItem('budget_cancellations', JSON.stringify(nextC));
     if (isOnline) {
       try {
         await api.upsert('cancellations', newCan);
@@ -343,6 +370,48 @@ const App: React.FC = () => {
     { id: 'audit', label: 'Auditoria', icon: History, roles: ['ADMIN'] },
     { id: 'users', label: 'Usuários', icon: Users, roles: ['ADMIN'] },
   ] as const;
+
+  const creditsById = useMemo(() => {
+    const map = new Map<string, Credit>();
+    credits.forEach(c => map.set(c.id, c));
+    return map;
+  }, [credits]);
+
+  const commitmentsById = useMemo(() => {
+    const map = new Map<string, Commitment>();
+    commitments.forEach(c => map.set(c.id, c));
+    return map;
+  }, [commitments]);
+
+  const yearCredits = useMemo(
+    () => credits.filter(c => getCreditFiscalYear(c) === activeYear),
+    [credits, activeYear]
+  );
+
+  const yearCommitments = useMemo(
+    () => commitments.filter(c => getCommitmentFiscalYear(c, creditsById) === activeYear),
+    [commitments, creditsById, activeYear]
+  );
+
+  const yearRefunds = useMemo(
+    () => refunds.filter(r => getRefundFiscalYear(r, creditsById) === activeYear),
+    [refunds, creditsById, activeYear]
+  );
+
+  const yearCancellations = useMemo(
+    () => cancellations.filter(can => getCancellationFiscalYear(can, commitmentsById, creditsById) === activeYear),
+    [cancellations, commitmentsById, creditsById, activeYear]
+  );
+
+  const yearContracts = useMemo(
+    () => contracts.filter(con => isContractInFiscalYear(con, activeYear)),
+    [contracts, activeYear]
+  );
+
+  const yearAuditLogs = useMemo(
+    () => auditLogs.filter(log => log.action !== 'NOTIFICATION' && getAuditLogFiscalYear(log) === activeYear),
+    [auditLogs, activeYear]
+  );
 
   if (!currentUser) {
     return <Login users={users} setUsers={handleUpdateUsers} onLogin={handleLogin} />;
@@ -440,6 +509,40 @@ const App: React.FC = () => {
             </span>
           )}
         </div>
+
+        {(isSidebarOpen || window.innerWidth < 768) && (
+          <div className="px-4 pt-4">
+            <div className="bg-emerald-900/40 border border-emerald-800/60 rounded-2xl p-2.5 space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-300/80 flex items-center gap-1.5">
+                  <Calendar size={10} /> Exercício Financeiro
+                </span>
+                {activeYear !== defaultSystemYear && (
+                  <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                    {defaultSystemYear >= 2027 && activeYear === 2026 ? 'Consulta' : 'Atualização'}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {availableYears.map(year => (
+                  <button
+                    key={year}
+                    onClick={() => handleYearChange(year)}
+                    className={`py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                      activeYear === year
+                        ? year >= 2027
+                          ? 'bg-indigo-500 text-white shadow-md'
+                          : 'bg-emerald-500 text-white shadow-md'
+                        : 'bg-emerald-950/60 text-emerald-200/60 hover:text-white hover:bg-emerald-900/60'
+                    }`}
+                  >
+                    Sistema {year}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         
         <nav className="flex-1 mt-6 px-3 space-y-1.5 overflow-y-auto">
           {filteredMenuItems.map((item) => (
@@ -506,8 +609,27 @@ const App: React.FC = () => {
               <span className="hidden sm:inline">{isSyncing ? 'Conectando...' : isOnline ? 'Online' : 'Desconectado'}</span>
             </button>
           </div>
-          <div className="flex items-center gap-4 md:gap-6">
-            
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              {availableYears.map(year => (
+                <button
+                  key={year}
+                  onClick={() => handleYearChange(year)}
+                  title={year === 2026 ? 'Consultar Sistema 2026' : `Acessar Sistema ${year}`}
+                  className={`px-2.5 md:px-3 py-1 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${
+                    activeYear === year
+                      ? year >= 2027
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
+                  }`}
+                >
+                  <span className="hidden sm:inline">Sistema</span>
+                  <span>{year}</span>
+                </button>
+              ))}
+            </div>
+
             <div className="relative">
               <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors relative">
                 <Bell size={20} />
@@ -567,15 +689,58 @@ const App: React.FC = () => {
         </header>
 
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
-          {activeTab === 'dashboard' && <Dashboard credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} />}
-          {activeTab === 'tracking' && <DeliveryTracking credits={credits} commitments={commitments} cancellations={cancellations} onUpdateCommitment={handleUpdateCommitment} onNotify={sendNotification} userRole={currentUser.role} userSections={currentUser.assignedSections} />}
-          {activeTab === 'liquidations' && <LiquidationTracking commitments={commitments} cancellations={cancellations} credits={credits} onUpdateCommitment={handleUpdateCommitment} userRole={currentUser.role} />}
-          {activeTab === 'credits' && <CreditList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} auditLogs={auditLogs} />}
-          {activeTab === 'commitments' && <CommitmentList credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} auditLogs={auditLogs} />}
-          {activeTab === 'contracts' && <ContractList contracts={contracts} credits={credits} commitments={commitments} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} />}
-          {activeTab === 'reports' && <Reports credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} />}
-          {activeTab === 'audit' && currentUser.role === 'ADMIN' && <AuditHistory logs={auditLogs} />}
-          {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} onDelete={handleDeleteUser} />}
+          {activeYear !== defaultSystemYear && (
+            <div className={`mb-6 p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 ${
+              defaultSystemYear >= 2027 && activeYear === 2026
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl shrink-0 ${
+                  defaultSystemYear >= 2027 && activeYear === 2026
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-indigo-100 text-indigo-700'
+                }`}>
+                  <Calendar size={18} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-wider">
+                    {defaultSystemYear >= 2027 && activeYear === 2026
+                      ? 'Modo Consulta — Sistema 2026'
+                      : `Atualização / Exercício ${activeYear}`}
+                  </p>
+                  <p className="text-xs font-medium opacity-80">
+                    {defaultSystemYear >= 2027 && activeYear === 2026
+                      ? 'Você está consultando os registros referentes ao exercício de 2026.'
+                      : `Exibindo e registrando dados exclusivos do exercício de ${activeYear}.`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleYearChange(defaultSystemYear)}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0 shadow-sm ${
+                  defaultSystemYear >= 2027 && activeYear === 2026
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                }`}
+              >
+                <ArrowRightLeft size={14} />
+                Voltar para Sistema {defaultSystemYear}
+              </button>
+            </div>
+          )}
+
+          <div key={activeYear}>
+            {activeTab === 'dashboard' && <Dashboard credits={yearCredits} commitments={yearCommitments} refunds={yearRefunds} cancellations={yearCancellations} filters={filters} setFilters={setFilters} />}
+            {activeTab === 'tracking' && <DeliveryTracking credits={yearCredits} commitments={yearCommitments} cancellations={yearCancellations} onUpdateCommitment={handleUpdateCommitment} onNotify={sendNotification} userRole={currentUser.role} userSections={currentUser.assignedSections} />}
+            {activeTab === 'liquidations' && <LiquidationTracking commitments={yearCommitments} cancellations={yearCancellations} credits={yearCredits} onUpdateCommitment={handleUpdateCommitment} userRole={currentUser.role} activeYear={activeYear} />}
+            {activeTab === 'credits' && <CreditList credits={yearCredits} commitments={yearCommitments} refunds={yearRefunds} cancellations={yearCancellations} filters={filters} setFilters={setFilters} onAddCredit={handleAddCredit} onUpdateCredit={handleUpdateCredit} onDeleteCredit={handleDeleteCredit} onAddRefund={handleAddRefund} userRole={currentUser.role} auditLogs={yearAuditLogs} activeYear={activeYear} />}
+            {activeTab === 'commitments' && <CommitmentList credits={yearCredits} commitments={yearCommitments} refunds={yearRefunds} cancellations={yearCancellations} onAdd={handleAddCommitment} onUpdate={handleUpdateCommitment} onDelete={handleDeleteCommitment} onAddCancellation={handleAddCancellation} userRole={currentUser.role} auditLogs={yearAuditLogs} activeYear={activeYear} />}
+            {activeTab === 'contracts' && <ContractList contracts={yearContracts} credits={yearCredits} commitments={yearCommitments} onAdd={handleAddContract} onUpdate={handleUpdateContract} onDelete={handleDeleteContract} userRole={currentUser.role} activeYear={activeYear} />}
+            {activeTab === 'reports' && <Reports credits={yearCredits} commitments={yearCommitments} refunds={yearRefunds} cancellations={yearCancellations} />}
+            {activeTab === 'audit' && currentUser.role === 'ADMIN' && <AuditHistory logs={yearAuditLogs} />}
+            {activeTab === 'users' && currentUser.role === 'ADMIN' && <UserManagement users={users} setUsers={handleUpdateUsers} onDelete={handleDeleteUser} />}
+          </div>
         </div>
       </main>
     </div>
