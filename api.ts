@@ -59,7 +59,8 @@ const mappers = {
         diexRemessa: c.diexRemessa || null,
         sentToConfDocDate: c.sentToConfDocDate || null,
         sentToFinanceDate: c.sentToFinanceDate || null,
-        processNumber: c.processNumber || null
+        processNumber: c.processNumber || null,
+        fiscalYear: c.fiscalYear || null
       };
       if (metaIndex >= 0) contacts[metaIndex] = metaObj as any;
       else contacts.push(metaObj as any);
@@ -105,7 +106,8 @@ const mappers = {
         diexRemessa: metaObj?.diexRemessa || undefined,
         sentToConfDocDate: metaObj?.sentToConfDocDate || undefined,
         sentToFinanceDate: metaObj?.sentToFinanceDate || undefined,
-        processNumber: metaObj?.processNumber || undefined
+        processNumber: metaObj?.processNumber || undefined,
+        fiscalYear: metaObj?.fiscalYear || undefined
       };
     }
   },
