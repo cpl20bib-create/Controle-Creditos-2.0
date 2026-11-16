@@ -21,11 +21,12 @@ interface CreditListProps {
   onAddRefund: (r: Refund) => void;
   userRole: UserRole;
   auditLogs: AuditLog[];
+  activeYear?: number;
 }
 
 const CreditList: React.FC<CreditListProps> = ({ 
   credits, commitments, refunds, cancellations, filters, setFilters, 
-  onAddCredit, onUpdateCredit, onDeleteCredit, onAddRefund, userRole, auditLogs
+  onAddCredit, onUpdateCredit, onDeleteCredit, onAddRefund, userRole, auditLogs, activeYear
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreditForm, setShowCreditForm] = useState(false);
@@ -249,13 +250,13 @@ const CreditList: React.FC<CreditListProps> = ({
 
   if (showCreditForm) {
     return (
-      <CreditForm onSave={(c) => { if (editingCredit) onUpdateCredit(c); else onAddCredit(c); setShowCreditForm(false); setEditingCredit(null); }} existingCredits={credits} onCancel={() => { setShowCreditForm(false); setEditingCredit(null); }} initialData={editingCredit || undefined} />
+      <CreditForm activeYear={activeYear} onSave={(c) => { if (editingCredit) onUpdateCredit(c); else onAddCredit(c); setShowCreditForm(false); setEditingCredit(null); }} existingCredits={credits} onCancel={() => { setShowCreditForm(false); setEditingCredit(null); }} initialData={editingCredit || undefined} />
     );
   }
 
   if (showRefundForm) {
     return (
-      <RefundForm credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onSave={(r) => { onAddRefund(r); setShowRefundForm(false); }} onCancel={() => setShowRefundForm(false)} />
+      <RefundForm activeYear={activeYear} credits={credits} commitments={commitments} refunds={refunds} cancellations={cancellations} onSave={(r) => { onAddRefund(r); setShowRefundForm(false); }} onCancel={() => setShowRefundForm(false)} />
     );
   }
 
