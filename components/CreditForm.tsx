@@ -3,16 +3,18 @@ import React, { useState, useEffect } from 'react';
 import { Credit, UG } from '../types';
 import { UGS, SECTION_OPTIONS } from '../constants';
 import { Save, ArrowLeft, AlertCircle, Landmark, Tag } from 'lucide-react';
-import { toLocalDateString } from '../utils/dateUtils';
+import { getDefaultDateForYear } from '../utils/dateUtils';
+import { getDefaultFiscalYear } from '../utils/yearUtils';
 
 interface CreditFormProps {
   onSave: (credit: Credit) => void;
   existingCredits: Credit[];
   onCancel: () => void;
   initialData?: Credit;
+  activeYear?: number;
 }
 
-const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCancel, initialData }) => {
+const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCancel, initialData, activeYear = getDefaultFiscalYear() }) => {
   const [formData, setFormData] = useState<Partial<Credit>>({
     ug: '160211',
     pi: '',
@@ -24,7 +26,7 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
     section: SECTION_OPTIONS[0],
     valueReceived: undefined,
     deadline: '',
-    nc: '2026NC',
+    nc: `${activeYear}NC`,
     organ: '',
     description: ''
   });
@@ -96,7 +98,7 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
       valueReceived: val,
       valueAvailable: initialData ? (Number(formData.valueAvailable) || val) : val,
       valueUsed: initialData ? (Number(formData.valueUsed) || 0) : 0,
-      created_at: initialData?.created_at || toLocalDateString(new Date()),
+      created_at: initialData?.created_at || getDefaultDateForYear(activeYear),
     } as Credit;
 
     onSave(creditToSave);
@@ -181,7 +183,7 @@ const CreditForm: React.FC<CreditFormProps> = ({ onSave, existingCredits, onCanc
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Nota de Crédito (NC)</label>
                   <input 
                     type="text" 
-                    placeholder="2026NC000XXX"
+                    placeholder={`${activeYear}NC000XXX`}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-black uppercase focus:ring-2 focus:ring-emerald-500 outline-none" 
                     value={formData.nc} 
                     onChange={e => setFormData({...formData, nc: e.target.value.toUpperCase()})} 
