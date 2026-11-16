@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Credit, Commitment, Refund, Cancellation, UG } from '../types';
 import { Save, ArrowLeft, Landmark, Zap, AlertCircle, Calendar, FileText, CheckCircle2, Layers, Tag } from 'lucide-react';
 import { UGS } from '../constants';
-import { toLocalDateString, parseLocalDate } from '../utils/dateUtils';
+import { getDefaultDateForYear, parseLocalDate } from '../utils/dateUtils';
+import { getDefaultFiscalYear } from '../utils/yearUtils';
 
 interface CommitmentFormProps {
   credits: Credit[];
@@ -13,6 +14,7 @@ interface CommitmentFormProps {
   onDelete?: (id: string) => void;
   onCancel: () => void;
   initialData?: Commitment;
+  activeYear?: number;
 }
 
 // Interface para representar o agrupamento de dotações
@@ -29,15 +31,15 @@ interface BudgetCell {
 }
 
 const CommitmentForm: React.FC<CommitmentFormProps> = ({ 
-  credits, commitments, refunds, cancellations, onSave, onDelete, onCancel, initialData 
+  credits, commitments, refunds, cancellations, onSave, onDelete, onCancel, initialData, activeYear = getDefaultFiscalYear()
 }) => {
   const [formData, setFormData] = useState({
     ug: '' as UG | '',
     cellId: '', // ID da célula selecionada
-    ne: initialData?.ne || '2026NE',
+    ne: initialData?.ne || `${activeYear}NE`,
     totalValue: 0, // Será inicializado no useEffect
     description: initialData?.description || '',
-    date: initialData?.date || toLocalDateString(new Date()),
+    date: initialData?.date || getDefaultDateForYear(activeYear),
     type: initialData?.type || 'Ordinário' as any
   });
 
@@ -88,7 +90,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
           ne: initialData.ne,
           totalValue: totalValueValue,
           description: initialData.description || '',
-          date: initialData.date || toLocalDateString(new Date()),
+          date: initialData.date || getDefaultDateForYear(activeYear),
           type: initialData.type || 'Ordinário'
         });
         setOriginalCommitments(related);
@@ -229,8 +231,6 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
     && Math.abs(formData.totalValue - originalTotalValue) < 0.01 
     && formData.cellId === originalCellId;
 
-  const isBalanceInsufficient = selectedCell && formData.totalValue > 0 && (formData.totalValue - selectedNotesBalance > 0.01) && !isValueUnchanged;
-
   const handleToggleNc = (ncId: string) => {
     setSelectedNcIds(prev => {
       if (prev.includes(ncId)) {
@@ -274,11 +274,6 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
       return;
     }
 
-    if (isBalanceInsufficient) {
-      setError("Saldo insuficiente nas notas selecionadas.");
-      return;
-    }
-
     if (Math.abs(currentAllocatedSum - formData.totalValue) > 0.01) {
       setError("A distribuição do saldo está incompleta ou excede o valor total do empenho.");
       return;
@@ -317,7 +312,8 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
           description: formData.description,
           type: formData.type as any,
           materialArrivals: existing ? existing.materialArrivals : [],
-          liquidations: existing ? existing.liquidations : []
+          liquidations: existing ? existing.liquidations : [],
+          fiscalYear: existing?.fiscalYear || activeYear
         });
       }
     });
@@ -346,10 +342,10 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-10">
-          {(error || isBalanceInsufficient) && (
+          {error && (
             <div className="p-5 bg-red-50 text-red-700 rounded-2xl border border-red-100 font-black text-[11px] uppercase flex items-center gap-4 animate-shake shadow-sm">
               <AlertCircle size={24} />
-              {isBalanceInsufficient ? "Saldo insuficiente nas notas selecionadas para cobrir o valor total." : error}
+              {error}
             </div>
           )}
 
@@ -417,7 +413,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
                       <input 
                         type="text" 
                         maxLength={12}
-                        placeholder="2026NE000XXX"
+                        placeholder={`${activeYear}NE000XXX`}
                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black uppercase outline-none focus:ring-2 focus:ring-red-500 shadow-sm" 
                         value={formData.ne} 
                         onChange={e => setFormData({...formData, ne: e.target.value.toUpperCase()})} 
@@ -553,7 +549,7 @@ const CommitmentForm: React.FC<CommitmentFormProps> = ({
           <button 
             type="submit" 
             className="w-full py-7 bg-red-700 hover:bg-red-800 text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] shadow-2xl flex items-center justify-center gap-4 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={formData.totalValue <= 0 || Math.abs(currentAllocatedSum - formData.totalValue) > 0.01 || isBalanceInsufficient}
+            disabled={formData.totalValue <= 0 || Math.abs(currentAllocatedSum - formData.totalValue) > 0.01}
           >
             <Save size={24} /> Efetivar Empenho Consolidado
           </button>
