@@ -18,7 +18,28 @@ export const formatDateBR = (dateString: any) => {
   }
 };
 
-export const toLocalDateString = formatDateBR;
+export const toLocalDateString = (date: Date | string = new Date()): string => {
+  if (typeof date === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}/.test(date)) return date.split('T')[0];
+    return date;
+  }
+  if (!(date instanceof Date) || isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const getDefaultDateForYear = (activeYear: number): string => {
+  const now = new Date();
+  if (now.getFullYear() === activeYear) {
+    return toLocalDateString(now);
+  }
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${activeYear}-${month}-${day}`;
+};
+
 export const formatDate = formatDateBR;
 
 export const parseLocalDate = (dateString: any) => {
