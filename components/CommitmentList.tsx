@@ -19,11 +19,12 @@ interface CommitmentListProps {
   onAddCancellation: (can: Cancellation) => void;
   userRole: UserRole;
   auditLogs: AuditLog[];
+  activeYear?: number;
 }
 
 const CommitmentList: React.FC<CommitmentListProps> = ({ 
   credits, commitments, refunds, cancellations, 
-  onAdd, onUpdate, onDelete, onAddCancellation, userRole, auditLogs
+  onAdd, onUpdate, onDelete, onAddCancellation, userRole, auditLogs, activeYear
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'list' | 'add' | 'cancel'>('list');
@@ -229,6 +230,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
           setEditingItem(null);
         }}
         initialData={editingItem || undefined}
+        activeYear={activeYear}
       />
     );
   }
@@ -239,6 +241,7 @@ const CommitmentList: React.FC<CommitmentListProps> = ({
         credits={credits}
         commitments={commitments}
         cancellations={cancellations}
+        activeYear={activeYear}
         onSave={(can) => {
           onAddCancellation(can);
           setActiveView('list');
