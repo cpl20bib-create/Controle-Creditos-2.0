@@ -3,6 +3,8 @@ import { Commitment, Cancellation, Credit } from '../types';
 import { Search, Trash2, Plus, Calendar, FileText, CheckSquare, Square, X, CheckCircle2, Tag, Filter, ArrowUp, ArrowDown, Building2, PackageSearch } from 'lucide-react';
 import { formatDateBR } from '../utils/dateUtils';
 
+import { getDefaultFiscalYear } from '../utils/yearUtils';
+
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 interface LiquidationTrackingProps {
@@ -11,9 +13,10 @@ interface LiquidationTrackingProps {
   credits: Credit[];
   onUpdateCommitment: (updated: Commitment) => void;
   userRole?: string;
+  activeYear?: number;
 }
 
-const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onSave, pendingCommitments }: any) => {
+const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onSave, pendingCommitments, activeYear = getDefaultFiscalYear() }: any) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [liquidationDate, setLiquidationDate] = useState('');
   const [liquidationNs, setLiquidationNs] = useState('');
@@ -45,7 +48,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
     if (!liquidationDate) return alert('Informe a data da liquidação.');
     
     const regex = new RegExp(`^\\d{4}NS\\d{6}$`);
-    if (!regex.test(liquidationNs)) return alert('O número da NS é inválido. O formato esperado é YYYYNSXXXXXX (ex: 2026NS123456).');
+    if (!regex.test(liquidationNs)) return alert(`O número da NS é inválido. O formato esperado é YYYYNSXXXXXX (ex: ${activeYear}NS123456).`);
 
     selectedIds.forEach(groupId => {
       const group = pendingCommitments.find((g: any) => g.id === groupId);
@@ -127,7 +130,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Número da NS</label>
               <input 
                 type="text" 
-                placeholder="Ex: 2026NS123456"
+                placeholder={`Ex: ${activeYear}NS123456`}
                 value={liquidationNs} 
                 onChange={e => setLiquidationNs(e.target.value.toUpperCase())} 
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all font-medium text-slate-700 outline-none uppercase placeholder:normal-case placeholder:text-slate-400"
@@ -221,7 +224,7 @@ const NewLiquidationModal = ({ commitments, cancellations, credits, onClose, onS
   );
 };
 
-const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, credits, onUpdateCommitment, userRole }) => {
+const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, cancellations, credits, onUpdateCommitment, userRole, activeYear = getDefaultFiscalYear() }) => {
   const handleDeleteLiquidation = (groupId: string, liquidationId: string) => {
     if (!confirm('Tem certeza que deseja excluir esta liquidação?')) return;
     
@@ -577,6 +580,7 @@ const LiquidationTracking: React.FC<LiquidationTrackingProps> = ({ commitments, 
           cancellations={cancellations}
           credits={credits}
           pendingCommitments={pendingCommitments}
+          activeYear={activeYear}
           onClose={() => setIsModalOpen(false)}
           onSave={onUpdateCommitment}
         />
