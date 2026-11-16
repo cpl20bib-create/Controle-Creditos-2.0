@@ -83,6 +83,7 @@ export interface Commitment {
   type?: CommitmentType;
   materialArrivals?: MaterialArrival[];
   liquidations?: Liquidation[];
+  fiscalYear?: number;
 }
 
 export interface Cancellation {
