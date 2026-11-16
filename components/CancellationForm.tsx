@@ -4,7 +4,8 @@ import { Credit, Commitment, Cancellation, UG } from '../types';
 import { Save, AlertCircle, RefreshCw, ArrowLeft, Landmark, PieChart, FileText, ClipboardList } from 'lucide-react';
 import { UGS } from '../constants';
 
-import { toLocalDateString } from '../utils/dateUtils';
+import { getDefaultDateForYear } from '../utils/dateUtils';
+import { getDefaultFiscalYear } from '../utils/yearUtils';
 
 interface CancellationFormProps {
   credits: Credit[];
@@ -12,16 +13,18 @@ interface CancellationFormProps {
   cancellations: Cancellation[];
   onSave: (cancellation: Cancellation) => void;
   onCancel: () => void;
+  activeYear?: number;
 }
 
-const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitments, cancellations, onSave, onCancel }) => {
+const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitments, cancellations, onSave, onCancel, activeYear = getDefaultFiscalYear() }) => {
+  const roPrefix = `${activeYear}RO`;
   const [formData, setFormData] = useState({
     ug: '' as UG | '',
     pi: '',
     commitmentId: '',
     value: 0,
-    ro: '2026RO',
-    date: toLocalDateString(new Date()),
+    ro: roPrefix,
+    date: getDefaultDateForYear(activeYear),
     bi: 'BI nº XX, de DD/MM/AAAA'
   });
 
@@ -205,8 +208,20 @@ const CancellationForm: React.FC<CancellationFormProps> = ({ credits, commitment
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Número da RO (2026ROXXXXXX)</label>
-              <input type="text" maxLength={12} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black shadow-sm" value={formData.ro} onChange={e => { const v = e.target.value.toUpperCase(); if (v.startsWith('2026RO') || v === '') setFormData({...formData, ro: v}); }} />
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Número da RO ({activeYear}ROXXXXXX)</label>
+              <input
+                type="text"
+                maxLength={12}
+                placeholder={`${activeYear}RO000001`}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 text-black shadow-sm"
+                value={formData.ro}
+                onChange={e => {
+                  const v = e.target.value.toUpperCase();
+                  if (v === '' || v.startsWith(roPrefix) || roPrefix.startsWith(v)) {
+                    setFormData({ ...formData, ro: v });
+                  }
+                }}
+              />
             </div>
           </div>
 
